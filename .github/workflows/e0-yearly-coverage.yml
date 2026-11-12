@@ -4,21 +4,26 @@ on:
   push:
     paths:
       - 'src/c2_yearly_coverage.py'
+      - 'src/c2_temporal_gate.py'
       - 'tests/test_yearly_coverage.py'
       - '.github/workflows/e0-yearly-coverage.yml'
 jobs:
   year-coverage-pilot:
+    strategy:
+      fail-fast: false
+      matrix:
+        year: [2023, 2024]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - run: python -m unittest discover -s tests -v
-      - name: Audit 2023 and 2024 official EIA-930 reporting coverage
-        run: python -m src.c2_yearly_coverage --years 2023 2024 --out outputs/e0_years
-      - name: Evaluate preregistered chronological split gate (pilot remains incomplete)
+      - name: Audit original EIA-930 four BA yearly reporting coverage
+        run: python -u -m src.c2_yearly_coverage --years ${{ matrix.year }} --out outputs/e0_years
+      - name: Evaluate locked time split gate
         if: always()
         run: |
           if [ -f outputs/e0_years/annual_ba_coverage.csv ]; then
@@ -27,6 +32,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: c2-e0-2023-2024-official-coverage
+          name: c2-e0-${{ matrix.year }}-official-coverage
           path: outputs/e0_years/
           if-no-files-found: warn
