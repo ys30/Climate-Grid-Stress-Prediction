@@ -1,0 +1,26 @@
+name: C2 E1 HIFLD polygon candidate discovery
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_hifld_geometry_discovery.py'
+      - 'tests/test_hifld_geometry_discovery.py'
+      - '.github/workflows/e1-hifld-discovery.yml'
+jobs:
+  discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -v
+      - name: Inspect real HIFLD candidate boundaries, without approving them
+        run: python -m src.c2_hifld_geometry_discovery --out outputs/e1_geography_discovery
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-hifld-candidate-discovery
+          path: outputs/e1_geography_discovery
+          if-no-files-found: warn
