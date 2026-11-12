@@ -1,0 +1,29 @@
+name: C2 E0 source probe - EIA930
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_eia930_probe.py'
+      - 'tests/test_eia930_probe.py'
+      - '.github/workflows/e0-eia930-source-probe.yml'
+jobs:
+  source-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test EIA contracts
+        run: python -m unittest discover -s tests -v
+      - name: Fetch original EIA-930 2024 July one-day sample for four BAs
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: python -m src.c2_eia930_probe --start 2024-07-01T01 --end 2024-07-02T00 --out outputs/e0
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e0-eia930-four-ba-source-probe
+          path: outputs/e0/
+          if-no-files-found: warn
