@@ -21,7 +21,7 @@ The queried ArcGIS service is `Control_Areas_OR`; it returned 16 geometries. BA-
 
 The service itself cannot populate the full four-BA exposure weights. Nor do its reported names and year alone authorize the BPAT/CISO features as historically stable BA territory. A proper national **Control Areas** archival source is more appropriate: 
 https://www.datalumos.org/datalumos/project/239072/version/V1/view
-(public HIFLD OPEN Control Areas GeoJSON archival snapshot, circa 2025, 2022–2025 estimated coverage). This is a *candidate source*, not yet ingested or checked for four BA IDs. A separate official/source geodata reviewer must still verify code mapping, area completeness, overlaps, geometries, and temporal representativeness.
+(public HIFLD OPEN Control Areas GeoJSON archival snapshot, circa 2025, 2022–2025 estimated coverage). This is a *candidate source*, not yet ingested or checked for four BA IDs. The DataLumos page advertises a 15.1 MB GeoJSON ZIP, but the actual download endpoint redirects to a login/terms workflow, so do not claim that it has been acquired automatically. Check data-access permissions and preserve the published archive citation before ingest. A separate official/source geodata reviewer must still verify code mapping, area completeness, overlaps, geometries, and temporal representativeness.
 
 **DO NOT** quietly replace missing AZPS/SRP BA polygons with Arizona state or Salt River Project headquarters buffers, or treat the two candidate polygons as automatically approved.
 
@@ -33,5 +33,7 @@ https://www.datalumos.org/datalumos/project/239072/version/V1/view
 4. Stream a bounded, true gridded ERA5 2m temperature region/time subset (do not fetch multi-petabyte Zarr; this store is chunked in single-hour *global* grids, potentially expensive in sustained egress). 
 5. Ensure source ERA5 validity time is aligned to EIA-930 UTC interval-start labels by an **explicit** weather-time convention; preserve alternate ±1-hour lag checks for interpretation. Then perform the existing strict complete-case join.
 6. Only after a fully observed source panel and QA gates, fit calendar baselines / GAM / XGBoost; keep 2024–2025 test sealed.
+
+Repository-wide E1 full-suite tests initially failed because `numpy` and `shapely` were not preinstalled in the minimal phase1 CI runner, not because of a failing scientific algorithm. CI workflows were updated to install `numpy`, `xarray`, `shapely`, `pyproj`; the new baseline and HIFLD re-runs passed. Source candidate coverage remains two of four.
 
 This stage does not yet estimate weather sensitivity, historical anthropogenic climate attribution, forecast skill, or future power-grid unserved energy.
