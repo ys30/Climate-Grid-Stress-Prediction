@@ -35,3 +35,41 @@ jobs:
           name: c2-e0-${{ matrix.year }}-official-coverage
           path: outputs/e0_years/
           if-no-files-found: warn
+  combined-temporal-gate:
+    needs: year-coverage-pilot
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e0-*-official-coverage
+          path: outputs/yearly_artifacts
+      - name: Combine annual BA quality results and verify six-year contract
+        run: |
+          python - <<'PY'
+          import csv,glob,pathlib
+          paths=glob.glob("outputs/yearly_artifacts/*/annual_ba_coverage.csv")
+          if len(paths)!=6:raise RuntimeError(f"Expected six annual artifacts, got {len(paths)}")
+          rows=[]
+          for path in paths:
+              with open(path,newline="") as f:rows.extend(csv.DictReader(f))
+          keys=[(int(r["year"]),r["ba"]) for r in rows]
+          if len(rows)!=24 or len(set(keys))!=24:raise RuntimeError("Unexpected annual BA key coverage")
+          out=pathlib.Path("outputs/e0_combined")
+          out.mkdir(parents=True,exist_ok=True)
+          with (out/"annual_ba_coverage_2020_2025.csv").open("w",newline="") as f:
+              w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader()
+              w.writerows(sorted(rows,key=lambda x:(int(x["year"]),x["ba"])))
+          PY
+      - name: Evaluate combined chronological admission
+        run: python -m src.c2_temporal_gate --coverage outputs/e0_combined/annual_ba_coverage_2020_2025.csv --out outputs/e0_combined/temporal_split_gate.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e0-2020-2025-combined-admission
+          path: outputs/e0_combined/
+          if-no-files-found: warn
