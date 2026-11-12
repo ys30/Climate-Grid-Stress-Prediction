@@ -80,23 +80,25 @@ def run(years,output):
         for year in years:
             inputs=[]
             print(f"BEGIN YEAR {year}",flush=True)
-            for part in ("Jan_Jun","Jul_Dec"):
-                url=f"{SOURCE}{year}_{part}.csv"
-                dest=Path(root)/f"{year}_{part}.csv"
+            # Previous-year H2 holds first UTC hours of Jan 1 in EIA local reporting.
+            slices=((year-1,"Jul_Dec"),(year,"Jan_Jun"),(year,"Jul_Dec"))
+            for source_year,part in slices:
+                url=f"{SOURCE}{source_year}_{part}.csv"
+                dest=Path(root)/f"{source_year}_{part}.csv"
                 try:
                     subprocess.run(["curl","--fail","--location","--silent","--show-error",
                                     "--connect-timeout","15","--max-time","150",
                                     "--retry","1","--output",str(dest),url],
                                    check=True,timeout=180)
-                    print(f"DOWNLOADED {year} {part}: {dest.stat().st_size} bytes",flush=True)
+                    print(f"DOWNLOADED {source_year} {part}: {dest.stat().st_size} bytes",flush=True)
                     if dest.stat().st_size<1000:raise ValueError("Unexpectedly small CSV")
-                    sources.append({"year":year,"half":part,"url":url,"bytes":dest.stat().st_size,
+                    sources.append({"target_year":year,"source_year":source_year,"half":part,"url":url,"bytes":dest.stat().st_size,
                                     "sha256":sha256_file(dest)})
                     inputs.append(dest)
                 except Exception as exc:
-                    failures.append({"year":year,"half":part,"error_type":type(exc).__name__,
+                    failures.append({"target_year":year,"source_year":source_year,"half":part,"error_type":type(exc).__name__,
                                      "message":str(exc)[:250]})
-            if len(inputs)==2:
+            if len(inputs)==3:
                 try:
                     all_rows.extend(analyze_files(inputs,year))
                     print(f"AUDITED YEAR {year}: {len(all_rows)} total BA rows",flush=True)
