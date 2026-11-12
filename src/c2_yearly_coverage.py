@@ -70,7 +70,7 @@ def analyze_files(files,year):
 def sha256_file(file):
     digest=hashlib.sha256()
     with open(file,"rb") as f:
-        for chunk in iter(lambda:f.read(1024*1024),""):digest.update(chunk)
+        for chunk in iter(lambda:f.read(1024*1024),b""):digest.update(chunk)
     return digest.hexdigest()
 
 def run(years,output):
