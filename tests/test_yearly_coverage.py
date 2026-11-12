@@ -1,8 +1,14 @@
 import unittest,tempfile
 from pathlib import Path
-from src.c2_yearly_coverage import analyze_files,expected_hours
+from src.c2_yearly_coverage import analyze_files,expected_hours,sha256_file
+import hashlib
 
 class TestYearlyCoverage(unittest.TestCase):
+    def test_binary_hash_terminates_at_eof(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/'binary.bin'
+            p.write_bytes(b'abc'*400000)
+            self.assertEqual(sha256_file(p), hashlib.sha256(p.read_bytes()).hexdigest())
     def test_leap_year_expected(self):
         self.assertEqual(expected_hours(2024),8784)
         self.assertEqual(expected_hours(2023),8760)
