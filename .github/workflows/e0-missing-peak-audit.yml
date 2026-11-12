@@ -1,0 +1,41 @@
+name: C2 E0 exact missing hours and raw peak diagnostics
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_missing_peak_audit.py'
+      - 'tests/test_missing_peak_audit.py'
+      - '.github/workflows/e0-missing-peak-audit.yml'
+jobs:
+  audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        year: [2023, 2024]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -v
+      - name: Download original EIA-930 source slices
+        run: |
+          mkdir -p inputs
+          for half in Jan_Jun Jul_Dec; do
+            curl --fail --location --silent --show-error --max-time 120 \
+              --output "inputs/${{ matrix.year }}_${half}.csv" \
+              "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_${{ matrix.year }}_${half}.csv"
+          done
+      - name: Review exact raw missing keys and top demand observations
+        run: |
+          python -m src.c2_missing_peak_audit --year ${{ matrix.year }} \
+            --csv inputs/${{ matrix.year }}_Jan_Jun.csv inputs/${{ matrix.year }}_Jul_Dec.csv \
+            --out outputs/e0_diagnostics
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e0-exact-qa-${{ matrix.year }}
+          path: outputs/e0_diagnostics
+          if-no-files-found: warn
