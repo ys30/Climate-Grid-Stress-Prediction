@@ -3,11 +3,10 @@
 Year-specific source snapshots are provenance-verified by SHA256. Report missing
 BA-hour rows; never impute and never call reporting QA an outage validation.
 """
-import argparse,csv,hashlib,json,shutil,tempfile
+import argparse,csv,hashlib,json,subprocess,tempfile
 from collections import defaultdict
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
-from urllib.request import Request,urlopen
 
 BAS=("AZPS","BPAT","CISO","SRP")
 REQUIRED={"Balancing Authority","UTC Time at End of Hour","Demand (MW)"}
@@ -80,12 +79,16 @@ def run(years,output):
     with tempfile.TemporaryDirectory() as root:
         for year in years:
             inputs=[]
+            print(f"BEGIN YEAR {year}",flush=True)
             for part in ("Jan_Jun","Jul_Dec"):
                 url=f"{SOURCE}{year}_{part}.csv"
                 dest=Path(root)/f"{year}_{part}.csv"
                 try:
-                    with urlopen(Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=180) as response:
-                        with dest.open("wb") as f:shutil.copyfileobj(response,f)
+                    subprocess.run(["curl","--fail","--location","--silent","--show-error",
+                                    "--connect-timeout","15","--max-time","150",
+                                    "--retry","1","--output",str(dest),url],
+                                   check=True,timeout=180)
+                    print(f"DOWNLOADED {year} {part}: {dest.stat().st_size} bytes",flush=True)
                     if dest.stat().st_size<1000:raise ValueError("Unexpectedly small CSV")
                     sources.append({"year":year,"half":part,"url":url,"bytes":dest.stat().st_size,
                                     "sha256":sha256_file(dest)})
@@ -96,6 +99,7 @@ def run(years,output):
             if len(inputs)==2:
                 try:
                     all_rows.extend(analyze_files(inputs,year))
+                    print(f"AUDITED YEAR {year}: {len(all_rows)} total BA rows",flush=True)
                 except (ValueError,KeyError) as exc:
                     failures.append({"year":year,"error_type":type(exc).__name__,
                                      "message":str(exc)[:250]})
