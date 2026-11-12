@@ -1,0 +1,41 @@
+name: C2 E0 source missing episodes and quarantine
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_episode_quarantine.py'
+      - 'tests/test_episode_quarantine.py'
+      - '.github/workflows/e0-episodes-quarantine.yml'
+jobs:
+  inspect:
+    strategy:
+      fail-fast: false
+      matrix:
+        year: [2023, 2024]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -v
+      - name: Download year boundary original sources
+        run: |
+          mkdir -p inputs
+          prior=$((${{ matrix.year }} - 1))
+          for part in "${prior}_Jul_Dec" "${{ matrix.year }}_Jan_Jun" "${{ matrix.year }}_Jul_Dec"; do
+            curl --fail --location --silent --show-error --max-time 120 \
+              -o "inputs/${part}.csv" \
+              "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_${part}.csv"
+          done
+      - name: Inspect contiguous missing episodes and candidate flags
+        run: |
+          python -u -m src.c2_episode_quarantine --year ${{ matrix.year }} \
+            --source inputs/*.csv --out outputs/e0_episodes
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e0-episode-quarantine-${{ matrix.year }}
+          path: outputs/e0_episodes
+          if-no-files-found: warn
