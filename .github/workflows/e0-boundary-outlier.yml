@@ -1,0 +1,41 @@
+name: C2 E0 source boundary and candidate anomaly gate
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_boundary_and_outlier_gate.py'
+      - 'tests/test_boundary_and_outlier_gate.py'
+      - '.github/workflows/e0-boundary-outlier.yml'
+jobs:
+  gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        year: [2023, 2024]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -v
+      - name: Download year Y-1 H2 and Y H1 and H2 to test New Year reporting boundary
+        run: |
+          mkdir -p inputs
+          prior=$((${{ matrix.year }} - 1))
+          for file in "${prior}_Jul_Dec" "${{ matrix.year }}_Jan_Jun" "${{ matrix.year }}_Jul_Dec"; do
+            curl --fail --location --silent --show-error --max-time 120 \
+              --output "inputs/${file}.csv" \
+              "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_${file}.csv"
+          done
+      - name: Compare source duplicates; preserve outlier candidates
+        run: |
+          python -u -m src.c2_boundary_and_outlier_gate --year ${{ matrix.year }} \
+            --source inputs/*.csv --out outputs/e0_boundary
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e0-year-boundary-outlier-${{ matrix.year }}
+          path: outputs/e0_boundary
+          if-no-files-found: warn
