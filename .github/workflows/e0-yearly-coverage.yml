@@ -1,0 +1,26 @@
+name: C2 E0 historical annual source coverage
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_yearly_coverage.py'
+      - 'tests/test_yearly_coverage.py'
+      - '.github/workflows/e0-yearly-coverage.yml'
+jobs:
+  year-coverage-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -v
+      - name: Audit 2023 and 2024 official EIA-930 reporting coverage
+        run: python -m src.c2_yearly_coverage --years 2023 2024 --out outputs/e0_years
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e0-2023-2024-official-coverage
+          path: outputs/e0_years/
+          if-no-files-found: warn
