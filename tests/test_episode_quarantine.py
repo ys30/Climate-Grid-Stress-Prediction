@@ -6,7 +6,8 @@ class Tests(unittest.TestCase):
         year=2024
         first=datetime(year,11,1,tzinfo=timezone.utc)
         data={ba:{} for ba in ("AZPS","BPAT","CISO","SRP")}
-        # Only assert the Nov 1 48-h episode exists; remaining unobserved hours are separate.
+        jan=datetime(2024,1,1,tzinfo=timezone.utc)
+        for i in range(8784):data["CISO"][jan+timedelta(hours=i)]=1000.
         for i in range(48):data["CISO"][first+timedelta(hours=i)]=None
         e=episodes(data,year)
         self.assertTrue(any(r["ba"]=="CISO" and r["start_utc"]==first.isoformat()
