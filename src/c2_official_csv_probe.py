@@ -76,7 +76,7 @@ def main():
             line=StringIO()
             cw=csv.writer(line)
             cw.writerow([row[col] for col in REQUIRED])
-            combined.append(line.getvalue().rstrip("\\r\\n"))
+            combined.append(line.getvalue().rstrip("\r\n"))
         sources.append({"url":url,"sha256":hashlib.sha256(raw).hexdigest(),"bytes":len(raw)})
     report,rows=extract_text(header+"\n"+"\n".join(combined)+"\n",a.start,a.end)
     report.update({"source_files":sources,"source_clock":"hour-ending UTC to interval start (-1h)",
