@@ -42,12 +42,17 @@ def main():
     doc=json.loads(raw)
     if "error" in doc:raise ValueError("HIFLD query error: "+str(doc["error"]))
     matches=candidate_names(doc)
+    found_bas=sorted({ba for m in matches for ba in m["candidate_bas"]})
+    missing_bas=sorted(set(CANDIDATE_PATTERNS)-set(found_bas))
     out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
     report={"source_service":SERVICE,"requested_query":params,
       "source_file_sha256":hashlib.sha256(raw).hexdigest(),"source_bytes":len(raw),
       "source_vintage":"2025 HIFLD Control_Areas_OR",
       "features_returned":len(doc.get("features",[])),
       "candidate_matches":matches,
+      "candidate_ba_codes_found":found_bas,
+      "candidate_ba_codes_missing":missing_bas,
+      "all_four_BA_geometries_available":len(missing_bas)==0,
       "bau_code_mapping_approved":False,
       "weather_exposure_approved":False,
       "historical_boundary_stationarity_assumed":False,
