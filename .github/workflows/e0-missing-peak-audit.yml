@@ -33,6 +33,24 @@ jobs:
           python -m src.c2_missing_peak_audit --year ${{ matrix.year }} \
             --csv inputs/${{ matrix.year }}_Jan_Jun.csv inputs/${{ matrix.year }}_Jul_Dec.csv \
             --out outputs/e0_diagnostics
+      - name: Print top raw spikes and earliest missing-hour samples
+        run: |
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          root=Path('outputs/e0_diagnostics')
+          with (root/'raw_peak_candidates.csv').open(newline='') as f:
+              rows=list(csv.DictReader(f))
+          for ba in ['AZPS','BPAT','CISO','SRP']:
+              a=[r for r in rows if r['ba']==ba]
+              print('MAX_RAW_OBSERVATION',a[0] if a else None)
+              for r in a:
+                  if r['candidate_spike']=='True':
+                      print('CANDIDATE_SPIKE',r)
+          with (root/'exact_missing_hour_keys.csv').open(newline='') as f:
+              rows=list(csv.DictReader(f))
+          print('MISSING_FIRST_TWELVE',rows[:12])
+          PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
