@@ -52,20 +52,28 @@ def extract_text(text,start,end):
 
 def main():
     p=argparse.ArgumentParser()
-    p.add_argument("--half",default="2024_Jul_Dec")
+    p.add_argument("--half",default="2024_Jan_Jun,2024_Jul_Dec")
     p.add_argument("--start",default="2024-07-01T00:00:00+00:00")
     p.add_argument("--end",default="2024-07-01T23:00:00+00:00")
     p.add_argument("--out",default="outputs/e0")
     a=p.parse_args()
-    if not all(c.isalnum() or c=="_" for c in a.half):raise ValueError("Unsafe half-year name")
-    url=BASE+f"EIA930_BALANCE_{a.half}.csv"
+    halves=a.half.split(",")
+    if not halves or any(not all(c.isalnum() or c=="_" for c in half) for half in halves):
+        raise ValueError("Unsafe half-year specification")
     out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
-    with urlopen(Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=180) as response:
-        raw=response.read()
-    if len(raw)<1000: raise ValueError("Unexpectedly small official EIA CSV")
-    report,rows=extract_text(raw.decode("utf-8-sig"),a.start,a.end)
-    report.update({"source_url":url,"source_sha256":hashlib.sha256(raw).hexdigest(),
-                   "source_bytes":len(raw),"source_clock":"hour-ending UTC to interval start (-1h)",
+    sources=[];combined=[];header=None
+    for half in halves:
+        url=BASE+f"EIA930_BALANCE_{half}.csv"
+        with urlopen(Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=180) as response:
+            raw=response.read()
+        if len(raw)<1000: raise ValueError("Unexpectedly small official EIA CSV")
+        parts=raw.decode("utf-8-sig").splitlines()
+        if header is None:header=parts[0]
+        elif header!=parts[0]:raise ValueError("EIA H1/H2 CSV headers differ; explicit crosswalk required")
+        combined.extend(parts[1:])
+        sources.append({"url":url,"sha256":hashlib.sha256(raw).hexdigest(),"bytes":len(raw)})
+    report,rows=extract_text(header+"\\n"+"\\n".join(combined)+"\\n",a.start,a.end)
+    report.update({"source_files":sources,"source_clock":"hour-ending UTC to interval start (-1h)",
                    "status":"raw_observed_demand_intake_not_prediction_or_outage_validation"})
     (out/"official_source_report.json").write_text(json.dumps(report,indent=2)+"\n")
     with (out/"verified_hourly_demand.csv").open("w",newline="") as f:
