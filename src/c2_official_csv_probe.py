@@ -72,7 +72,7 @@ def main():
         elif header!=parts[0]:raise ValueError("EIA H1/H2 CSV headers differ; explicit crosswalk required")
         combined.extend(parts[1:])
         sources.append({"url":url,"sha256":hashlib.sha256(raw).hexdigest(),"bytes":len(raw)})
-    report,rows=extract_text(header+"\\n"+"\\n".join(combined)+"\\n",a.start,a.end)
+    report,rows=extract_text(header+"\n"+"\n".join(combined)+"\n",a.start,a.end)
     report.update({"source_files":sources,"source_clock":"hour-ending UTC to interval start (-1h)",
                    "status":"raw_observed_demand_intake_not_prediction_or_outage_validation"})
     (out/"official_source_report.json").write_text(json.dumps(report,indent=2)+"\n")
