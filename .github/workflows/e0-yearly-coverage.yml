@@ -18,6 +18,12 @@ jobs:
       - run: python -m unittest discover -s tests -v
       - name: Audit 2023 and 2024 official EIA-930 reporting coverage
         run: python -m src.c2_yearly_coverage --years 2023 2024 --out outputs/e0_years
+      - name: Evaluate preregistered chronological split gate (pilot remains incomplete)
+        if: always()
+        run: |
+          if [ -f outputs/e0_years/annual_ba_coverage.csv ]; then
+            python -m src.c2_temporal_gate --coverage outputs/e0_years/annual_ba_coverage.csv --out outputs/e0_years/temporal_split_gate.json
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
