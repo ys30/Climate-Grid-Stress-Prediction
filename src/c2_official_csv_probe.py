@@ -61,16 +61,22 @@ def main():
     if not halves or any(not all(c.isalnum() or c=="_" for c in half) for half in halves):
         raise ValueError("Unsafe half-year specification")
     out=Path(a.out);out.mkdir(parents=True,exist_ok=True)
-    sources=[];combined=[];header=None
+    sources=[];combined=[];header="Balancing Authority,UTC Time at End of Hour,Demand (MW)"
     for half in halves:
         url=BASE+f"EIA930_BALANCE_{half}.csv"
         with urlopen(Request(url,headers={"User-Agent":"Mozilla/5.0"}),timeout=180) as response:
             raw=response.read()
         if len(raw)<1000: raise ValueError("Unexpectedly small official EIA CSV")
-        parts=raw.decode("utf-8-sig").splitlines()
-        if header is None:header=parts[0]
-        elif header!=parts[0]:raise ValueError("EIA H1/H2 CSV headers differ; explicit crosswalk required")
-        combined.extend(parts[1:])
+        source_reader=csv.DictReader(StringIO(raw.decode("utf-8-sig")))
+        if not set(REQUIRED).issubset(source_reader.fieldnames or []):
+            raise ValueError(f"Required BA-hour demand columns missing in {half}")
+        for row in source_reader:
+            if row["Balancing Authority"].strip() not in BAS:continue
+            # Serialize only the three stable shared columns; never conflate fuel schemas.
+            line=StringIO()
+            cw=csv.writer(line)
+            cw.writerow([row[col] for col in REQUIRED])
+            combined.append(line.getvalue().rstrip("\\r\\n"))
         sources.append({"url":url,"sha256":hashlib.sha256(raw).hexdigest(),"bytes":len(raw)})
     report,rows=extract_text(header+"\n"+"\n".join(combined)+"\n",a.start,a.end)
     report.update({"source_files":sources,"source_clock":"hour-ending UTC to interval start (-1h)",
