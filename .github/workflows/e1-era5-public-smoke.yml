@@ -1,0 +1,29 @@
+name: C2 E1 public ERA5 grid-source smoke test
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_public_probe.py'
+      - 'tests/test_era5_public_probe.py'
+      - '.github/workflows/e1-era5-public-smoke.yml'
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit contracts
+        run: python -m unittest discover -s tests -v
+      - name: Install ARCO ERA5 read dependencies
+        run: python -m pip install 'xarray>=2024.5' 'zarr>=3,<4' 'gcsfs>=2025.3' 'numpy>=1.26'
+      - name: Fetch one actual hourly ERA5 2m temperature grid sample
+        run: python -u -m src.c2_era5_public_probe --time 2023-07-01T12:00:00Z --lat 35 --lon -112 --out outputs/e1_era5_source
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-public-era5-source-probe
+          path: outputs/e1_era5_source
+          if-no-files-found: warn
