@@ -1,0 +1,27 @@
+name: C2 E1 nationwide control areas source discovery
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_national_control_area_discovery.py'
+      - 'tests/test_national_control_area_discovery.py'
+      - '.github/workflows/e1-national-control-areas.yml'
+jobs:
+  nationwide:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5'
+      - run: python -m unittest discover -s tests -v
+      - name: Audit live national control-area source fields, count and BA-name candidates
+        run: python -u -m src.c2_national_control_area_discovery --out outputs/e1_national_control_areas
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-national-control-area-discovery
+          path: outputs/e1_national_control_areas
+          if-no-files-found: warn
