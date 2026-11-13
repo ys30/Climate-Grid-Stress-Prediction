@@ -1,0 +1,27 @@
+name: C2 E1 national four BA provisional polygon extraction
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_national_polygon_extract.py'
+      - 'tests/test_national_polygon_extract.py'
+      - '.github/workflows/e1-national-polygon-extract.yml'
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5'
+      - run: python -m unittest discover -s tests -v
+      - name: Fetch and verify four original national control-area polygons
+        run: python -u -m src.c2_national_polygon_extract --out outputs/e1_national_geometries
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-four-provisional-real-BA-polygons
+          path: outputs/e1_national_geometries
+          if-no-files-found: warn
