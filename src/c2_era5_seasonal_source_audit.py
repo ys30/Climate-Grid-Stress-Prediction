@@ -13,7 +13,7 @@ from src.c2_era5_public_probe import STORE
 
 BAS=("AZPS","BPAT","CISO","SRP")
 
-def seasonal_source_pair(weather_rows,demand,flagged,start,days):
+def seasonal_source_pair(weather_rows,demand,flagged,start,days,allow_missing_demand=False):
     begin=datetime.fromisoformat(start.replace("Z","+00:00"))
     if begin.utcoffset() is None or begin.utcoffset().total_seconds()!=0:
         raise ValueError("UTC start required")
@@ -35,16 +35,16 @@ def seasonal_source_pair(weather_rows,demand,flagged,start,days):
             w=observed.get(key)
             if w is None:raise ValueError("Missing exact UTC weather "+str(key))
             val=demand[ba].get(t)
-            if val is None:raise ValueError("Missing original EIA-930 demand "+str(key))
+            if val is None and not allow_missing_demand:\n                raise ValueError("Missing original EIA-930 demand "+str(key))
             result.append({"ba":ba,"timestamp_utc_start":t.isoformat(),
                            "demand_mw_raw":val,
                            "temperature_c_experimental_area":w["weighted_temperature_celsius"],
-                           "demand_spike_candidate":key in flagged_keys,
+                           "demand_spike_candidate":key in flagged_keys,\n                           "demand_observed":val is not None,\n                           "source_missing_demand":val is None,
                            "historical_BA_area_approved":False,
                            "train_or_validate_eligible":False})
     return result
 
-def run(start,days,weights,eia_sources,out_dir):
+def run(start,days,weights,eia_sources,out_dir,allow_source_gaps=False):
     import xarray as xr
     if days not in (2,3,7):raise ValueError("Limit source smoke study to 2, 3 or 7 days")
     begin=datetime.fromisoformat(start.replace("Z","+00:00"))
@@ -64,28 +64,28 @@ def run(start,days,weights,eia_sources,out_dir):
         if qa["row_count"]!=96 or not qa["contiguous_UTC_hours_verified"]:
             raise ValueError("24-hour weather data incomplete")
         weather.extend(rows)
-    paired=seasonal_source_pair(weather,data,flags,begin.isoformat(),days)
+    paired=seasonal_source_pair(weather,data,flags,begin.isoformat(),days,allow_missing_demand=allow_source_gaps)
     out=Path(out_dir);out.mkdir(parents=True,exist_ok=True)
     def write_csv(name,items):
         with (out/name).open("w",newline="") as f:
             writer=csv.DictWriter(f,fieldnames=list(items[0]))
             writer.writeheader();writer.writerows(items)
     write_csv("REAL_ERA5_48h_or_more_UNAPPROVED.csv",weather)
-    write_csv("REAL_EIA_ERA5_48h_or_more_PAIRED_NOT_MODEL.csv",paired)
+    write_csv("REAL_EIA_ERA5_48h_or_more_PAIRED_NOT_MODEL.csv",paired)\n    missing_rows=[x for x in paired if x["source_missing_demand"]]\n    if missing_rows:\n        write_csv("REAL_EIA930_MISSING_DEMAND_EPISODES.csv",missing_rows)
     summary={"utc_start":begin.isoformat(),"days":days,"hours_per_BA":days*24,
-             "paired_source_rows":len(paired),"weather_source_rows":len(weather),
+             "paired_source_rows":len(paired)-len(missing_rows),\n             "source_BA_hour_slots":len(paired),\n             "source_missing_demand_hours":len(missing_rows),\n             "weather_source_rows":len(weather),
              "BAs":list(BAS),"source_dataset":"ARCO ERA5 real 2m temperature",
              "weights_sha256":hashlib.sha256(Path(weights).read_bytes()).hexdigest(),
              "eia_original_sources":[{"file":x["file"],"sha256":x["sha256"]} for x in sources],
              "eia_candidate_anomaly_flags_in_window":
                  sum(x["demand_spike_candidate"] for x in paired),
-             "all_source_hours_present":len(paired)==days*24*4,
+             "all_source_hours_present":len(missing_rows)==0 and len(paired)==days*24*4,\n             "all_weather_hours_present":len(weather)==days*24*4,
              "historical_geometry_approved":False,"no_imputation":True,
              "training_or_validation_permitted":False}
     (out/"seasonal_source_audit.json").write_text(json.dumps(summary,indent=2)+"\n")
     print("REAL_SEASONAL_48H_SOURCE_AUDIT",json.dumps(summary))
     for ba in BAS:
-        subset=[r for r in paired if r["ba"]==ba]
+        subset=[r for r in paired if r["ba"]==ba and r["demand_observed"]]
         print("SEASON_BA_SOURCE_RANGE",json.dumps({"ba":ba,
               "demand_mw_min":min(r["demand_mw_raw"] for r in subset),
               "demand_mw_max":max(r["demand_mw_raw"] for r in subset),
@@ -97,7 +97,7 @@ def main():
     p.add_argument("--days",type=int,default=2)
     p.add_argument("--weights",required=True)
     p.add_argument("--eia-files",nargs="+",required=True)
-    p.add_argument("--out",default="outputs/e1_seasonal")
+    p.add_argument("--out",default="outputs/e1_seasonal")\n    p.add_argument("--allow-source-gaps",action="store_true",\n                   help="Audit missing observed EIA demand without filling or allowing training")
     a=p.parse_args()
-    run(a.start,a.days,a.weights,a.eia_files,a.out)
+    run(a.start,a.days,a.weights,a.eia_files,a.out,allow_source_gaps=a.allow_source_gaps)
 if __name__=="__main__":main()
