@@ -67,11 +67,14 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t files < <(find inputs -name seasonal_source_audit.json -type f | sort)
-          printf 'Actual 2020-2025 source-month manifest count: %s\n' "${#files[@]}"
+          printf 'Actual 2020-2025 source-month manifest count: %s\\n' "${#files[@]}"
           test "${#files[@]}" -eq 72
           python -u -m src.c2_72_month_source_summary \
             --manifests "${files[@]}" \
-            --out outputs/e1_72_month_source_qa\n          python -u -m src.c2_full_source_event_audit \\\n            --inputs inputs \\\n            --out outputs/e1_72_month_source_qa
+            --out outputs/e1_72_month_source_qa
+          python -u -m src.c2_full_source_event_audit \
+            --inputs inputs \
+            --out outputs/e1_72_month_source_qa
       - uses: actions/upload-artifact@v4
         with:
           name: c2-e1-2020-2025-all-72-source-month-QA-NOT-MODEL
