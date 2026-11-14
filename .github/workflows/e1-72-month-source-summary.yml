@@ -4,6 +4,10 @@ on:
   push:
     paths:
       - '.github/workflows/e1-72-month-source-summary.yml'
+      - 'src/c2_72_month_source_summary.py'
+      - 'tests/test_72_month_source_summary.py'
+      - 'src/c2_full_source_event_audit.py'
+      - 'tests/test_full_source_event_audit.py'
 jobs:
   reconcile:
     runs-on: ubuntu-latest
