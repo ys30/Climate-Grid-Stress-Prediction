@@ -28,3 +28,22 @@ At writing time this actual-source all-cell CI job had been queued; no successfu
 3. Resolve source polygon vintage and overlapping coverage scientifically (or use alternative independently audited exposure estimands). Build signed and hashed BA geometry crosswalk before admitting final model weights.
 4. Stream/cache 2020–2025 hourly ERA5 2m gridded subsets in reproducible chunks; recheck UTC alignment with EIA-930 and quarantine flags.
 5. Only then benchmark calendar / GAM / XGBoost with train 2020–2022, val 2023, held-out 2024–2025, and investigate future CMIP6 SSP scenarios.
+
+## CI-verified result: real complete source area-weight hour
+
+The actual-source single-hour CI `43553846440` **passed**, using 5,472 loaded ARCO ERA5 grid coordinates in the Western U.S. bounding rectangle. At UTC 2023-07-01T12:00:00Z, the source grid supported all source-derived grid-cell weights for each BA. The **experimental** polygon-area-weighted temperatures were:
+
+| BA | Actual intersected cells | Exploratory full-cell 2m temperature (°C) |
+|---|---:|---:|
+| AZPS | 265 | 21.068864 |
+| BPAT | 1557 | 14.177249 |
+| CISO | 662 | 20.475391 |
+| SRP | 55 | 25.425508 |
+
+Observed gridded Kelvin values were finite in all selected cells. The grid data source is the real public ARCO ERA5 0.25° archive, and frozen input area-weight CSV SHA-256 is `e4e0990cd47e8517d01731231eb4ed3da06649840c99c5e87baadeee7c5b8cb3`.
+
+**Publication caution:** the numeric weather values are real ERA5 observations; **the choice of BA geographic mask and statistical area-weighted estimand remain provisional**, since original 2018 HIFLD control-area polygons required make_valid, CISO repair differed by ~7.08% from invalid raw area arithmetic, and AZPS/SRP candidate footprints overlap by 96.66% of SRP.
+
+## Next bounded 24-hour experiment
+
+`src/c2_era5_24h_exploratory.py`, `tests/test_era5_24h_exploratory.py`, and `e1-real-24h-exposures.yml` now attempt a contiguous 24-hour real Zarr weather subgrid, validating all 24 UTC hour stamps and all four BA grid exposures for each hour. GitHub CI: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43553993546. At document creation, CI result not yet verified. Expected result if successful: 96 rows, NOT an approved historical weather-demand panel.
