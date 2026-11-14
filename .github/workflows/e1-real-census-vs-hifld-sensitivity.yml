@@ -1,0 +1,50 @@
+name: C2 E1 real hourly ERA5 TIGER county versus HIFLD sensitivity
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_census_vs_hifld_era5.py'
+      - 'tests/test_census_vs_hifld_era5.py'
+      - '.github/workflows/e1-real-census-vs-hifld-sensitivity.yml'
+jobs:
+  compare-real-ERA5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - run: python -m unittest discover -s tests -p 'test_census_vs_hifld_era5.py' -v
+      - name: Retrieve real full-fidelity TIGER county geometry from independently built source
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-TIGER2024-fourBA-county-polygon-proxy-UNAPPROVED
+          run-id: 43651609278
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/tiger
+      - name: Retrieve frozen HIFLD 2018 geographic grid weights for proxy A
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/hifld
+      - name: Regrid Census polygon proxy B and compare real ARCO 2m temperature at exact matched UTC hour
+        run: |
+          python -u -m src.c2_census_vs_hifld_era5 \
+            --county-geometry inputs/tiger/EIA861_TIGER2024_FOUR_BA_COUNTY_PROXY_UNAPPROVED.geojson \
+            --county-manifest inputs/tiger/TIGER2024_C2_FOUR_BA_COUNTY_PROXY_PROVENANCE.json \
+            --hifld-weights inputs/hifld/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --time 2023-07-01T12:00:00Z \
+            --out outputs/e1_real_county_HIFLD_sensitivity
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-ERA5-TIGER-2024-vs-HIFLD-2018-spatial-sensitivity-UNAPPROVED
+          path: outputs/e1_real_county_HIFLD_sensitivity
+          if-no-files-found: warn
