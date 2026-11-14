@@ -42,3 +42,12 @@ Code: `src/c2_era5_seasonal_source_audit.py`. Workflow: `.github/workflows/e1-se
 2. Extend measured source coverage to additional seasonal/yearly windows without assuming 2023 alone validates 2020–2025 weather availability.
 3. Compare geographically robust alternates or independent BA service-area source vintages; obtain a documented scientific decision on 2018 polygon applicability and AZPS/SRP geographic overlap. Explicit audit approvals remain mandatory for `c2_weather_join.py`.
 4. Only following geometry and source QA approval build immutable 2020–2025 datasets and calibrate calendar/GAM/XGBoost with 2020–2022 train, 2023 validation and 2024–2025 sealed test. Reserve ALL/NAT forcing for any anthropogenic climate attribution.
+
+## Final verified result: BOTH SEASONS CI SUCCESS and artifacts retained
+
+Corrected rerun https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43554916894 **COMPLETED SUCCESS** for BOTH winter and summer jobs. In addition to reproducing the 192 row per season measurements, the workflow uploaded both paired-source CSV/artifact bundles:
+
+- Winter artifact ID `14097603611`: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43554916894/artifacts/14097603611 ; SHA256 compressed artifact `22ff4eb5141980c90e1645c2058b802cc1a72ec1349175a5c2c65dbb29cc4294`.
+- Summer artifact ID `14097746782`: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43554916894/artifacts/14097746782 ; SHA256 compressed artifact `5300c2e9f714f0837a03b522da0eeb1360e131498242f8c00c37edd53eec9452`.
+
+Both real-source windows had 192 exact UTC paired records each and 0 flagged EIA-930 source anomalies in the selected two-day periods. Input weather weights remain unapproved candidate geography and all row-level training/validation eligibility flags remain false. No anthropogenic attribution or forecast skill is estimated.
