@@ -9,7 +9,7 @@ from datetime import datetime,timezone
 from pathlib import Path
 
 DEMAND_COLS={"year","ba","timestamp_utc_start","raw_demand_mw","quarantine","model_eligible"}
-WEATHER_COLS={"ba","timestamp_utc_start","temperature_2m_c","exposure_method","source_dataset"}
+WEATHER_COLS={"ba","timestamp_utc_start","temperature_2m_c","exposure_method","source_dataset","geometry_approved","geometry_admission_id"}
 
 def utc_hour(value):
     stamp=datetime.fromisoformat(value.replace("Z","+00:00"))
@@ -29,6 +29,10 @@ def read_rows(path,columns):
 def join(demand,weather):
     wx={}
     for x in weather:
+        # Full-region weather measured using experimental 2018 polygons is NOT
+        # automatically valid for historical weather-demand model training.
+        if x.get("geometry_approved")!="True" or not str(x.get("geometry_admission_id","")).strip():
+            raise ValueError("Weather geographic exposure unapproved or missing independent admission ID")
         key=(x["ba"],utc_hour(x["timestamp_utc_start"]))
         if key in wx:raise ValueError("Duplicate weather BA-hour key")
         if x["exposure_method"] not in ("ba_area_weighted_era5","ba_load_weighted_era5"):
