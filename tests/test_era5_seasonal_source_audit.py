@@ -14,6 +14,23 @@ class TestSeasonalPair(unittest.TestCase):
         self.assertTrue(all(not r["train_or_validate_eligible"] for r in paired))
         with self.assertRaises(ValueError):
             seasonal_source_pair(rows[:-1],demands,[],start.isoformat(),2)
+    def test_source_gap_audited_not_filled(self):
+        start=datetime(2025,7,1,tzinfo=timezone.utc)
+        bas=("AZPS","BPAT","CISO","SRP")
+        d={ba:{start+timedelta(hours=i):3000+i for i in range(48)} for ba in bas}
+        del d["SRP"][start+timedelta(hours=6)]
+        w=[{"ba":ba,"timestamp_utc_start":(start+timedelta(hours=i)).isoformat(),
+            "weighted_temperature_celsius":22.,
+            "historical_weather_exposure_approved":False}
+            for ba in bas for i in range(48)]
+        with self.assertRaises(ValueError):
+            seasonal_source_pair(w,d,[],start.isoformat(),2)
+        rows=seasonal_source_pair(w,d,[],start.isoformat(),2,allow_missing_demand=True)
+        self.assertEqual(len(rows),192)
+        missing=[r for r in rows if r["source_missing_demand"]]
+        self.assertEqual(len(missing),1)
+        self.assertIsNone(missing[0]["demand_mw_raw"])
+        self.assertFalse(missing[0]["train_or_validate_eligible"])
     def test_unapproved_exposure_cannot_claim_approval(self):
         start=datetime(2023,1,15,tzinfo=timezone.utc)
         bas=("AZPS","BPAT","CISO","SRP")
