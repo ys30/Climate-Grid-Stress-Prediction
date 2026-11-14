@@ -43,3 +43,37 @@ The 2021–2024 runs are not included in any observed-result count until their C
 ## Next E1 requirements
 
 Continue full-month source acquisition across cold / transitional seasons with provenance, audit yearly demand anomalies/missingness and obtain an independent geographic-mask source-vintage and overlap review. Only after full 2020–2025 weather coverage and geography approval should chronological calendar/GAM/XGBoost evaluation begin.
+
+
+## Completed: real July monthly audits for all six years 2020–2025
+
+Four remaining source-month jobs succeeded (2021–2024):
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43563639298
+
+Independent six-monthly-manifest reconciliation also **SUCCESS**:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43563853479
+
+| July source year | Real ERA5 BA-hour observations | Observed EIA–ERA5 complete BA-hours | Original EIA930 demand missing | Source anomaly *candidates*, not confirmed bad values |
+|---|---:|---:|---:|---:|
+| 2020 | 2,976 | 2,952 | 24 | 0 |
+| 2021 | 2,976 | 2,976 | 0 | 1 |
+| 2022 | 2,976 | 2,976 | 0 | 3 |
+| 2023 | 2,976 | 2,976 | 0 | 3 |
+| 2024 | 2,976 | 2,976 | 0 | 0 |
+| 2025 | 2,976 | 2,974 | 2 | 2 |
+| **Total** | **17,856** | **17,830** | **26** | **9** |
+
+Every July contains 31 × 24 hours at four BAs, real gridded public ARCO ERA5 observations with frozen area-weight candidates. All original demand gaps were retained as missing and excluded from the **complete pair count**, not interpolated. **Anomaly flags are additional suspect values that require review even if a paired temperature and nonmissing demand are present; 17,830 must not be represented as eligible clean rows.**
+
+Independent source QA reconciliation verified exactly six distinct 31-day source manifests, 2,976 real weather slots in each, identical geometric weight input digest, no imputation, and all geographic/model approval flags false.
+
+CI output: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43563853479/artifacts/14101635987 ; artifact SHA256 `c4cf97d859d4a6859874c6edb8021e981baa69c1814c96ac25d8da119c95f7ff`.
+
+2021–2024 individual monthly archive artifact IDs:
+- 2021 `14101273997`; 
+- 2022 `14101561340`;
+- 2023 `14101925186`;
+- 2024 `14101561494`;
+on https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43563639298 .
+
+**No full calendar year (January–December) has been extracted and approved yet.** These six real Julys establish reproducible one-month seasonal coverage only. All area exposure masks are 2018-vintage, post-topology-repair provisional masks, with the same known source-admissibility issues: CISO geometry ~7.08% raw-area sensitivity and AZPS/SRP ~96.66% SRP polygon overlap. Source EIA-year coverage is separately audited in E0. No GAM/XGBoost forecast or causal anthropogenic attribution is authorized.
