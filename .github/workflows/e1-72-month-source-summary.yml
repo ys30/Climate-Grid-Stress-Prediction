@@ -1,11 +1,9 @@
 name: C2 E1 reconcile actual 72 calendar months 2020-2025 NOT MODEL
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows:
-      - C2 E1 real remaining March May June August September November December 2020-2025
-      - C2 E1 real December source months 2020-2025 year-end repaired
-    types: [completed]
+  push:
+    paths:
+      - '.github/workflows/e1-72-month-source-summary.yml'
 jobs:
   reconcile:
     runs-on: ubuntu-latest
