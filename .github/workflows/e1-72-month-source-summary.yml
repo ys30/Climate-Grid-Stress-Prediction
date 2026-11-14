@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Verify strict 72-month calendar and model-use gate tests
-        run: python -m unittest discover -s tests -p 'test_72_month_source_summary.py' -v
+        run: |\n          python -m unittest discover -s tests -p 'test_72_month_source_summary.py' -v\n          python -m unittest discover -s tests -p 'test_full_source_event_audit.py' -v
       - name: Retrieve verified 2020-2025 January source months
         uses: actions/download-artifact@v4
         with:
@@ -71,7 +71,7 @@ jobs:
           test "${#files[@]}" -eq 72
           python -u -m src.c2_72_month_source_summary \
             --manifests "${files[@]}" \
-            --out outputs/e1_72_month_source_qa
+            --out outputs/e1_72_month_source_qa\n          python -u -m src.c2_full_source_event_audit \\\n            --inputs inputs \\\n            --out outputs/e1_72_month_source_qa
       - uses: actions/upload-artifact@v4
         with:
           name: c2-e1-2020-2025-all-72-source-month-QA-NOT-MODEL
