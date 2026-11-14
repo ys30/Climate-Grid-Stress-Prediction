@@ -1,0 +1,52 @@
+name: C2 E1 real winter summer 48h ERA5-EIA930 source audit NOT MODEL
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_seasonal_source_audit.py'
+      - 'tests/test_era5_seasonal_source_audit.py'
+      - '.github/workflows/e1-seasonal-real-source-audit.yml'
+jobs:
+  seasonal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        start: ['2023-01-15T00:00:00Z', '2023-07-01T00:00:00Z']
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - run: python -m unittest discover -s tests -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/weights
+      - name: Official EIA 930 balance source originals
+        run: |
+          mkdir -p inputs/eia
+          for half in 2022_Jul_Dec 2023_Jan_Jun 2023_Jul_Dec; do
+            curl --fail --location --silent --show-error --max-time 120 \
+              -o "inputs/eia/${half}.csv" \
+              "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_${half}.csv"
+          done
+      - name: Two real ERA5 days and EIA930 exact-hour source pairs
+        run: |
+          python -u -m src.c2_era5_seasonal_source_audit \
+            --start '${{ matrix.start }}' --days 2 \
+            --weights inputs/weights/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --eia-files inputs/eia/*.csv --out outputs/e1_seasonal
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-two-day-source-audit-${{ matrix.start }}
+          path: outputs/e1_seasonal
+          if-no-files-found: warn
