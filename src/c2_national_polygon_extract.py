@@ -23,6 +23,7 @@ def fetch_candidate_polygons(service=SERVICE):
     if "error" in doc:raise ValueError("GeoJSON service query failed: "+repr(doc["error"])[:500])
     if doc.get("type")!="FeatureCollection":raise ValueError("Query did not return GeoJSON")
     from shapely.geometry import shape
+    from shapely.validation import explain_validity
     from pyproj import Transformer
     from shapely.ops import transform
     project=Transformer.from_crs("EPSG:4326","EPSG:5070",always_xy=True).transform
@@ -39,8 +40,11 @@ def fetch_candidate_polygons(service=SERVICE):
         valid=poly.is_valid and not poly.is_empty and poly.geom_type in ("Polygon","MultiPolygon")
         bbox=[round(x,6) for x in poly.bounds]
         area=transform(project,poly).area if valid else None
+        validity_reason="Valid Geometry" if valid else explain_validity(poly)
+        vertex_count=len(str(ft.get("geometry") or ""))
         audit.append({"ba_candidate":ba,"oid":oid,"name":name,"geometry_type":poly.geom_type,
-                      "is_valid":bool(valid),"bounds_lonlat":bbox,
+                      "is_valid":bool(valid),"validity_reason":validity_reason,
+                      "geometry_json_chars":vertex_count,"bounds_lonlat":bbox,
                       "area_km2_estimated":round(area/1e6,2) if area else None,
                       "data_source_year":props.get("YEAR"),"source_date":props.get("SOURCEDATE"),
                       "validation_date":props.get("VAL_DATE"),
@@ -51,8 +55,6 @@ def fetch_candidate_polygons(service=SERVICE):
         features.append(ft)
     if len(features)!=4 or {x["ba_candidate"] for x in audit}!=set(IDS):
         raise ValueError("Exactly four expected features required")
-    if not all(r["is_valid"] for r in audit):
-        raise ValueError("Unusable source topology: do not silently repair polygons")
     return {"type":"FeatureCollection","features":features},audit,raw,url
 
 def main():
@@ -67,9 +69,14 @@ def main():
          "source_request_url":url,"raw_response_sha256":hashlib.sha256(raw).hexdigest(),
          "extracted_geojson_sha256":hashlib.sha256(formatted.encode()).hexdigest(),
          "features":audit,"codes":[x["ba_candidate"] for x in audit],
-         "geometry_count":len(audit),"historical_vintage_approved":False,
+         "geometry_count":len(audit),
+         "all_original_geometries_valid":all(x["is_valid"] for x in audit),
+         "invalid_ba_codes":[x["ba_candidate"] for x in audit if not x["is_valid"]],
+         "historical_vintage_approved":False,
          "crosswalk_manually_reviewed":False,"exposure_weights_authorized":False,
          "no_training_or_ERA5_join":True},indent=2)+"\n")
     print("POLYGON_CANDIDATE_AUDIT",json.dumps(audit))
     print("GEOGRAPHY_APPROVED_FOR_MODEL",False)
+    if not all(x["is_valid"] for x in audit):
+        print("SOURCE_TOPOLOGY_GATE_FAIL: unaltered polygon GeoJSON and detailed error report saved")
 if __name__=="__main__":main()
