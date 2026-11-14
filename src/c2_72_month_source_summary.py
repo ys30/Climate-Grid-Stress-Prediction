@@ -77,6 +77,18 @@ def reconcile(manifests):
        "training_permitted":False,
        "climate_change_attribution_performed":False,
        "warning":"Year-round real candidate-area ERA5 does not validate historical BA polygon masks or qualify a model fit."}
+    totals["yearly_source_quality"]=[
+        {"year":year,
+         "expected_weather_BA_hours":sum(r["expected_BA_hour_slots"] for r in rows if r["year"]==year),
+         "observed_weather_BA_hours":sum(r["actual_ERA5_BA_hours"] for r in rows if r["year"]==year),
+         "observed_load_weather_pairs":sum(r["real_demand_weather_pairs"] for r in rows if r["year"]==year),
+         "original_load_missing_hours":sum(r["original_demand_missing_hours"] for r in rows if r["year"]==year),
+         "source_anomaly_candidate_flags":sum(r["demand_anomaly_candidates"] for r in rows if r["year"]==year),
+         "training_permitted":False} for year in YEARS]
+    totals["original_load_missing_counts_by_BA"]={
+        ba:sum(e["ba"]==ba for e in missing_episodes)
+        for ba in BAS}
+    totals["source_anomaly_flags_are_confirmed_errors"]=False
     if totals["total_real_ERA5_BA_hours"]!=totals["total_observed_EIA_ERA5_pairs"]+len(missing_episodes):
         raise ValueError("Six-year original demand missingness accounting failed")
     return rows,missing_episodes,totals
