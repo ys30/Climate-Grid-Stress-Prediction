@@ -1,0 +1,49 @@
+name: C2 E1 verify six genuine full-July BA source-month summaries
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_july_full_month_summary.py'
+      - 'tests/test_july_full_month_summary.py'
+      - '.github/workflows/e1-six-julys-source-summary.yml'
+jobs:
+  six-julys:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_july_full_month_summary.py' -v
+      - name: Retrieve actual 2020 and 2025 July CI data provenance artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-july-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43563497776
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/july_extremes
+      - name: Retrieve 2021 through 2024 observed monthly source files
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-july-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43563639298
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/july_middle
+      - name: Reject incomplete or model-approved source-month manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t paths < <(find inputs -name seasonal_source_audit.json -type f | sort)
+          printf 'Real full-July manifests: %s\n' "${#paths[@]}"
+          test "${#paths[@]}" -eq 6
+          python -u -m src.c2_july_full_month_summary \
+            --manifests "${paths[@]}" --out outputs/e1_six_julys
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-real-six-full-julys-2020-2025-QA-NOT-MODEL
+          path: outputs/e1_six_julys/
+          if-no-files-found: error
