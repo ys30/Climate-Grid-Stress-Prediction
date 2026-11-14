@@ -1,0 +1,72 @@
+name: C2 E1 reconcile actual 72 calendar months 2020-2025 NOT MODEL
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - C2 E1 real remaining March May June August September November December 2020-2025
+    types: [completed]
+jobs:
+  reconcile:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify strict 72-month calendar and model-use gate tests
+        run: python -m unittest discover -s tests -p 'test_72_month_source_summary.py' -v
+      - name: Retrieve verified 2020-2025 January source months
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-january-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43619234662
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/01_january
+      - name: Retrieve verified 2020 and 2025 July source months
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-july-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43563497776
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/07_outer
+      - name: Retrieve verified 2021-2024 July source months
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-july-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43563639298
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/07_middle
+      - name: Retrieve audited February April October across six years
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-*-month-*-PROVISIONAL-NOT-MODEL
+          run-id: 43627785579
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/batch1
+      - name: Retrieve audited seven remaining months across six years
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-*-month-*-PROVISIONAL-NOT-MODEL
+          run-id: 43627845540
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/batch2
+      - name: Fail closed unless 72 unique real source months satisfy all weather and demand QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find inputs -name seasonal_source_audit.json -type f | sort)
+          printf 'Actual 2020-2025 source-month manifest count: %s\n' "${#files[@]}"
+          test "${#files[@]}" -eq 72
+          python -u -m src.c2_72_month_source_summary \
+            --manifests "${files[@]}" \
+            --out outputs/e1_72_month_source_qa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-2020-2025-all-72-source-month-QA-NOT-MODEL
+          path: outputs/e1_72_month_source_qa/
+          if-no-files-found: error
