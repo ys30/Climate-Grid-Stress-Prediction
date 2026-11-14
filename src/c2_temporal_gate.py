@@ -27,8 +27,8 @@ def evaluate(rows,min_coverage=0.99):
                                "valid_coverage_ratio":coverage,"reason":"source_gate_pass" if ok else "coverage_or_duplicate_gate"})
         result[label]={"admitted":all(x["admitted"] for x in checks),"checks":checks}
     result["time_holdout_locked"]=True
-    result["empirical_model_training_permitted"]=all(result[s]["admitted"] for s in SPLITS)
-    result["note"]="Data admission only. No forecast skill or climate attribution is established."
+    # A 99% source-hour coverage gate can never authorize model execution:\n    # independent real ERA5, BA polygon geography and source anomalies remain.\n    result["coverage_only_source_gate_passed"]=all(result[s]["admitted"] for s in SPLITS)\n    result["historical_geography_approved"]=False\n    result["ERA5_historical_full_panel_approved"]=False\n    result["empirical_model_training_permitted"]=False
+    result["note"]="E0 source-hour coverage ONLY, not final data admission. ERA5 source panel, geographies and anomaly QA are independent gates; never train based only on E0."
     return result
 
 def main():
@@ -43,5 +43,5 @@ def main():
     print(json.dumps({"train_admitted":report["train"]["admitted"],
                       "validation_admitted":report["validation"]["admitted"],
                       "test_admitted":report["test"]["admitted"],
-                      "training_permitted":report["empirical_model_training_permitted"]},indent=2))
+                      "coverage_only_source_gate_passed":report["coverage_only_source_gate_passed"],\n                      "training_permitted":report["empirical_model_training_permitted"]},indent=2))
 if __name__=="__main__":main()
