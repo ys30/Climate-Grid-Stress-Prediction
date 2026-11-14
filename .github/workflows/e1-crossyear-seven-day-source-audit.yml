@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - '.github/workflows/e1-crossyear-seven-day-source-audit.yml'
+      - 'src/c2_era5_seasonal_source_audit.py'
+      - 'tests/test_era5_seasonal_source_audit.py'
 jobs:
   seven-day:
     runs-on: ubuntu-latest
@@ -45,6 +47,7 @@ jobs:
           python -u -m src.c2_era5_seasonal_source_audit \
             --start '${{ matrix.year }}-07-01T00:00:00Z' --days 7 \
             --weights inputs/weights/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --allow-source-gaps \
             --eia-files inputs/eia/*.csv \
             --out outputs/e1_weeklong
       - uses: actions/upload-artifact@v4
