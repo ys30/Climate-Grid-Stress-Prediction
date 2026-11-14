@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'src/c2_exploratory_grid_weights.py'
+      - 'src/c2_ba_era5_weights.py'
       - 'tests/test_exploratory_grid_weights.py'
       - '.github/workflows/e1-exploratory-grid-weights.yml'
 jobs:
