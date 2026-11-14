@@ -1,0 +1,48 @@
+name: C2 E1 quantify HIFLD versus Census county mask spatial overlap
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_hifld_vs_county_spatial_overlap.py'
+      - 'tests/test_hifld_vs_county_spatial_overlap.py'
+      - '.github/workflows/e1-hifld-census-spatial-overlap.yml'
+jobs:
+  compare-source-geographies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'shapely>=2.0' 'pyproj>=3.5'
+      - run: python -m unittest discover -s tests -p 'test_hifld_vs_county_spatial_overlap.py' -v
+      - name: Download actually observed HIFLD valid candidate geometry artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/hifld
+      - name: Download 2024 full-resolution Census TIGER union source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-TIGER2024-fourBA-county-polygon-proxy-UNAPPROVED
+          run-id: 43651609278
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/census
+      - name: Compare equal-area geographic masks in original spatial coordinates
+        run: |
+          python -u -m src.c2_hifld_vs_county_spatial_overlap \
+            --hifld inputs/hifld/e1_topology/candidate_geometric_repairs_UNAPPROVED.geojson \
+            --county inputs/census/EIA861_TIGER2024_FOUR_BA_COUNTY_PROXY_UNAPPROVED.geojson \
+            --out outputs/e1_spatial_A_B
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-Census-HIFLD-BA-mask-area-overlap-UNAPPROVED
+          path: outputs/e1_spatial_A_B/
+          if-no-files-found: warn
