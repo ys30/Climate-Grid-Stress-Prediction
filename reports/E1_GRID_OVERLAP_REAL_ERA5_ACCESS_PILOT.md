@@ -34,3 +34,29 @@ The independent earlier ARCO ERA5 *single-cell* source smoke test succeeded. A n
 Pilot CI: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43549940516. At this document creation, CI completion not yet verified.
 
 **These 3 selected cells per BA are emphatically NOT a substitute for the full 55–1557 cells per BA, and cannot be used for prediction training, BA-area averages or causal attribution.** Once the pilot succeeds, next steps are versioned ERA5 regional 0.25° hourly subset acquisition and historical geometry uncertainty adjudication.
+
+
+## Verified 12 real ERA5 grid-cell records (subsequent CI SUCCESS)
+
+Successful source data run https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43549940516. It used archived *experimental* area-weight artifact from successful 43548907152 (weight CSV SHA-256 `e4e0990cd47e8517d01731231eb4ed3da06649840c99c5e87baadeee7c5b8cb3`), and queried actual `gs://gcp-public-data-arco-era5/ar/full_37-1h-0p25deg-chunk-1.zarr-v3`.
+
+Timestamp 2023-07-01T12:00:00Z:
+
+| BA | Latitudes (°N) | Longitudes (0–360°E) | Actual individual ERA5 2m temperature (°C) |
+|---|---|---|---|
+| AZPS | 31.75,31.75,32.00 | 248.25,248.50,247.75 | 23.58938,22.50421,23.69497 |
+| BPAT | 40.25,40.25,40.25 | 245.25,245.00,245.50 | 13.39669,14.17489,13.16403 |
+| CISO | 32.75,32.75,32.75 | 243.25,243.50,243.75 | 18.20464,22.06234,22.05648 |
+| SRP | 32.75,32.75,32.75 | 247.00,247.50,247.25 | 28.10598,26.87222,27.48812 |
+
+The tested request matched 12 individual indexed ERA5 grid cells, with original weights retained. These are *not* the full-area-weighted BA temperatures. The 3 largest individual weights per BA sum to only ≈1.54% AZPS, ≈0.249% BPAT, ≈0.587% CISO and ≈7.404% SRP of their respective total BA area weights. Selecting 3 top cells is insufficient for valid BA-area exposure and cannot support any climate-impact effect estimate.
+
+## Model-admission safeguards
+
+The official `src/c2_ba_era5_weights.py` path now requires four explicit `True` independently reviewed statuses and four nonempty review evidence references:
+- historical source-vintage applicability to 2020–2025;
+- spatial overlap interpretations for the AZPS/SRP near-containment;
+- `make_valid` topology repair methodology;
+- the estimand: BA area-weighted meteorology versus load-weighted electricity demand.
+
+`tests/test_ba_geography_admission.py` specifically refuses default/unreviewed candidate geometries. Its CI status must be checked separately; approval is **not** automatically inferred from unit tests. The exploratory artifact is kept independent.
