@@ -1,0 +1,41 @@
+name: C2 E1 one real hour full four BA experimental ERA5 weighted temperature
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_full_grid_one_hour.py'
+      - 'tests/test_era5_full_grid_one_hour.py'
+      - '.github/workflows/e1-one-hour-full-grid.yml'
+jobs:
+  one-hour:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - run: python -m unittest discover -s tests -v
+      - name: Download frozen unapproved BA area weights
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/e1_frozen
+      - name: Read bounded public ARCO grid and calculate all cell weights for one hour
+        run: |
+          python -u -m src.c2_era5_full_grid_one_hour \
+            --weights inputs/e1_frozen/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --time 2023-07-01T12:00:00Z \
+            --out outputs/e1_real_full_grid
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-one-real-hour-full-fourBA-experimental-grid
+          path: outputs/e1_real_full_grid/
+          if-no-files-found: warn
