@@ -32,13 +32,20 @@ def analyze_codes(code_rows,county_rows):
         if len(fips)>5 or not fips.isdigit():
             raise ValueError("Nonstandard county FIPS "+fips)
         all_c.setdefault(key,set()).add(fips.zfill(5))
-    rows=[];overlaps=[];changes=[]
+    rows=[];overlaps=[];changes=[];membership=[]
     for y in YEARS:
         year_sets={}
         for code in BAS:
             key=(y,code);id_=ids.get(key)
             county_set=all_c.get((y,id_),set()) if id_ is not None else set()
             year_sets[code]=county_set
+            for fips in sorted(county_set):
+                membership.append({"year":y,"eia930_BA_code":code,
+                    "EIA861_balancing_authority_id":id_,
+                    "county_id_fips":fips,
+                    "source_eia861_yearly_proxy":True,
+                    "historically_approved_BA_polygon":False,
+                    "model_ready":False})
             rows.append({"year":y,"eia930_BA_code":code,"EIA861_balancing_authority_id":id_,
                 "county_FIPS_membership_count":len(county_set),
                 "annual_code_mapping_found":id_ is not None,
@@ -68,7 +75,7 @@ def analyze_codes(code_rows,county_rows):
        "no_official_operating_area_polygon_identified":True,
        "county_proxy_temperature_computed":False,
        "geography_historically_approved":False,"model_training_permitted":False}
-    return rows,overlaps,changes,summary
+    return rows,overlaps,changes,membership,summary
 
 def run(out):
     import pandas as pd
@@ -77,7 +84,7 @@ def run(out):
                           "balancing_authority_code_eia","balancing_authority_name_eia"],**kwargs)
     counties=pd.read_parquet(COUNTIES,columns=["report_date","balancing_authority_id_eia",
                                                "county_id_fips"],**kwargs)
-    rows,overlaps,changes,summary=analyze_codes(
+    rows,overlaps,changes,membership,summary=analyze_codes(
         codes.to_dict(orient="records"),counties.to_dict(orient="records"))
     out=Path(out);out.mkdir(parents=True,exist_ok=True)
     def csvfile(name,arr):
@@ -88,11 +95,15 @@ def run(out):
     csvfile("2020_2025_real_BA_code_ID_county_crosswalk_UNAPPROVED.csv",rows)
     csvfile("2020_2025_year_specific_BA_county_intersections.csv",overlaps)
     csvfile("2020_2025_BA_county_membership_year_to_year_changes.csv",changes)
+    csvfile("2020_2025_EIA861_fourBA_yearly_county_FIPS_memberships_UNAPPROVED.csv",membership)
+    summary["actual_EIA861_fourBA_annual_county_membership_rows"]=len(membership)
+    summary["counties_unchanged_in_all_annual_comparisons"]=all(x["county_membership_added"]==0 and x["county_membership_removed"]==0 for x in changes)
     summary.update({"PUDL_code_table":CODES,"PUDL_county_table":COUNTIES,
         "actual_EIA861_code_records_read":len(codes),"actual_EIA861_county_records_read":len(counties)})
     (out/"BA_annual_county_provenance_manifest.json").write_text(json.dumps(summary,indent=2)+"\n")
     print("REAL_2020_2025_EIA861_BA_COUNTY_CROSSWALK",json.dumps(summary))
     for row in rows:print("ANNUAL_BA_COUNTIES",json.dumps(row))
+    for row in changes:print("YEAR_TO_YEAR_COUNTY_CHANGE",json.dumps(row))
     for row in overlaps:
         if row["county_FIPS_intersection_count"]:
             print("ANNUAL_BA_COUNTY_OVERLAP",json.dumps(row))
