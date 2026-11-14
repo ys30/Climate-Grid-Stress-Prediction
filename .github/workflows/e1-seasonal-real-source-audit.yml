@@ -13,7 +13,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        start: ['2023-01-15T00:00:00Z', '2023-07-01T00:00:00Z']
+        include:
+          - start: '2023-01-15T00:00:00Z'
+            season: winter
+          - start: '2023-07-01T00:00:00Z'
+            season: summer
     permissions:
       contents: read
       actions: read
@@ -47,6 +51,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: c2-e1-real-two-day-source-audit-${{ matrix.start }}
+          name: c2-e1-real-two-day-source-audit-${{ matrix.season }}
           path: outputs/e1_seasonal
           if-no-files-found: warn
