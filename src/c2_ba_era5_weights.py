@@ -26,6 +26,19 @@ def validate_meta(meta,geom_bytes):
         raise ValueError("BA crosswalk explicitly must be reviewed")
     if meta.get("geometry_is_illustrative",False):
         raise ValueError("Illustrative boundaries cannot be admitted")
+    # Historic polygon vintage, AZPS/SRP overlap, and prior invalid geometry
+    # require separate scientific sign-off; exploratory weights use another CLI.
+    for gate in ("historical_vintage_reviewed","spatial_overlap_reviewed",
+                 "topology_repair_reviewed","exposure_interpretation_reviewed"):
+        if meta.get(gate) is not True:
+            raise ValueError("BA geography model-use gate not approved: "+gate)
+    for evidence in ("historical_vintage_review_reference",
+                     "spatial_overlap_review_reference",
+                     "topology_repair_review_reference",
+                     "exposure_interpretation_review_reference"):
+        ref=meta.get(evidence)
+        if not isinstance(ref,str) or not ref.strip():
+            raise ValueError("BA geography review evidence missing: "+evidence)
 
 def build_weights(geojson,meta):
     from shapely.geometry import shape,box
