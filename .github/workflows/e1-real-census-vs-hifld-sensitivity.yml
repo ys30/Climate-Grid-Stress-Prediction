@@ -1,13 +1,13 @@
 name: C2 E1 real hourly ERA5 TIGER county versus HIFLD sensitivity
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'src/c2_census_vs_hifld_era5.py'
-      - 'tests/test_census_vs_hifld_era5.py'
-      - '.github/workflows/e1-real-census-vs-hifld-sensitivity.yml'
+  workflow_run:
+    workflows:
+      - C2 E1 real Census TIGER 2024 BA county proxy B construction
+    types: [completed]
 jobs:
   compare-real-ERA5:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     permissions:
@@ -24,7 +24,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: c2-e1-TIGER2024-fourBA-county-polygon-proxy-UNAPPROVED
-          run-id: 43651609278
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43651609278 }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: inputs/tiger
       - name: Retrieve frozen HIFLD 2018 geographic grid weights for proxy A
