@@ -47,3 +47,34 @@ Observed gridded Kelvin values were finite in all selected cells. The grid data 
 ## Next bounded 24-hour experiment
 
 `src/c2_era5_24h_exploratory.py`, `tests/test_era5_24h_exploratory.py`, and `e1-real-24h-exposures.yml` now attempt a contiguous 24-hour real Zarr weather subgrid, validating all 24 UTC hour stamps and all four BA grid exposures for each hour. GitHub CI: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43553993546. At document creation, CI result not yet verified. Expected result if successful: 96 rows, NOT an approved historical weather-demand panel.
+
+
+## CI-verified contiguous 24-hour actual ARCO observations
+
+CI **success**: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43553993546 .
+
+All 24 UTC hours on **2023-07-01** were present and continuous, bounded weather-source rectangle = 5,472 0.25-degree grid cells per hour, with each BA using its complete candidate polygon-weighted cell set. Total exactly **96** candidate-geography BA temperature rows. Daily minimum–maximum of hourly BA-mean temperature (°C):
+- AZPS: 21.068864 to 38.536893.
+- BPAT: 14.177249 to 28.330700.
+- CISO: 20.475391 to 35.619391.
+- SRP: 25.425508 to 42.324877.
+
+No grid-value imputation. These are actual ERA5 cell observations, but the regional exposure spatial estimator remains **UNAPPROVED**.
+
+## Actual hourly EIA-930 and ERA5 diagnostic alignment
+
+CI **success**: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43554151147 .
+
+This downloaded and reconciled official 2022 H2 and 2023 H1/H2 EIA-930 source CSVs, applied the existing exact-hour EIA demand-quality flags, and paired them with the frozen **real** 24-hour ERA5 exploratory exposure source artifact:
+- Exactly **96** exact UTC hourly demand/weather pairs for four BAs, 2023-07-01.
+- **Zero** EIA source anomaly flags among those 96 observations under the existing conservative candidate screen.
+- No missing weather or load hours, no interpolation, no model fit.
+- Raw EIA-930 demand MW within the selected day: AZPS 3438–6776, BPAT 5188–7785, CISO 23082–35566, SRP 3177–7054.
+- Output artifact: `24h_REAL_SOURCE_UTC_PAIRED_NOT_MODEL.csv`, and `real_24h_pairing_manifest.json`.
+- `candidate_geography_approved=False`, `model_training_eligible=False` for every row; **not a model-ready panel**.
+
+## Model-use safety regression
+
+`src/c2_weather_join.py` now requires explicit per-weather-record `geometry_approved=True` and nonblank `geometry_admission_id` for model-ready complete-case joins. `tests/test_weather_join.py` rejects unapproved or missing admission identifiers; experimental 24h source observations cannot enter the approved join by default. Actual independent scientific sign-off of 2018-vintage candidate BA boundaries, AZPS/SRP high overlap and 7.08% CISO repair diagnostic still missing.
+
+**End-to-end evidence achieved:** official EIA-930 raw demand → verified UTC source reconciliation + quarantine flags; public ARCO ERA5 → all-source-cell weighted hourly meteorology; diagnostic exact UTC pairing. **Not yet achieved:** independent historical BA source approval, 2020–2025 panel, calendar/GAM/XGBoost held-out skill, ALL/NAT anthropogenic attribution, SSP future grid stress.
