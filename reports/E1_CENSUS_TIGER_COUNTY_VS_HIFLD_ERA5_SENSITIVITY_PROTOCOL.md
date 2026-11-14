@@ -34,3 +34,20 @@ Real ARCO ERA5 A/B workflow: https://github.com/ys30/Climate-Grid-Stress-Predict
 This is spatial input sensitivity, NOT a geography admission. EPA documents BAs do not have strict geographic footprints; EIA BA operating function and EIA-861 served-county proxies need not coincide. The BA weather exposure remains unapproved; historical 2020–2025 E1 source archive, original load gaps and anomaly candidates remain unchanged; neither the E2 predictive model, anthropogenic attribution nor E3 SSP/PyPSA runs are authorized.
 
 C-1 is frozen and unchanged.
+
+
+## 2026-11-14 execution audit — independent county source construction verified
+
+**Actual Census TIGER geometry workflow SUCCESS**:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43651609278 .
+
+The source download actually retrieved `83,913,260` bytes of Census TIGER/Line 2024 county shapefile ZIP, SHA256 `04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b`. Source EIA-861 county membership CSV SHA256 `6c61f82541393c8cbe5fdeae31fc0ceca86d59b71be1ba7a8aae3543db282d68`. All 182 **distinct** county geometries required by the four BA union masks were actually found and validated; they cover the expected 15 AZPS, 109 BPAT, 58 CISO, 3 SRP original source county memberships (185 BA-county entries with 3 SRP/AZPS county repeats). Four union polygon geometries are valid. GeoJSON SHA256 `7f7cc843e3a6db958ad71a8dce5b98df882bb20bead0b1775319562427f95cca`.
+
+Verified actual TIGER artifact:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43651609278/artifacts/14136592595 .
+
+Actual HIFLD-vs-TIGER **equal-area mask overlap** independent of weather is implemented in `src/c2_hifld_vs_county_spatial_overlap.py` and GitHub run https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43652536420 .
+
+The real ERA5 **matched-hour air temperature** comparison is in `src/c2_census_vs_hifld_era5.py` and source-triggered GitHub run https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43652340209 . As of the latest check both downstream jobs are **queued** with no numeric geometric-overlap or actual temperature comparison result verified yet. Do not claim a magnitude or direction of spatial exposure bias.
+
+All county proxies stay `geometry_approved=False` and `model_training_eligible=False`. Stable county membership and valid Census geometry do not certify a historical electricity BA operating area.
