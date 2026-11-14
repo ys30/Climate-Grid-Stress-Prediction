@@ -24,6 +24,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_72_month_source_summary.py' -v
           python -m unittest discover -s tests -p 'test_full_source_event_audit.py' -v
+          python -m unittest discover -s tests -p 'test_six_year_hourly_archive.py' -v
       - name: Retrieve verified 2020-2025 January source months
         uses: actions/download-artifact@v4
         with:
@@ -77,6 +78,11 @@ jobs:
             --manifests "${files[@]}" \
             --out outputs/e1_72_month_source_qa
           python -u -m src.c2_full_source_event_audit \
+            --inputs inputs \
+            --out outputs/e1_72_month_source_qa
+      - name: Consolidate six years of real hourly BA source records to SHA256 audited CSV.gz
+        run: |
+          python -u -m src.c2_six_year_hourly_archive \
             --inputs inputs \
             --out outputs/e1_72_month_source_qa
       - uses: actions/upload-artifact@v4
