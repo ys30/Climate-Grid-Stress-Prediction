@@ -1,0 +1,42 @@
+name: C2 E1 audit 70 original EIA930 source anomaly candidates
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_anomaly_neighborhood_review.py'
+      - 'tests/test_anomaly_neighborhood_review.py'
+      - '.github/workflows/e1-anomaly-candidate-source-review.yml'
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify EIA source anomaly triage cannot edit observations or admit models
+        run: python -m unittest discover -s tests -p 'test_anomaly_neighborhood_review.py' -v
+      - name: Download immutable source-hour archive from previously successful six-year CI
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-2020-2025-all-72-source-month-QA-NOT-MODEL
+          run-id: 43629200989
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/frozen_source
+      - name: Check source archive digest before any scientific diagnostics
+        run: |
+          echo '88551b144acfaafb1be1e1a4691cd263101241a3b6def4429c3f099a006419ac  inputs/frozen_source/C2_REAL_ERA5_EIA930_2020_2025_ALL_HOURS_GEOGRAPHY_UNAPPROVED.csv.gz' | sha256sum --check
+      - name: Review 70 source EIA930 anomaly candidates versus nearest observed unflagged BA hours
+        run: |
+          python -u -m src.c2_anomaly_neighborhood_review \
+            --input-gzip inputs/frozen_source/C2_REAL_ERA5_EIA930_2020_2025_ALL_HOURS_GEOGRAPHY_UNAPPROVED.csv.gz \
+            --out outputs/e1_anomaly_triage
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-70-real-demand-anomaly-candidates-neighbor-triage-NOT-MODEL
+          path: outputs/e1_anomaly_triage/
+          if-no-files-found: error
