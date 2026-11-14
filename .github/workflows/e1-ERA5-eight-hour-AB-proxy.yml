@@ -1,0 +1,48 @@
+name: C2 E1 eight real UTC ERA5 HIFLD-vs-TIGER geographic proxy samples
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_AB_eight_hour_sensitivity.py'
+      - 'tests/test_era5_AB_eight_hour_sensitivity.py'
+      - '.github/workflows/e1-ERA5-eight-hour-AB-proxy.yml'
+jobs:
+  sample-real-ERA5:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - run: python -m unittest discover -s tests -p 'test_era5_AB_eight_hour_sensitivity.py' -v
+      - name: Retrieve original frozen HIFLD source candidate weights A
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/hifld
+      - name: Retrieve Census TIGER EIA861 county candidate weights B
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-ERA5-TIGER-2024-vs-HIFLD-2018-spatial-sensitivity-UNAPPROVED
+          run-id: 43652340209
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/county
+      - name: Compare true public ERA5 at eight dates under the same matched spatial source
+        run: |
+          python -u -m src.c2_era5_AB_eight_hour_sensitivity \
+            --hifld-weights inputs/hifld/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --county-weights inputs/county/C2_TIGER2024_EIA861_COUNTY_ERA5_AREA_WEIGHTS_UNAPPROVED.csv \
+            --out outputs/real_ERA5_AB_8hours
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-eight-real-ERA5-A-B-proxy-samples-2020-2025-NOT-MODEL
+          path: outputs/real_ERA5_AB_8hours/
+          if-no-files-found: warn
