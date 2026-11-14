@@ -4,10 +4,10 @@ on:
   workflow_run:
     workflows:
       - C2 E1 real remaining March May June August September November December 2020-2025
+      - C2 E1 real December source months 2020-2025 year-end repaired
     types: [completed]
 jobs:
   reconcile:
-    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -55,6 +55,13 @@ jobs:
           run-id: 43627845540
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: inputs/batch2
+      - name: Retrieve December rerun with corrected year-end boundary handling
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-*-month-12-PROVISIONAL-NOT-MODEL
+          run-id: 43628125103
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/december_year_end
       - name: Fail closed unless 72 unique real source months satisfy all weather and demand QA
         shell: bash
         run: |
