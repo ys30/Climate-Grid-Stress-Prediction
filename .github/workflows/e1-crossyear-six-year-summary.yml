@@ -1,0 +1,44 @@
+name: C2 E1 aggregate six-year real source window manifests
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_crossyear_source_summary.py'
+      - 'tests/test_crossyear_source_summary.py'
+      - '.github/workflows/e1-crossyear-six-year-summary.yml'
+jobs:
+  aggregate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enforce source audit and no-training contracts
+        run: python -m unittest discover -s tests -p 'test_crossyear_source_summary.py' -v
+      - name: Download each of the six real annual archived source manifests
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-crossyear-real-july-48h-*-NOT-MODEL
+          run-id: 43555573681
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/annual_e1
+      - name: Strictly compile independent 2020-2025 completed source samples
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find inputs/annual_e1 -name seasonal_source_audit.json -type f | sort)
+          printf 'Received annual source manifest files: %s\n' "${#manifests[@]}"
+          test "${#manifests[@]}" -eq 6
+          python -u -m src.c2_crossyear_source_summary \
+            --manifests "${manifests[@]}" \
+            --out outputs/e1_six_year
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-six-year-observed-1152-BA-hour-source-summary-NOT-MODEL
+          path: outputs/e1_six_year/
+          if-no-files-found: error
