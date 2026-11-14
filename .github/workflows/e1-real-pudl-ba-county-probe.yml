@@ -1,0 +1,33 @@
+name: C2 E1 real EIA861 PUDL historical BA-county source probe
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/e1-real-pudl-ba-county-probe.yml'
+      - 'src/c2_pudl_ba_county_source_probe.py'
+      - 'tests/test_pudl_ba_county_source_probe.py'
+jobs:
+  source-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install anonymous S3 parquet access and data analysis
+        run: python -m pip install 'pandas>=2.2' 'pyarrow>=18' 's3fs>=2025.3'
+      - name: Unit test year-bound and geometry admission contracts
+        run: python -m unittest discover -s tests -p 'test_pudl_ba_county_source_probe.py' -v
+      - name: Read actual public PUDL BA county-membership parquet and inventory annual source availability
+        run: |
+          python -u -m src.c2_pudl_ba_county_source_probe \
+            --out outputs/e1_pudl_source_inventory
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-PUDL-BA-county-yearly-source-inventory-NOT-MODEL
+          path: outputs/e1_pudl_source_inventory
+          if-no-files-found: warn
