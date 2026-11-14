@@ -1,0 +1,43 @@
+name: C2 E1 real Census TIGER 2024 BA county proxy B construction
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_census_tiger_county_proxy.py'
+      - 'tests/test_census_tiger_county_proxy.py'
+      - '.github/workflows/e1-census-tiger-2024-county-proxy.yml'
+jobs:
+  full-county-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install full-fidelity geographic geometry dependencies
+        run: python -m pip install 'shapely>=2.0' 'pyshp>=2.3'
+      - name: Test experimental county union and prohibitions
+        run: python -m unittest discover -s tests -p 'test_census_tiger_county_proxy.py' -v
+      - name: Retrieve verified annual BA to county FIPS source artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-2020-25-EIA861-fourBA-annual-county-crosswalk-UNAPPROVED
+          run-id: 43647297586
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/eia861
+      - name: Download source full-resolution TIGER county shapefile and union 2024 BA candidate county masks
+        run: |
+          python -u -m src.c2_census_tiger_county_proxy \
+            --memberships inputs/eia861/2020_2025_EIA861_fourBA_yearly_county_FIPS_memberships_UNAPPROVED.csv \
+            --out outputs/tiger2024_county_proxy
+      - name: Archive raw-source SHA256 manifest and experimental geometry
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-TIGER2024-fourBA-county-polygon-proxy-UNAPPROVED
+          path: outputs/tiger2024_county_proxy/
+          if-no-files-found: warn
