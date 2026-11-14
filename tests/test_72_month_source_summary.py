@@ -24,6 +24,9 @@ class Tests(unittest.TestCase):
         self.assertEqual(len(months),72)
         self.assertEqual(qa["total_real_ERA5_BA_hours"],
           4*24*(366+365+365+365+366+365))
+        self.assertEqual(len(qa["yearly_source_quality"]),6)
+        self.assertTrue(all(not x["training_permitted"] for x in qa["yearly_source_quality"]))
+        self.assertEqual(sum(x["observed_weather_BA_hours"] for x in qa["yearly_source_quality"]),qa["total_real_ERA5_BA_hours"])
         self.assertFalse(qa["training_permitted"])
         self.assertFalse(qa["BA_geography_historical_approval"])
     def test_missing_month_never_passes(self):
