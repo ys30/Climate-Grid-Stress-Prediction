@@ -1,0 +1,43 @@
+name: C2 E1 consolidate four real 24h ERA5 geographic A B experiments
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_AB_24h_aggregate.py'
+      - 'tests/test_era5_AB_24h_aggregate.py'
+      - '.github/workflows/e1-AB-fourday-summary.yml'
+jobs:
+  audit-four-days:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_era5_AB_24h_aggregate.py' -v
+      - name: Download four actual real ERA5 day-level area proxy sensitivity artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-24h-ERA5-geography-AB-*-NOT-MODEL
+          run-id: 43654020965
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/real_days
+      - name: Verify every 24h real BA record and source SHA hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(find inputs/real_days -type f -name REAL_ERA5_24h_A_B_geography_provenance.json | sort)
+          test ${#files[@]} -eq 4
+          folders=()
+          for file in "${files[@]}"; do folders+=("$(dirname "$file")"); done
+          python -u -m src.c2_era5_AB_24h_aggregate \
+            --source-folders "${folders[@]}" --out outputs/e1_fourdays_AB
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-384-real-hour-ERA5-HIFLD-Census-proxy-sensitivity-NOT-MODEL
+          path: outputs/e1_fourdays_AB/
+          if-no-files-found: error
