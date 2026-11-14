@@ -19,7 +19,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Verify strict 72-month calendar and model-use gate tests
-        run: |\n          python -m unittest discover -s tests -p 'test_72_month_source_summary.py' -v\n          python -m unittest discover -s tests -p 'test_full_source_event_audit.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_72_month_source_summary.py' -v
+          python -m unittest discover -s tests -p 'test_full_source_event_audit.py' -v
       - name: Retrieve verified 2020-2025 January source months
         uses: actions/download-artifact@v4
         with:
