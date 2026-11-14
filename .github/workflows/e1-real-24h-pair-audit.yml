@@ -1,0 +1,48 @@
+name: C2 E1 real EIA930 x ERA5 24h UTC pairing audit NOT FOR MODEL
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_24h_source_pair_audit.py'
+      - 'tests/test_era5_24h_source_pair_audit.py'
+      - '.github/workflows/e1-real-24h-pair-audit.yml'
+jobs:
+  pairing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5'
+      - run: python -m unittest discover -s tests -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-era5-24h-4BA-provisional
+          run-id: 43553993546
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/weather_frozen
+      - name: Fetch official EIA 930 source balances
+        run: |
+          mkdir -p inputs/eia
+          for half in 2022_Jul_Dec 2023_Jan_Jun 2023_Jul_Dec; do
+            curl --fail --location --silent --show-error --max-time 120 \
+              -o "inputs/eia/${half}.csv" \
+              "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_${half}.csv"
+          done
+      - name: Pair observed demand with source-grid-derived hourly weather; never admit model
+        run: |
+          python -u -m src.c2_era5_24h_source_pair_audit \
+            --eia-files inputs/eia/*.csv \
+            --weather inputs/weather_frozen/REAL_ERA5_24h_UNAPPROVED.csv \
+            --out outputs/e1_source_pairing
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-24h-eia930-era5-paired-NOT-MODEL
+          path: outputs/e1_source_pairing
+          if-no-files-found: warn
