@@ -1,0 +1,55 @@
+name: C2 E1 real seven-day ERA5 EIA930 cross-year source audit NOT MODEL
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/e1-crossyear-seven-day-source-audit.yml'
+jobs:
+  seven-day:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        year: [2020, 2024, 2025]
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - run: python -m unittest discover -s tests -p 'test_era5_seasonal_source_audit.py' -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/weights
+      - name: Acquire original EIA-930 half-year source files and January boundary lookback
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/eia
+          prev=$((${{ matrix.year }} - 1))
+          for half in "${prev}_Jul_Dec" "${{ matrix.year }}_Jan_Jun" "${{ matrix.year }}_Jul_Dec"; do
+            curl --fail --location --retry 3 --silent --show-error --max-time 150 \
+              -o "inputs/eia/${half}.csv" \
+              "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_${half}.csv"
+          done
+      - name: Compute 168 actual hourly ERA5 temperatures per BA and pair real EIA demand
+        run: |
+          python -u -m src.c2_era5_seasonal_source_audit \
+            --start '${{ matrix.year }}-07-01T00:00:00Z' --days 7 \
+            --weights inputs/weights/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --eia-files inputs/eia/*.csv \
+            --out outputs/e1_weeklong
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-weeklong-${{ matrix.year }}-BA-ERA5-EIA-NOT-MODEL
+          path: outputs/e1_weeklong/
+          if-no-files-found: warn
