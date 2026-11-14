@@ -57,3 +57,42 @@ The independent 2024 Census county geometry represents county membership proxy, 
 To proceed to a publishable robust geographical conclusion, compare full diurnal profiles and then wider sampled windows or longer seasonal windows, freeze temporally appropriate source geography provenance, and document which spatial exposure estimand serves the inferential task. Do not switch model geography approval to true based only on a consistent temperature difference.
 
 C-1 remains untouched.
+
+
+## Confirmed 96-hour matched-day geographic sensitivity (four 24-hour days)
+
+Independent actual ERA5 source CI **SUCCESS** for all four full-day jobs:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43654020965 .
+
+The all-hour per-day source results are preserved separately:
+- 2023 winter Jan 15: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43654020965/artifacts/14136897696
+- 2023 summer Jul 1: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43654020965/artifacts/14137810602
+- 2025 winter Jan 15: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43654020965/artifacts/14137436638
+- 2025 summer Jul 1: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43654020965/artifacts/14137656160
+
+Separate strict re-ingestion and aggregation CI also **SUCCESS**:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43654203600 . The archived resulting 384-row CSV/summary/provenance is:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43654203600/artifacts/14137910200 .
+Outer artifact SHA256 = `0a5e8bf688a38e83a3339389f48d0913179deb1eed3e39805fbeaabcf7a1dcaa`.
+
+The actual four days are **2023-01-15, 2023-07-01, 2025-01-15 and 2025-07-01**. The source matched all 24 UTC hours under both original unapproved area-weight maps on each day; total four BAs × 96 source hours = **384 BA-hour spatial comparisons**. Both masks always use the same exact real public ARCO ERA5 2m temperatures and resolution.
+
+| BA | 96-hour mean B−A, °C | Median B−A, °C | Min B−A, °C | Max B−A, °C | Hours B colder than A |
+|---|---:|---:|---:|---:|---:|
+| AZPS | **−1.921391** | −1.934339 | −2.926157 | −1.212622 | **96/96** |
+| BPAT | +0.006933 | +0.020655 | −0.414651 | +0.347476 | 48/96 |
+| CISO | −0.277619 | −0.291841 | −0.633558 | +0.139007 | 81/96 |
+| SRP | **−1.930985** | −2.089636 | −3.027294 | −0.793948 | **96/96** |
+
+Four individual 24-hour daily mean B−A results (°C):
+
+| BA | Jan 15 2023 | Jul 1 2023 | Jan 15 2025 | Jul 1 2025 |
+|---|---:|---:|---:|---:|
+| AZPS | −1.589260 | −1.592199 | −2.343165 | −2.160942 |
+| BPAT | +0.188705 | −0.220558 | +0.248510 | −0.188926 |
+| CISO | −0.332365 | −0.393090 | −0.390118 | +0.005096 |
+| SRP | −1.630599 | −1.869726 | −1.974800 | −2.248813 |
+
+**Interpretation:** Candidate weather exposures for AZPS/SRP are meaningfully sensitive to polygon definition and showed a consistently cooler Census county proxy in each sampled source-hour. BPAT is comparatively insensitive in overall mean, with *seasonal sign reversal*. These four selected days are **not** a randomly sampled, full 2020–2025 BA climatology or independent 96-day dataset. Adjacent UTC hours are autocorrelated; never calculate p-values pretending they are 96 independent draws. The differences may reflect geographic support, elevation/land fraction and spatial weighting—not proven source error or historical temperature bias. The Census proxy does NOT automatically become the official or preferable BA electricity demand exposure.
+
+This evidence reinforces the need for an explicit geographic exposure estimand and sensitivity plan before any EIA-930 weather-demand predictive experiments. `model_training_permitted=False` for both masks and all 384 records.
