@@ -58,7 +58,11 @@ def build_weights(geojson,meta):
                 if not -180<=lon<=180:continue
                 cell=box(lon-RES/2,lat-RES/2,lon+RES/2,lat+RES/2)
                 if not poly.intersects(cell):continue
-                area=projected_poly.intersection(transform(to_area,cell)).area
+                # Clip in the valid geographic CRS BEFORE projecting; a highly
+                # detailed polygon can acquire ring conflicts under projection.
+                # This is geometric integration, not a repair to the raw source.
+                clipped=poly.intersection(cell)
+                area=transform(to_area,clipped).area
                 if area>0:weighted.append((lat,lon,area))
         total=sum(a for _,_,a in weighted)
         if not total:raise ValueError(f"No intersected ERA5 cells for {ba}")
