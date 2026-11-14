@@ -44,3 +44,20 @@ The source-window matrix run https://github.com/ys30/Climate-Grid-Stress-Predict
 | 2025 | success | 192 | 14098307319 | 28c37cddf06b0164f33bcc891e55b7306d3c39d2a516be19697ad797b2c63740 |
 
 The independent manifest aggregation CI https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43561884994 was newly submitted to verify the six manifest constraints and publish `crossyear_two_day_source_summary.csv` and `crossyear_source_summary.json`; at this writing its conclusion is not yet verified. Importantly the 1,152 paired hours **are geographically provisional diagnostic observations**: this is not full-year coverage, a trainable series, proof of fixed source boundaries, or climate attribution.
+
+
+## Six-year manifest aggregation — independently verified SUCCESS
+
+The independent source-manifest CI https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43561884994 **successfully downloaded all six 2020–2025 original window manifests**, checked each year has 4 BAs × 48 UTC hours, verified that no source observations had been imputed, rejected any modeling approval, and validated that every year used the same frozen weights file. It emitted exactly **1,152 sampled BA-hour source observations** and explicitly reported:
+- `annual_full_weather_data_verified: false`
+- `training_authorized: false`
+- `geometry_historical_approval: false`
+- `causal_attribution_performed: false`
+
+Archived summary artifact: https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43561884994/artifacts/14100666858 ; ZIP SHA256 `57d53d564198278c2187e606700fd29630224cbc4567837b8782d1a63966e179`.
+
+## Subsequent seven-day source-window extension
+
+New CI https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43561969083 samples July 1–7 in each of 2020, 2024 and 2025 (training and heldout years), 4 BA × 168 hours per year, targeting **672 real-source pairs per year**, 2,016 in total. This is a planned measurement target, **not an observed result until each CI job succeeds**. Code reuses `c2_era5_seasonal_source_audit.py` and keeps geometry and training admission false for all rows. Source geometry remains 2018-vintage experimental.
+
+Even if seven-day source checks succeed, source-gap completeness for remaining months in 2020–2025 and full BA polygon scientific admissibility are independent blockers before model execution.
