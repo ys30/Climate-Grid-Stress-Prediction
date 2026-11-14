@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Install repository scientific test dependencies
+        run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5'
       - run: python -m unittest discover -s tests -v
       - name: Audit original EIA-930 four BA yearly reporting coverage
         run: python -u -m src.c2_yearly_coverage --years ${{ matrix.year }} --out outputs/e0_years
