@@ -53,8 +53,10 @@ def run(start,days,weights,eia_sources,out_dir,allow_source_gaps=False):
     begin=datetime.fromisoformat(start.replace("Z","+00:00"))
     if begin.tzinfo is None or begin.utcoffset().total_seconds()!=0 or begin.hour!=0:
         raise ValueError("UTC midnight required")
-    if (begin+timedelta(days=days)).year!=begin.year:
-        raise ValueError("This pilot must not cross year boundary")
+    # The exclusive end of December 31 is Jan 1 of the next year; this
+    # is still a legal within-year December source window.
+    if (begin+timedelta(hours=days*24-1)).year!=begin.year:
+        raise ValueError("Requested observation hours cross the year boundary")
     groups=load_exploratory_weights(weights)
     data,conflicts,sources=load_records(begin.year,eia_sources)
     if conflicts:raise ValueError("Conflicting EIA-930 timestamps")
