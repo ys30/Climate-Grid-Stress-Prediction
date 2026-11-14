@@ -1,4 +1,4 @@
-"""Seasonal 48-hour REAL ERA5/EIA-930 source pairing; never model-ready.
+"""Bounded multi-day REAL ERA5/EIA-930 source pairing; never model-ready.
 
 This is an empirical reproducibility and temporal coverage experiment using
 UNAPPROVED 2018-era candidate BA polygons. It does not train or infer climate impacts.
@@ -49,7 +49,7 @@ def seasonal_source_pair(weather_rows,demand,flagged,start,days,allow_missing_de
 
 def run(start,days,weights,eia_sources,out_dir,allow_source_gaps=False):
     import xarray as xr
-    if days not in (2,3,7):raise ValueError("Limit source smoke study to 2, 3 or 7 days")
+    if not (2 <= days <= 31):raise ValueError("Limit each source audit to 2–31 contiguous days")
     begin=datetime.fromisoformat(start.replace("Z","+00:00"))
     if begin.tzinfo is None or begin.utcoffset().total_seconds()!=0 or begin.hour!=0:
         raise ValueError("UTC midnight required")
@@ -67,6 +67,7 @@ def run(start,days,weights,eia_sources,out_dir,allow_source_gaps=False):
         if qa["row_count"]!=96 or not qa["contiguous_UTC_hours_verified"]:
             raise ValueError("24-hour weather data incomplete")
         weather.extend(rows)
+        print("ERA5_REAL_DAY_FETCHED",json.dumps({"utc_day":at,"rows":len(rows),"candidate_geography_approved":False}),flush=True)
     paired=seasonal_source_pair(weather,data,flags,begin.isoformat(),days,allow_missing_demand=allow_source_gaps)
     out=Path(out_dir);out.mkdir(parents=True,exist_ok=True)
     def write_csv(name,items):
@@ -82,6 +83,7 @@ def run(start,days,weights,eia_sources,out_dir,allow_source_gaps=False):
              "paired_source_rows":len(paired)-len(missing_rows),
              "source_BA_hour_slots":len(paired),
              "source_missing_demand_hours":len(missing_rows),
+             "missing_demand_BA_hours":[{"ba":x["ba"],"utc":x["timestamp_utc_start"]} for x in missing_rows],
              "weather_source_rows":len(weather),
              "BAs":list(BAS),"source_dataset":"ARCO ERA5 real 2m temperature",
              "weights_sha256":hashlib.sha256(Path(weights).read_bytes()).hexdigest(),
