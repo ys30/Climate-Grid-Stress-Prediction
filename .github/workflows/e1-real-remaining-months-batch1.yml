@@ -1,0 +1,60 @@
+name: C2 E1 real calendar-month February April October 2020-2025 NOT MODEL
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/e1-real-remaining-months-batch1.yml'
+jobs:
+  source-month:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        year: [2020, 2021, 2022, 2023, 2024, 2025]
+        month: [2, 4, 10]
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Scientific source dependencies
+        run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - name: Contract tests and leap year QA
+        run: |
+          python -m unittest discover -s tests -p 'test_era5_calendar_month_source.py' -v
+          python -m unittest discover -s tests -p 'test_era5_monthly_source_contract.py' -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/weights
+      - name: Original EIA-930 source half-year files and prior-year lookback
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs/eia
+          previous=$((${{ matrix.year }} - 1))
+          for half in "${previous}_Jul_Dec" "${{ matrix.year }}_Jan_Jun" "${{ matrix.year }}_Jul_Dec"; do
+            curl --fail --location --retry 3 --retry-delay 2 --silent --show-error --max-time 150 \
+              -o "inputs/eia/${half}.csv" \
+              "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_${half}.csv"
+          done
+      - name: Full real monthly 0.25 deg ERA5 grid and EIA930 candidate geographic source QA
+        run: |
+          python -u -m src.c2_era5_calendar_month_source \
+            --year ${{ matrix.year }} --month ${{ matrix.month }} \
+            --weights inputs/weights/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --eia-files inputs/eia/*.csv --out outputs/e1_real_month
+      - name: Preserve actual BA hour source manifests and raw gaps for review
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-${{ matrix.year }}-month-${{ matrix.month }}-PROVISIONAL-NOT-MODEL
+          path: outputs/e1_real_month/
+          if-no-files-found: warn
