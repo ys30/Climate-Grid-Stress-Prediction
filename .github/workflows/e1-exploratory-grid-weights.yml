@@ -1,0 +1,40 @@
+name: C2 E1 exploratory four BA grid weight and overlap audit
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_exploratory_grid_weights.py'
+      - 'tests/test_exploratory_grid_weights.py'
+      - '.github/workflows/e1-exploratory-grid-weights.yml'
+jobs:
+  exploratory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5'
+      - run: python -m unittest discover -s tests -v
+      - name: Preserve actual source polygons
+        run: python -u -m src.c2_national_polygon_extract --out outputs/e1_national_geometries
+      - name: Generate topology repair sensitivity ONLY
+        run: |
+          python -u -m src.c2_topology_sensitivity \
+            --source outputs/e1_national_geometries/four_ba_candidate_UNAPPROVED.geojson \
+            --out outputs/e1_topology
+      - name: Report provisional BA grid-cell weights and overlaps
+        run: |
+          python -u -m src.c2_exploratory_grid_weights \
+            --candidate-geojson outputs/e1_topology/candidate_geometric_repairs_UNAPPROVED.geojson \
+            --source-audit outputs/e1_topology/topology_sensitivity_manifest.json \
+            --out outputs/e1_exploratory
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          path: |
+            outputs/e1_topology/
+            outputs/e1_exploratory/
+          if-no-files-found: warn
