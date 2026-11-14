@@ -1,0 +1,56 @@
+name: C2 E1 reconcile real January July 12 source months 2020-2025
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_january_july_source_summary.py'
+      - 'tests/test_january_july_source_summary.py'
+      - '.github/workflows/e1-jan-july-six-year-summary.yml'
+jobs:
+  reconciliation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s tests -p 'test_january_july_source_summary.py' -v
+      - name: Download six real January source-month archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-january-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43619234662
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/january
+      - name: Download four middle-year real July source-month archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-july-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43563639298
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/july_middle
+      - name: Download 2020 and 2025 real July source-month archives
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-july-*-full-month-PROVISIONAL-NOT-MODEL
+          run-id: 43563497776
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/july_outer
+      - name: Independently reconcile source time months and all original gaps
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find inputs -name seasonal_source_audit.json -type f | sort)
+          echo "Observed independently archived actual source months: ${#manifests[@]}"
+          test "${#manifests[@]}" -eq 12
+          python -u -m src.c2_january_july_source_summary \
+            --manifests "${manifests[@]}" --out outputs/e1_two_seasons
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-real-jan-july-six-years-35712-BA-hour-sources-NOT-MODEL
+          path: outputs/e1_two_seasons/
+          if-no-files-found: error
