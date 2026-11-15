@@ -57,3 +57,22 @@ Pass only on verified original source population response and ZIP SHA256, comple
 Next after verified C: compare real 4 UTC hourly readings across January and July in 2023/2025, then consider a longer C vs A/B independent sensitivity; do not call any of these a validated load-weighted weather indicator.
 
 C-1 unchanged; formal C-2 model admission remains CLOSED.
+
+
+## 2026-11-14 correction: Census PL API blocked, official bulk Population Estimates source substituted
+
+Original Census API job **FAILED** (not a source-population result):
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43665170884 .
+The API returned HTTP 200 `text/html` containing `<title>Missing Key</title>` despite anonymous REST access. The code now correctly rejects such HTML rather than parsing it as source data or silently substituting values.
+
+The newly implemented replacement is the directly downloadable, official Census Population Estimates Program *Vintage 2025* all-county file:
+https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/counties/totals/co-est2025-alldata.csv .
+Its published file layout explicitly defines `ESTIMATESBASE2020` as the **April 1, 2020 resident population estimates base**, distinct from both the April 2020 decennial PL `P1_001N` enumeration and July 1 `POPESTIMATE2020`: https://www2.census.gov/programs-surveys/popest/technical-documentation/file-layouts/2020-2025/CO-EST2025-ALLDATA.pdf .
+
+The explicit Proxy C definition is therefore **Census Vintage-2025 April-2020 county resident population estimates-base weights**, not raw 2020 Census PL counts. It uses the same fixed TIGER-2024 geometry and the same EIA-861 BA county-membership snapshot. The source file's actual SHA256 must be recorded when run; never claim identical results to the unavailable original PL-count input.
+
+The source builder now validates `SUMLEV=050` genuine county rows, STATE+COUNTY FIPS, nonnegative integer `ESTIMATESBASE2020`, all 182 distinct source county IDs, full raster mass allocation, and strict no-model flags. Any failed Census direct file acquisition continues to block empirical Proxy C and downstream A/B/C real ERA5 results.
+
+Updated source CI:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43665280497 .
+**This workflow has been submitted, but at the point of updating this report its successful completion has not yet been independently confirmed.**
