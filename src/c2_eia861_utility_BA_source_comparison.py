@@ -37,6 +37,11 @@ def compare(bridge_rows,frozen_rows):
             raise ValueError("Invalid unrestricted utility source FIPS")
         if not utility.issubset(unrestricted):
             raise ValueError("State-limited source set must be subset of unrestricted")
+        association_count=int(x["source_utility_state_associations"])
+        matched_count=int(x["associations_with_county_source"])
+        unmatched_count=int(x["unmatched_associations"])
+        if association_count<=0 or min(matched_count,unmatched_count)<0 or matched_count+unmatched_count!=association_count:
+            raise ValueError("Utility association source coverage counts do not reconcile")
         if int(x["candidate_union_counties"])<0 or int(x["unrestricted_utility_union_counties"])<0 or int(x["unmatched_associations"])<0:
             raise ValueError("Negative county or unmatched association source count")
         if len(utility)!=int(x["candidate_union_counties"]) or len(unrestricted)!=int(x["unrestricted_utility_union_counties"]):
@@ -56,6 +61,9 @@ def compare(bridge_rows,frozen_rows):
             "additional_cross_state_unique_counties":len(unrestricted-utility),
             "added_county_FIPS":";".join(sorted(added)),
             "missing_county_FIPS":";".join(sorted(omitted)),
+            "utility_state_associations_total":association_count,
+            "utility_state_associations_matched":matched_count,
+            "utility_state_association_match_fraction":round(matched_count/association_count,6),
             "unmatched_utility_state_associations":int(x["unmatched_associations"]),
             "restricted_state_union_equals_frozen_BA_counties":utility==old,
             "utility_county_set_is_meter_or_BA_hourly_load":False,
