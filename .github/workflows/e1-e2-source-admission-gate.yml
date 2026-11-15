@@ -41,12 +41,20 @@ jobs:
           run-id: 43647297586
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: inputs/eia861
+      - name: Fetch separately audited PUDL v2026.10.0 tagged upstream BA county source
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-PUDL-v2026-10-stable-EIA861-BA-county-source-diff-NOT-MODEL
+          run-id: 43669704182
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/pudl_versioned
       - name: Verify source evidence and produce independent fail-closed admission decision
         run: |
           python -u -m src.c2_e1_e2_source_admission_gate \
             --abc-audit inputs/abc \
             --population inputs/census \
             --crosswalk inputs/eia861 \
+            --versioned-pudl inputs/pudl_versioned \
             --out outputs/e1_to_e2
       - uses: actions/upload-artifact@v4
         with:
