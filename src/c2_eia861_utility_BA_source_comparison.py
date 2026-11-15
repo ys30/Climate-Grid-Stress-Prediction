@@ -18,7 +18,10 @@ def compare(bridge_rows,frozen_rows):
         y=int(x["year"]);ba=x["eia930_BA_code"];fips=x["county_id_fips"]
         if y not in YEARS or ba not in BAS or len(fips)!=5 or not fips.isdigit():
             raise ValueError("Unknown BA/year/FIPS in original annual EIA-861 source")
-        original.setdefault((y,ba),set()).add(fips)
+        slot=original.setdefault((y,ba),set())
+        if fips in slot:
+            raise ValueError("Duplicate county membership in frozen BA/year source")
+        slot.add(fips)
     if len(original)!=24:raise ValueError("Original BA-year snapshot must contain 24 slots")
     summary=[];observed=set()
     for x in bridge_rows:
@@ -30,8 +33,12 @@ def compare(bridge_rows,frozen_rows):
         if "" in utility or any(len(f)!=5 or not f.isdigit() for f in utility):
             raise ValueError("Invalid state-limited utility source FIPS")
         unrestricted=set(x.get("unrestricted_utility_union_FIPS_semicolon","").split(";")) if x.get("unrestricted_utility_union_FIPS_semicolon") else set()
+        if "" in unrestricted or any(len(f)!=5 or not f.isdigit() for f in unrestricted):
+            raise ValueError("Invalid unrestricted utility source FIPS")
         if not utility.issubset(unrestricted):
             raise ValueError("State-limited source set must be subset of unrestricted")
+        if int(x["candidate_union_counties"])<0 or int(x["unrestricted_utility_union_counties"])<0 or int(x["unmatched_associations"])<0:
+            raise ValueError("Negative county or unmatched association source count")
         if len(utility)!=int(x["candidate_union_counties"]) or len(unrestricted)!=int(x["unrestricted_utility_union_counties"]):
             raise ValueError("Source FIPS strings and source counts disagree")
         old=original[key];union=utility|old
@@ -45,6 +52,8 @@ def compare(bridge_rows,frozen_rows):
             "county_FIPS_only_in_utility_source":len(added),
             "county_FIPS_only_in_frozen_BA_source":len(omitted),
             "county_set_Jaccard":round(len(overlap)/len(union),6) if union else None,
+            "unrestricted_utility_counties":len(unrestricted),
+            "additional_cross_state_unique_counties":len(unrestricted-utility),
             "added_county_FIPS":";".join(sorted(added)),
             "missing_county_FIPS":";".join(sorted(omitted)),
             "unmatched_utility_state_associations":int(x["unmatched_associations"]),
