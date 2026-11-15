@@ -1,0 +1,45 @@
+name: C2 E1 audit four true seven-day ERA5 A B C geographic source windows
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - C2 E1 full seven-day real ERA5 ABC population versus area sensitivity
+    types: [completed]
+jobs:
+  audit:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit test fail-closed original-source audit
+        run: python -m unittest discover -s tests -p 'test_era5_ABC_fourweek_aggregate.py' -v
+      - name: Retrieve all four genuine original ERA5 season-week artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-ERA5-ABC-seven-day-*-NOT-MODEL
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43668145338 }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/source_weeks
+      - name: Verify exact 2688 BA-hour UTC keys, source hashes, population C model restrictions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find inputs/source_weeks -name REAL_ERA5_ABC_SEVENDAY_SOURCE_MANIFEST.json -type f | sort)
+          test ${#manifests[@]} -eq 4
+          dirs=()
+          for file in "${manifests[@]}"; do dirs+=("$(dirname "$file")"); done
+          python -u -m src.c2_era5_ABC_fourweek_aggregate \
+            --source-folders "${dirs[@]}" \
+            --out outputs/e1_ABC_fourweek
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-2688-BA-hour-real-ERA5-ABC-4week-AUDITED-NOT-MODEL
+          path: outputs/e1_ABC_fourweek/
+          if-no-files-found: error
