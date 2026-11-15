@@ -1,7 +1,7 @@
 """True ARCO ERA5 A/B/C proxy temperature comparison at fixed real hourly UTC.
 
 A 2018 HIFLD: polygon area, B 2024 TIGER county: polygon area,
-C 2020 Census county-population allocated uniformly within county x TIGER cells.
+C Census CO-EST2025 April-2020 county population estimate-base allocated uniformly within county x TIGER cells.
 Three provisional weather proxies, none approved for EIA BA load models.
 """
 import argparse,csv,hashlib,json
@@ -41,7 +41,7 @@ def threeway_source(groups,when,ds):
         c=by_key["C_"+ba]["weighted_temperature_celsius"]
         rows.append({"utc_timestamp":when,"ba":ba,
             "A_HIFLD2018_area_c":a,"B_TIGER2024_area_c":b,
-            "C_Census2020_county_population_c":c,
+            "C_Census2020_estimate_base_county_population_c":c,
             "B_minus_A_c":round(b-a,6),"C_minus_A_c":round(c-a,6),
             "C_minus_B_c":round(c-b,6),
             "ERA5_cells_A":by_key["A_"+ba]["grid_cells"],
@@ -59,6 +59,8 @@ def run(a_path,b_path,c_path,provenance_path,out):
     if hashes["A"]!=A_SHA or hashes["B"]!=B_SHA:
         raise ValueError("Frozen source A/B candidate weight digest mismatch")
     csource=json.loads(Path(provenance_path).read_text())
+    if csource.get("census2020_variable")!="ESTIMATESBASE2020" or csource.get("population_is_original_decennial_PL_P1_001N") is not False:
+        raise ValueError("Proxy C must be explicitly labeled official Census 2025-vintage 2020 population estimate base")
     if hashes["C"]!=csource["weight_csv_sha256"]:
         raise ValueError("Population source C weights not provenance pinned")
     if (csource.get("model_training_permitted") is not False or
@@ -83,7 +85,10 @@ def run(a_path,b_path,c_path,provenance_path,out):
         w=csv.DictWriter(f,fieldnames=list(observations[0]));w.writeheader();w.writerows(observations)
     info={"actual_real_ERA5_BA_hours":16,"sample_UTC_times":list(SAMPLES),
        "source_weight_SHA256":hashes,
-       "C_population_source_census_year":2020,
+       "C_population_reference_year":2020,
+       "C_population_source_vintage":"CO-EST2025 March 2026",
+       "C_population_variable":"ESTIMATESBASE2020",
+       "C_population_is_PL_2020_decennial_count":False,
        "B_and_C_TIGER_county_geometry_year":2024,
        "C_population_density_uniform_within_county":True,
        "population_weight_is_actual_electric_customers":False,
