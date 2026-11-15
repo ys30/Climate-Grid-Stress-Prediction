@@ -1,0 +1,41 @@
+name: C2 E1 Census 2020 county population ERA5 proxy C source build
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_population_county_weights.py'
+      - 'tests/test_era5_population_county_weights.py'
+      - '.github/workflows/e1-real-census-population-proxy-C.yml'
+jobs:
+  population-weight-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'shapely>=2.0' 'pyproj>=3.5' 'pyshp>=2.3'
+      - name: Verify Census P1 FIPS and population normalization contracts
+        run: python -m unittest discover -s tests -p 'test_era5_population_county_weights.py' -v
+      - name: Retrieve original 24 BA year county ID mapping and FIPS from approved source inventory
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-2020-25-EIA861-fourBA-annual-county-crosswalk-UNAPPROVED
+          run-id: 43647297586
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/membership
+      - name: Get official 2020 Census PL county population and verify 2024 TIGER source digest
+        run: |
+          python -u -m src.c2_era5_population_county_weights \
+            --memberships inputs/membership/2020_2025_EIA861_fourBA_yearly_county_FIPS_memberships_UNAPPROVED.csv \
+            --out outputs/census_population_proxy_C
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-2020-Census-population-2024-TIGER-proxy-C-UNAPPROVED
+          path: outputs/census_population_proxy_C/
+          if-no-files-found: warn
