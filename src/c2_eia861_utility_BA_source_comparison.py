@@ -64,7 +64,9 @@ def compare(bridge_rows,frozen_rows):
             "utility_state_associations_total":association_count,
             "utility_state_associations_matched":matched_count,
             "utility_state_association_match_fraction":round(matched_count/association_count,6),
-            "unmatched_utility_state_associations":int(x["unmatched_associations"]),
+            "unmatched_utility_state_associations":unmatched_count,
+            "incomplete_utility_territory_join":unmatched_count>0,
+            "county_jaccard_is_descriptive_only":True,
             "restricted_state_union_equals_frozen_BA_counties":utility==old,
             "utility_county_set_is_meter_or_BA_hourly_load":False,
             "operating_geography_approved":False,
@@ -84,7 +86,25 @@ def run(bridge,original,out):
     with file.open("w",newline="") as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]))
         w.writeheader();w.writerows(rows)
+    by_ba={}
+    for ba in BAS:
+        group=[r for r in rows if r["BA"]==ba]
+        total=sum(r["utility_state_associations_total"] for r in group)
+        matched=sum(r["utility_state_associations_matched"] for r in group)
+        by_ba[ba]={
+            "BA_years":len(group),
+            "association_rows":total,
+            "matched_association_rows":matched,
+            "unmatched_association_rows":total-matched,
+            "association_match_fraction":round(matched/total,6) if total else None,
+            "BA_years_with_incomplete_utility_join":sum(r["incomplete_utility_territory_join"] for r in group),
+            "county_set_Jaccard_is_operating_area_accuracy":False,
+            "approved_as_load_exposure":False
+        }
     summary={"source_year_BA_slots_verified":len(rows),
+        "descriptive_source_coverage_by_BA":by_ba,
+        "BA_year_slots_with_incomplete_utility_join":sum(r["incomplete_utility_territory_join"] for r in rows),
+        "association_coverage_not_customer_or_load_coverage":True,
         "BA_utility_source_csv_SHA256":hashlib.sha256(bridge.read_bytes()).hexdigest(),
         "BA_county_versioned_PUDL_snapshot_SHA256":EXPECTED_SHA,
         "exact_county_set_matches":sum(r["restricted_state_union_equals_frozen_BA_counties"] for r in rows),
