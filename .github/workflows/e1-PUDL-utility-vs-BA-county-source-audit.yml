@@ -72,6 +72,30 @@ jobs:
             --utility-source inputs/utility/EIA861_2020_25_fourBA_utility_state_counts_SOURCE_ONLY.csv \
             --BA-memberships inputs/BA/2020_2025_EIA861_fourBA_yearly_county_FIPS_memberships_UNAPPROVED.csv \
             --out outputs/BA_utility_county_comparison
+      - name: Publish descriptive 24-BA-year source-audit summary
+        run: |
+          python - <<'PY'
+          import json, os, pathlib
+          p=pathlib.Path("outputs/BA_utility_county_comparison/E1_UTILITY_VS_BA_COUNTY_RECONCILIATION_QA.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          if d.get("source_year_BA_slots_verified")!=24 or d.get("E2_training_permitted") is not False:
+              raise SystemExit("Failed E1 audit publication integrity check")
+          lines=[
+              "## E1 county-source reconciliation (not load geography)",
+              "",
+              f"BA-year slots: {d['source_year_BA_slots_verified']}",
+              f"Exact source-set matches: {d['exact_county_set_matches']}",
+              f"BA-years with incomplete utility territory joins: {d['BA_year_slots_with_incomplete_utility_join']}",
+              "",
+              "| BA | Source links | Matched | Unmatched | Matching fraction |",
+              "|---|---:|---:|---:|---:|",
+          ]
+          for ba, q in sorted(d["descriptive_source_coverage_by_BA"].items()):
+              lines.append(f"| {ba} | {q['association_rows']} | {q['matched_association_rows']} | {q['unmatched_association_rows']} | {q['association_match_fraction']:.3f} |")
+          lines += ["", "**Not an observed customer, load, or BA operating-area measure. E2 training remains blocked.**"]
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+              out.write("\\n".join(lines)+"\\n")
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: c2-e1-24-BA-year-utility-versus-versioned-BA-county-difference-NOT-MODEL
