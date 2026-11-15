@@ -1,0 +1,68 @@
+name: C2 E1 full seven-day real ERA5 ABC population versus area sensitivity
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_ABC_sevenday.py'
+      - 'tests/test_era5_ABC_sevenday.py'
+      - '.github/workflows/e1-real-ERA5-ABC-seven-day.yml'
+jobs:
+  source-window:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - start: '2023-01-15T00:00:00Z'
+            label: winter2023
+          - start: '2023-07-01T00:00:00Z'
+            label: summer2023
+          - start: '2025-01-15T00:00:00Z'
+            label: winter2025
+          - start: '2025-07-01T00:00:00Z'
+            label: summer2025
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - run: python -m unittest discover -s tests -p 'test_era5_ABC_sevenday.py' -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/A
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-ERA5-TIGER-2024-vs-HIFLD-2018-spatial-sensitivity-UNAPPROVED
+          run-id: 43652340209
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/B
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-2020-Census-population-2024-TIGER-proxy-C-UNAPPROVED
+          run-id: 43665930801
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/C
+      - name: Read seven actual UTC days of the common ERA5 source and all three geographic exposures
+        run: |
+          python -u -m src.c2_era5_ABC_sevenday \
+            --start '${{ matrix.start }}' \
+            --A inputs/A/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --B inputs/B/C2_TIGER2024_EIA861_COUNTY_ERA5_AREA_WEIGHTS_UNAPPROVED.csv \
+            --C inputs/C/C2_ERA5_PROXY_C_CENSUS2020_COUNTY_POPULATION_UNAPPROVED.csv \
+            --C-manifest inputs/C/C2_PROXY_C_POPULATION_SOURCE_PROVENANCE.json \
+            --out outputs/e1_ABC_sevenday
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-ERA5-ABC-seven-day-${{ matrix.label }}-NOT-MODEL
+          path: outputs/e1_ABC_sevenday/
+          if-no-files-found: warn
