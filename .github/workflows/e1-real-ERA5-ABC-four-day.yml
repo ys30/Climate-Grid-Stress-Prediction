@@ -1,0 +1,55 @@
+name: C2 E1 four real full days ERA5 ABC area population proxy sensitivity
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_ABC_four_day.py'
+      - 'tests/test_era5_ABC_four_day.py'
+      - '.github/workflows/e1-real-ERA5-ABC-four-day.yml'
+jobs:
+  ABC-four-day:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ERA5 public source dependencies
+        run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - name: Four day source and population gate unit tests
+        run: python -m unittest discover -s tests -p 'test_era5_ABC_four_day.py' -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/A
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-ERA5-TIGER-2024-vs-HIFLD-2018-spatial-sensitivity-UNAPPROVED
+          run-id: 43652340209
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/B
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-2020-Census-population-2024-TIGER-proxy-C-UNAPPROVED
+          run-id: 43665930801
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/C
+      - name: Compare all UTC hours for four real winter and summer days in 2023 and 2025
+        run: |
+          python -u -m src.c2_era5_ABC_four_day \
+            --A-hifld inputs/A/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --B-county inputs/B/C2_TIGER2024_EIA861_COUNTY_ERA5_AREA_WEIGHTS_UNAPPROVED.csv \
+            --C-population inputs/C/C2_ERA5_PROXY_C_CENSUS2020_COUNTY_POPULATION_UNAPPROVED.csv \
+            --C-manifest inputs/C/C2_PROXY_C_POPULATION_SOURCE_PROVENANCE.json \
+            --out outputs/e1_ABC_four_day
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-384-real-ERA5-ABC-BA-hours-4days-NOT-MODEL
+          path: outputs/e1_ABC_four_day/
+          if-no-files-found: error
