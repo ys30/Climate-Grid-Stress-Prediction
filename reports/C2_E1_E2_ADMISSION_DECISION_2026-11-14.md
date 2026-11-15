@@ -32,3 +32,16 @@ Status: SOURCE PROVENANCE CLEARED; EMPIRICAL MODEL ADMISSION BLOCKED.
 
 ## Before any manuscript Results claim
 Attach actual source artifact, run link, SHA256, parameter settings, held-out test metrics and uncertainty. CI passing a software-contract test is not evidence of model skill or statistical identification.
+
+
+## Run-verified update: corrected state-limited utility join SUCCESS
+- GitHub Actions run 43672928429 job 132686735927: completed/success. Workflow head SHA ccecdbbffc2ef0a06750412f47799d52f529404045f82.
+- Archived artifact 14144934238, SHA256 0e3d5ac5556b155456deb79bbb78be4b707907043764faca29edf1552721385e (ZIP digest; not a CSV digest).
+- Raw run-log source summary: 24 BA-year slots; 1,418 BA–utility–state association rows; 439 unmatched utility-state-to-county associations; 28 distinct multi-BA utility-year-state associations; 1,127 excluded cross-state county association slots.
+- The unmatched share is 439/1418 = 30.96% of association rows only: NOT a 30.96% share of demand, customers, county coverage or BA land area. The 1,127 cross-state count may repeat the same county over multiple association rows.
+- The PUDL source Parquet hashes in actual run log: association 837b4f62e740a501ad8f0b96a3b7d8597fa888cf7ad516d0401cb284ab0f8ef0; service territory 3d6c4cc54bd856e678fa0b3eb162e2c8867a3fbe64dfae8f862f0dd82cca0605.
+- CI success demonstrates the real bridge script and its limited unit test passed. It does NOT demonstrate that the downstream utility-vs-frozen-BA-source 24-slot comparison workflow succeeded. Read that downstream workflow's own logs, CSV, manifest and SHA256 before writing any Jaccard/coverage numbers.
+- The correction to the historical note above is explicit: the bridge run is no longer QUEUED. The scientific gates GEO_HISTORICAL_BA_FOOTPRINT, GEO_LOAD_RELEVANCE, LOAD_QUALITY_HOLDOUT_PROTOCOL remain BLOCKED and model_training_permitted=false.
+
+## Immediate source-reconciliation outputs to inspect
+Report per BA-year: utility associations, unmatched associations (denominator annotated), intersection/difference of county FIPS vs frozen BA source, Jaccard, and multi-BA overlap. Separate these administrative geometry diagnostics from a load-relevant location estimate. The downstream workflow's manual dispatch currently uses an older fixed run ID, so a manual run must be checked to ensure it consumes corrected artifact 14144934238 / run 43672928429 rather than the earlier cross-state-overinclusive artifact.
