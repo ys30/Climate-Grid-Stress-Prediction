@@ -92,3 +92,24 @@ https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669567273 
 **At the time this section was added, this independent gate workflow was queued; its success is not yet claimed.**
 
 C-1 remains frozen. No SSP-PyPSA, ALL/NAT attribution or E2 GAM/XGBoost load model trained.
+
+
+## Audit update: source ledger verified; E2 admission blocked (explicitly)
+
+The independent source evidence and model admission audit workflow **SUCCESS**:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669567273 .
+Download original archived machine-readable gate plus concise methodological ledger:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669567273/artifacts/14143751471 .
+Its GitHub archive digest is `sha256:5e16c3b02cb6dde85175ac73c72c88028ed97dd4dc9569e544add6c0d4f08de7`.
+
+Verified inputs: 2,688 true ERA5 A/B/C BA-hours, four exact UTC weeks and source CSV SHA256 `07da6a3244fa16f585aa52c029fa372c37e4ea51cd8d352f7a1365c383878716`; 182 distinct Census county population records (original Census bulk source SHA256 `4f5a499d851e2cb48fd7a5405e5a9235453a8a66933657aacd10df0e264f35d5`); 24 source EIA861 BA/year slots and 1,110 frozen county memberships (original derived CSV SHA256 `6c61f82541393c8cbe5fdeae31fc0ceca86d59b71be1ba7a8aae3543db282d68`).
+
+The machine source QA verdict is PASS; `approved_historical_BA_geography=false`, `model_training_permitted=false`, `forecast_skill_claims_permitted=false`. In particular no source has verified the utility-to-BA load spatial distribution, original 2020-25 operational footprint, or adjudication of original EIA930 gaps/anomaly candidates.
+
+**New upstream-version experiment:** PUDL official source documentation confirms stable versioned release prefixes `s3://pudl.catalyst.coop/vYYYY.M.patch/` and official v2026.10.0 integrates final 2025 EIA861 data. The code `src/c2_pudl_versioned_county_freeze.py` retrieves two original Parquet objects from the **explicit** `s3://pudl.catalyst.coop/v2026.10.0/` prefix, hashes exact input bytes, reconstructs 24 annual BA county FIPS sets and compares them against previously SHA-pinned nightly-derived artifact. This is more reproducible than simply requerying the mutable `nightly` prefix.
+
+The versioned-source experiment workflow was submitted at
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669704182 .
+At time of this report update **this job had not been independently verified successful**; do not assert that original PUDL stable data and snapshot are equal or that the upstream release provenance gate is cleared before inspecting that actual result.
+
+C-1 remains frozen and unchanged.
