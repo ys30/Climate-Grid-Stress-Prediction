@@ -1,0 +1,57 @@
+name: C2 E1 empirical real ERA5 triple geography A B C sensitivity
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - C2 E1 Census 2020 county population ERA5 proxy C source build
+    types: [completed]
+jobs:
+  three-source-comparison:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install public reanalysis source and geographic QA dependencies
+        run: python -m pip install 'numpy>=1.26' 'xarray>=2024.5' 'shapely>=2.0' 'pyproj>=3.5' 'zarr>=3,<4' 'gcsfs>=2025.3'
+      - name: Verify conservative source experiment contracts
+        run: python -m unittest discover -s tests -p 'test_era5_three_proxy_comparison.py' -v
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-unapproved-4ba-area-grid-overlap
+          run-id: 43548907152
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/hifld
+      - uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-ERA5-TIGER-2024-vs-HIFLD-2018-spatial-sensitivity-UNAPPROVED
+          run-id: 43652340209
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/county
+      - name: Retrieve Census total population geographic proxy C artifact after verified source job
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-2020-Census-population-2024-TIGER-proxy-C-UNAPPROVED
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43660654414 }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/population
+      - name: Compare identical actual public ERA5 source against three unapproved BA exposure proxies
+        run: |
+          python -u -m src.c2_era5_three_proxy_comparison \
+            --A-hifld inputs/hifld/e1_exploratory/exploratory_BA_grid_weights_UNAPPROVED.csv \
+            --B-county inputs/county/C2_TIGER2024_EIA861_COUNTY_ERA5_AREA_WEIGHTS_UNAPPROVED.csv \
+            --C-population inputs/population/C2_ERA5_PROXY_C_CENSUS2020_COUNTY_POPULATION_UNAPPROVED.csv \
+            --C-source-manifest inputs/population/C2_PROXY_C_POPULATION_SOURCE_PROVENANCE.json \
+            --out outputs/e1_three_source_proxies
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-ERA5-three-weather-proxies-A-B-C-experimental-NOT-MODEL
+          path: outputs/e1_three_source_proxies/
+          if-no-files-found: warn
