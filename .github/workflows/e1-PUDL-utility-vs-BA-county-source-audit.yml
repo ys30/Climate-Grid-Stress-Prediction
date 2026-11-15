@@ -92,6 +92,17 @@ jobs:
           ]
           for ba, q in sorted(d["descriptive_source_coverage_by_BA"].items()):
               lines.append(f"| {ba} | {q['association_rows']} | {q['matched_association_rows']} | {q['unmatched_association_rows']} | {q['association_match_fraction']:.3f} |")
+          import csv
+          detail=pathlib.Path("outputs/BA_utility_county_comparison/E1_24_BAYEARS_UTILITY_VS_BA_SOURCE_COUNTY_DIFFERENCES.csv")
+          with detail.open(newline="",encoding="utf-8") as src:
+              rows=list(csv.DictReader(src))
+          if len(rows)!=24 or len({(r["year"],r["BA"]) for r in rows})!=24:
+              raise SystemExit("Invalid source comparison BA-year cardinality")
+          lines += ["", "| Year | BA | Frozen counties | Utility counties | Overlap | Added | Missing | Jaccard |",
+                    "|---|---|---:|---:|---:|---:|---:|---:|"]
+          for item in sorted(rows,key=lambda z:(int(z["year"]),z["BA"])):
+              j=item["county_set_Jaccard"]
+              lines.append(f"| {item['year']} | {item['BA']} | {item['county_FIPS_in_frozen_BA_source']} | {item['county_FIPS_state_limited_utility_source']} | {item['county_FIPS_overlap']} | {item['county_FIPS_only_in_utility_source']} | {item['county_FIPS_only_in_frozen_BA_source']} | {j} |")
           lines += ["", "**Not an observed customer, load, or BA operating-area measure. E2 training remains blocked.**"]
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
               out.write("\n".join(lines)+"\n")
