@@ -1,0 +1,46 @@
+name: C2 E1 verify four actual monthly ERA5 geographic A B source archives
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_AB_fourmonth_aggregate.py'
+      - 'tests/test_era5_AB_fourmonth_aggregate.py'
+      - '.github/workflows/e1-real-ERA5-4month-AB-summary.yml'
+jobs:
+  revalidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test fail-closed four month archive provenance
+        run: python -m unittest discover -s tests -p 'test_era5_AB_fourmonth_aggregate.py' -v
+      - name: Download exactly four original monthly ERA5 geographic A/B source artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-ERA5-monthly-AB-*-NOT-MODEL
+          run-id: 43659672871
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/months
+      - name: Audit original per-hour paired source values, exact UTC keys and SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find inputs/months -name REAL_ERA5_MONTH_AB_SOURCE_MANIFEST.json -type f | sort)
+          echo "Archived real ERA5 monthly source manifest count: ${#manifests[@]}"
+          test ${#manifests[@]} -eq 4
+          folders=()
+          for manifest in "${manifests[@]}"; do folders+=("$(dirname "$manifest")"); done
+          python -u -m src.c2_era5_AB_fourmonth_aggregate \
+            --source-folders "${folders[@]}" \
+            --out outputs/e1_four_month_AB
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-11904-ERA5-real-BA-hour-A-B-full-month-source-audit-NOT-MODEL
+          path: outputs/e1_four_month_AB/
+          if-no-files-found: error
