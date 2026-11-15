@@ -95,7 +95,8 @@ def county_population_overlap_weights(members,geometries,populations):
             rows.append({"ba":ba,"latitude":lat,"longitude_0_360":lon,
                  "weight":value/mass,
                  "population_mass_in_cell_proxy":round(value,5),
-                 "exposure_method":"2020_census_county_population_uniform_within_county_UNAPPROVED"})
+                 "exposure_method":"2020_census_county_population_uniform_within_county_UNAPPROVED",
+                 "research_status":"exploratory_unapproved_geometry"})
         sums=sum(r["weight"] for r in rows if r["ba"]==ba)
         if abs(sums-1)>1e-9:raise ValueError("Population weights not normalized")
         summaries.append({"ba":ba,"member_counties":len(members[ba]),
