@@ -1,6 +1,12 @@
 name: C2 E1 reconcile 24 PUDL BA-year source counties with actual state-scoped utility county evidence
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/e1-PUDL-utility-vs-BA-county-source-audit.yml'
+      - 'src/c2_eia861_utility_BA_source_comparison.py'
+      - 'tests/test_c2_eia861_utility_BA_source_comparison.py'
   workflow_run:
     workflows:
       - C2 E1 PUDL v2026.10 BA utility state county source bridge audit
