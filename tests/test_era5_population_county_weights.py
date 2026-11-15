@@ -11,6 +11,12 @@ class Tests(unittest.TestCase):
         self.assertEqual(output,{"04013":100,"04015":200})
         with self.assertRaises(ValueError):
             parse_population_estimates_csv(bulk.encode(),{"04013","06001"})
+    def test_official_csv_windows1252_county_names_are_reversible(self):
+        raw=("SUMLEV,STATE,COUNTY,ESTIMATESBASE2020,CTYNAME\n"
+             "050,35,049,153000,Santa Fe\n"
+             "050,35,013,220000,Doña Ana\n").encode("cp1252")
+        result=parse_population_estimates_csv(raw,{"35049","35013"})
+        self.assertEqual(result,{"35013":220000,"35049":153000})
     def test_within_county_allocation_and_not_utility_customers(self):
         geom={"04013":box(-112.125,32.875,-111.875,33.125),
               "06001":box(-119.125,34.875,-118.875,35.125)}
