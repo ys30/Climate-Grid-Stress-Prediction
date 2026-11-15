@@ -20,7 +20,13 @@ EIA861_FIPS_SHA="6c61f82541393c8cbe5fdeae31fc0ceca86d59b71be1ba7a8aae3543db282d6
 def parse_population_estimates_csv(raw,wanted):
     # ESTIMATESBASE2020 is Census's April 1, 2020 population *estimate base*,
     # NOT exact PL94-171 P1_001N counts or POPESTIMATE2020 (July 1).
-    text=raw.decode("utf-8-sig")
+    # The official CO-EST CSV may contain Windows-1252 county names (e.g. ñ).
+    # Prefer UTF-8 when valid; decode all bytes reversibly with cp1252 only
+    # when the published source is not valid UTF-8. Numeric fields stay strict.
+    try:
+        text=raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        text=raw.decode("cp1252")
     reader=csv.DictReader(io.StringIO(text))
     needed={"SUMLEV","STATE","COUNTY","ESTIMATESBASE2020"}
     if not needed.issubset(reader.fieldnames or []):
