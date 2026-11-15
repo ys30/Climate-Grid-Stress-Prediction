@@ -45,3 +45,30 @@ At writing that corrected CI was **QUEUED**. Its actual annual utility counts, m
 Scientific priority after the source bridge CI: quantify utility relationship coverage and mapping ambiguity **by BA and year**, compare it with the already frozen annual BA county sets, then decide whether any proposed geography/utility weighting is supportable. Do not automatically prefer C or utility-union proxies without independent load-related verification.
 
 C-1 remains unchanged.
+
+
+## Latest execution status: amended E1→E2 gate source audit has now PASSED
+
+The latest version-aware E1→E2 audit job **SUCCESS**:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43670320754 .
+The newest frozen-source gate artifact is:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43670320754/artifacts/14144762435 ,
+GitHub archive SHA256 `428f82144297baa1c4041fb0185207aa171ec336bf1e271f7c88f82e2ba5267f`.
+
+Original 2,688 actual ERA5 A/B/C observations, official Census population sources, all **1,110 yearly BA–county memberships**, and original versioned PUDL `v2026.10.0` source Parquet SHA256 hashes were independently checked. The tagged-original membership output and prior old-nightly-derived source exhibit exact BA-year, BA-code, source ID and county membership identity. The source provenance gate **`PROVENANCE_PUDL_RELEASE` = CLEARED**; other three gates `GEO_HISTORICAL_BA_FOOTPRINT`, `GEO_LOAD_RELEVANCE` and `LOAD_QUALITY_HOLDOUT_PROTOCOL` remain OPEN/BLOCKED. Consequently `model_training_permitted=false` is unchanged.
+
+### State-limited utility county matching and direct frozen BA source comparison
+
+A separate utility-to-BA source link was first demonstrated against actual original PUDL v2026.10 Parquet `core_eia861__assn_balancing_authority` SHA256 `837b4f62e740a501ad8f0b96a3b7d8597fa888cf7ad516d0401cb284ab0f8ef0`, and `core_eia861__yearly_service_territory` SHA256 `3d6c4cc54bd856e678fa0b3eb162e2c8867a3fbe64dfae8f862f0dd82cca0605`. **The earliest original CI pass used an overly broad cross-state union, so do not treat its county union counts as the state-limited answer.** The final source investigation limits `(year,utility,state)` on both sides, in line with PUDL service-territory's `limit_by_state=True` concept.
+
+New source diagnostics include exact semicolon-delimited county FIPS of each 24 BA-year state-limited utility union, and separately the unrestricted utility-county FIPS union for quantifying cross-state inflation. The utility-association audit explicitly records missing utility/state territory rows and multivalued BA associations, without declaring customer-level load distributions.
+
+Independent `src/c2_eia861_utility_BA_source_comparison.py` and workflow
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/workflows/e1-PUDL-utility-vs-BA-county-source-audit.yml
+check **exact** utility-versus-BA county FIPS set intersection, additions, removals and Jaccard for 24 BA-year slots, using the previously frozen membership file SHA256. This is a new source geometry DIAGNOSTIC, never an authorized BA operating region or load-weighted temperature predictor.
+
+The latest corrected state-limited utility source CI is
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43672928429 .
+**At this report update it remained queued**, and the independent utility-to-frozen-BA county reconciliation had not completed. Do not assert any completed state-limited BA-by-year utility coverage, Jaccard or model acceptance until these CI runs succeed and their original artifact hashes are inspected.
+
+C-1 frozen; C-2 modeling gate CLOSED.
