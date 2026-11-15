@@ -1,0 +1,46 @@
+name: C2 E1 source verify four real seven-day ERA5 geographic A B windows
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_era5_AB_fourweek_aggregate.py'
+      - 'tests/test_era5_AB_fourweek_aggregate.py'
+      - '.github/workflows/e1-real-ERA5-fourweek-AB-summary.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify strict source-only aggregation tests
+        run: python -m unittest discover -s tests -p 'test_era5_AB_fourweek_aggregate.py' -v
+      - name: Retrieve four originally observed ERA5 seven-day seasonal sensitivity source data
+        uses: actions/download-artifact@v4
+        with:
+          pattern: c2-e1-real-ERA5-seven-day-A-B-*-NOT-MODEL
+          run-id: 43656511154
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/seven_day
+      - name: Validate exact BA-hour keys, sources, spatial deltas and no-model admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find inputs/seven_day -type f -name REAL_ERA5_7DAY_AB_SOURCE_MANIFEST.json | sort)
+          echo "Real seven-day ERA5 manifest archives: ${#manifests[@]}"
+          test ${#manifests[@]} -eq 4
+          folders=()
+          for manifest in "${manifests[@]}"; do folders+=("$(dirname "$manifest")"); done
+          python -u -m src.c2_era5_AB_fourweek_aggregate \
+            --source-folders "${folders[@]}" \
+            --out outputs/e1_four_week_AB
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-real-2688-BA-hour-HIFLD-TIGER-A-B-source-summary-NOT-MODEL
+          path: outputs/e1_four_week_AB/
+          if-no-files-found: error
