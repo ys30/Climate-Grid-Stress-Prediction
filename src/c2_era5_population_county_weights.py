@@ -1,11 +1,11 @@
-"""C2 E1 proxy C: 2020 Census county-population-weighted ERA5 area support.
+"""C2 E1 proxy C: Census Vintage 2025 estimated April 2020 population-weighted ERA5 area support.
 
-Public Census PL94-171 P1_001N county total population assigned at uniform
+Official Census Population Estimates Program ESTIMATESBASE2020 county population assigned at uniform
 within-county density to 2024 TIGER county polygon x ERA5 0.25-deg intersections.
 EIA861 BA-county membership establishes an *approximate* geographic proxy.
 NO actual customers, NO demand weights, NO approved historic BA geography.
 """
-import argparse,csv,hashlib,json,math,os,time,urllib.error,urllib.parse,urllib.request
+import argparse,csv,hashlib,io,json,math,urllib.request
 from collections import defaultdict
 from pathlib import Path
 
@@ -13,76 +13,49 @@ from src.c2_census_tiger_county_proxy import (
     BAS,CENSUS_URL,source_memberships,county_geometries)
 from src.c2_ba_era5_weights import RES,cell_centers
 
-POP_SOURCE="https://api.census.gov/data/2020/dec/pl"
+POP_SOURCE="https://www2.census.gov/programs-surveys/popest/datasets/2020-2025/counties/totals/co-est2025-alldata.csv"
 TIGER_SHA="04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b"
 EIA861_FIPS_SHA="6c61f82541393c8cbe5fdeae31fc0ceca86d59b71be1ba7a8aae3543db282d68"
 
-def parse_population_table(data,state):
-    if not isinstance(data,list) or len(data)<2:
-        raise ValueError("Census P1 response missing or incomplete")
-    header=data[0]
-    if not all(s in header for s in ("P1_001N","state","county")):
-        raise ValueError("Unexpected Census total population API fields")
-    idx={x:header.index(x) for x in ("P1_001N","state","county")}
-    out={}
-    for row in data[1:]:
-        fips=str(row[idx["state"]]).zfill(2)+str(row[idx["county"]]).zfill(3)
-        if fips[:2]!=state or fips in out:
-            raise ValueError("Census county state mismatch or duplicate")
-        raw=str(row[idx["P1_001N"]])
-        if not raw.isdigit() or int(raw)<0:raise ValueError("Noninteger county source population")
-        out[fips]=int(raw)
-    return out
+def parse_population_estimates_csv(raw,wanted):
+    # ESTIMATESBASE2020 is Census's April 1, 2020 population *estimate base*,
+    # NOT exact PL94-171 P1_001N counts or POPESTIMATE2020 (July 1).
+    text=raw.decode("utf-8-sig")
+    reader=csv.DictReader(io.StringIO(text))
+    needed={"SUMLEV","STATE","COUNTY","ESTIMATESBASE2020"}
+    if not needed.issubset(reader.fieldnames or []):
+        raise ValueError("Missing official Census county estimate fields")
+    population={}
+    for row in reader:
+        if str(row["SUMLEV"]).strip().zfill(3)!="050":continue
+        state=str(row["STATE"]).strip().zfill(2)
+        county=str(row["COUNTY"]).strip().zfill(3)
+        fips=state+county
+        if fips not in wanted:continue
+        if fips in population:raise ValueError("Duplicate official Census county FIPS")
+        val=str(row["ESTIMATESBASE2020"]).strip()
+        if not val.isdigit():raise ValueError("Missing/noninteger April 2020 Census population estimate base")
+        population[fips]=int(val)
+    missing=sorted(set(wanted)-set(population))
+    if missing:raise ValueError("Census official estimated population missing county FIPS: "+str(missing[:15]))
+    return {f:population[f] for f in sorted(wanted)}
 
 def fetch_populations(fips):
-    states=sorted({x[:2] for x in fips})
-    combined={};sources=[]
-    for state in states:
-        query=urllib.parse.urlencode({"get":"P1_001N","for":"county:*","in":"state:"+state})
-        # Census may require an API key. Keep it in request URL only, NEVER
-        # print or persist credentials in source manifests or logs.
-        public_url=POP_SOURCE+"?"+query
-        census_key=os.environ.get("CENSUS_API_KEY","").strip()
-        request_url=public_url+("&key="+urllib.parse.quote(census_key,safe="") if census_key else "")
-        req=urllib.request.Request(request_url,headers={"User-Agent":"C2-ERA5-ScientificSourceAudit/1.0"})
-        response_json=None;raw=None
-        for attempt in range(4):
-            try:
-                with urllib.request.urlopen(req,timeout=60) as response:
-                    raw=response.read()
-                    content_type=response.headers.get("Content-Type","")
-                    status=response.status
-                if status!=200:
-                    raise ValueError("Non-200 Census API status "+str(status))
-                if not raw.lstrip().startswith(b"["):
-                    # Excerpt is diagnostic only, and does not contain API credentials.
-                    snippet=raw[:160].decode("utf-8",errors="replace").replace("\n"," ")
-                    print("CENSUS_API_NON_JSON",json.dumps({
-                        "state":state,"attempt":attempt+1,"bytes":len(raw),
-                        "content_type":content_type,"body_excerpt":snippet}),flush=True)
-                    if attempt<3:
-                        time.sleep(2*(attempt+1))
-                        continue
-                    raise ValueError("Census population API returned non-JSON after four attempts")
-                response_json=json.loads(raw.decode("utf-8-sig"))
-                break
-            except (urllib.error.HTTPError,urllib.error.URLError,TimeoutError) as error:
-                print("CENSUS_API_REQUEST_RETRY",json.dumps({
-                    "state":state,"attempt":attempt+1,"error_type":type(error).__name__,
-                    "status":getattr(error,"code",None)}),flush=True)
-                if attempt==3:raise
-                time.sleep(2*(attempt+1))
-        if response_json is None:
-            raise ValueError("Census API JSON not verified")
-        part=parse_population_table(response_json,state)
-        combined.update(part)
-        sources.append({"state":state,"query_url":public_url,"API_key_used":bool(census_key),
-                        "response_sha256":hashlib.sha256(raw).hexdigest(),
-                        "county_records":len(part)})
-        print("CENSUS_2020_PL_COUNTY_POP_SOURCE",json.dumps(sources[-1]),flush=True)
-    missing=sorted(set(fips)-set(combined))
-    if missing:raise ValueError("2020 Census population missing county FIPS: "+str(missing[:12]))
-    return {x:combined[x] for x in sorted(fips)},sources
+    req=urllib.request.Request(POP_SOURCE,headers={"User-Agent":"C2-ERA5-ScientificSourceAudit/1.0"})
+    with urllib.request.urlopen(req,timeout=90) as response:
+        if response.status!=200:raise ValueError("Official Census bulk file HTTP status not 200")
+        raw=response.read()
+    if len(raw)<10000 or not raw[:100].lstrip().startswith((b"SUMLEV",b"REGION")):
+        raise ValueError("Official Census population bulk response invalid")
+    populations=parse_population_estimates_csv(raw,set(fips))
+    digest=hashlib.sha256(raw).hexdigest()
+    meta={"dataset":"CO-EST2025-alldata","source_url":POP_SOURCE,
+          "source_file_sha256":digest,"download_bytes":len(raw),
+          "population_variable":"ESTIMATESBASE2020",
+          "population_variable_description":"April 1 2020 resident population estimate base (NOT PL94-171 actual decennial count)",
+          "county_records_used":len(populations)}
+    print("CENSUS_OFFICIAL_2025_VINTAGE_2020_BASE",json.dumps(meta),flush=True)
+    return populations,[meta]
 
 def county_population_overlap_weights(members,geometries,populations):
     from shapely.geometry import box
@@ -128,12 +101,12 @@ def county_population_overlap_weights(members,geometries,populations):
             rows.append({"ba":ba,"latitude":lat,"longitude_0_360":lon,
                  "weight":value/mass,
                  "population_mass_in_cell_proxy":round(value,5),
-                 "exposure_method":"2020_census_county_population_uniform_within_county_UNAPPROVED",
+                 "exposure_method":"2020_Census_estimates_base_county_population_uniform_within_county_UNAPPROVED",
                  "research_status":"exploratory_unapproved_geometry"})
         sums=sum(r["weight"] for r in rows if r["ba"]==ba)
         if abs(sums-1)>1e-9:raise ValueError("Population weights not normalized")
         summaries.append({"ba":ba,"member_counties":len(members[ba]),
-            "2020_census_county_population":total_population,
+            "2020_census_estimates_base_county_population":total_population,
             "area_allocated_population":round(mass,3),
             "ERA5_cells":len(cell_masses),"weight_sum":sums,
             "approved_for_utility_customer_exposure":False})
@@ -157,12 +130,13 @@ def run(membership_file,outdir):
     with path.open("w",newline="") as stream:
         writer=csv.DictWriter(stream,fieldnames=list(weights[0]))
         writer.writeheader();writer.writerows(weights)
-    pop_file=p/"CENSUS2020_COUNTY_POPULATION_SOURCE.csv"
+    pop_file=p/"CENSUS2020_ESTIMATES_BASE_COUNTY_POPULATION_SOURCE.csv"
     with pop_file.open("w",newline="") as stream:
-        writer=csv.DictWriter(stream,fieldnames=["county_id_fips","census2020_total_population"])
+        writer=csv.DictWriter(stream,fieldnames=["county_id_fips","census2020_estimates_base_population"])
         writer.writeheader()
-        writer.writerows({"county_id_fips":f,"census2020_total_population":count} for f,count in pop.items())
-    meta={"population_source":POP_SOURCE,"census2020_variable":"P1_001N",
+        writer.writerows({"county_id_fips":f,"census2020_estimates_base_population":count} for f,count in pop.items())
+    meta={"population_source":POP_SOURCE,"census2020_variable":"ESTIMATESBASE2020","source_vintage":"CO-EST2025-alldata March 2026",
+      "population_is_original_decennial_PL_P1_001N":False,
       "population_source_states":pop_sources,
       "census_total_population_counties":len(pop),
       "census2020_raw_population_csv_sha256":hashlib.sha256(pop_file.read_bytes()).hexdigest(),
