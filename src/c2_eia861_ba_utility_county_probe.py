@@ -29,6 +29,7 @@ def assess(associations,territories):
     if set(by_ba)!={(year,baid) for year in YEARS for baid in BAS.values()}:
         raise ValueError("No complete 24 BA-year utility association slots")
     by_utility_counties=defaultdict(set)
+    by_utility_state_counties=defaultdict(set)
     for row in territories:
         year=int(str(row["report_date"])[:4])
         if year not in YEARS:continue
@@ -36,17 +37,26 @@ def assess(associations,territories):
         fips=str(row["county_id_fips"]).strip()
         if not fips or fips.lower() in ("nan","none") or len(fips)>5 or not fips.isdigit():
             raise ValueError("Missing/invalid utility county FIPS")
+        state=str(row["state"]).strip()
+        if not state or state.lower() in ("nan","none"):
+            raise ValueError("Missing utility territory state")
         by_utility_counties[(year,utility)].add(fips.zfill(5))
+        by_utility_state_counties[(year,utility,state)].add(fips.zfill(5))
     counts=[];detail=[];ambiguous=[]
     for year in sorted(YEARS):
         for ba,baid in BAS.items():
             members=by_ba[(year,baid)]
             joined=set()
+            joined_any_state=set()
             found=0
+            excluded_cross_state=0
             for utility,state in sorted(members):
-                c=by_utility_counties.get((year,utility),set())
+                all_states=by_utility_counties.get((year,utility),set())
+                c=by_utility_state_counties.get((year,utility,state),set())
                 if c:found+=1
                 joined|=c
+                joined_any_state|=all_states
+                excluded_cross_state+=len(all_states-c)
                 if len(utility_bas[(year,utility,state)])>1:
                     ambiguous.append({"year":year,"utility_id_eia":utility,
                       "state":state,"BA_id_count":len(utility_bas[(year,utility,state)]),
@@ -55,11 +65,14 @@ def assess(associations,territories):
                 detail.append({"year":year,"BA":ba,"BA_id_eia":baid,
                   "utility_id_eia":utility,"state":state,
                   "utility_counties_reported":len(c),
+                  "other_state_counties_excluded":len(all_states-c),
                   "source_BA_association_is_actual_customer_allocation":False})
             counts.append({"year":year,"BA":ba,
               "source_utility_state_associations":len(members),
               "associations_with_county_source":found,
               "candidate_union_counties":len(joined),
+              "unrestricted_utility_union_counties":len(joined_any_state),
+              "excluded_cross_state_county_association_slots":excluded_cross_state,
               "unmatched_associations":len(members)-found,
               "utility_county_locations_are_hourly_BA_load":False,
               "operational_BA_geography_approved":False,
@@ -81,7 +94,7 @@ def run(out):
         return pd.read_parquet(ROOT+name,columns=columns,
             storage_options={"anon":True,"client_kwargs":{"region_name":"us-west-2"}}).to_dict("records")
     assn=table(ASSN,["report_date","balancing_authority_id_eia","utility_id_eia","state"])
-    territory=table(TERRITORY,["report_date","utility_id_eia","county_id_fips"])
+    territory=table(TERRITORY,["report_date","utility_id_eia","county_id_fips","state"])
     summaries,detail,ambiguous=assess(assn,territory)
     out=Path(out);out.mkdir(parents=True,exist_ok=True)
     for name,data,fields in (
@@ -96,6 +109,8 @@ def run(out):
        "BA_utility_state_associations":len(detail),
        "unmatched_utility_state_associations":sum(x["unmatched_associations"] for x in summaries),
        "distinct_ambiguous_utility_year_state_assignments":len(ambiguous),
+       "BA_utility_to_county_join_state_limited":True,
+       "total_excluded_cross_state_county_association_slots":sum(x["excluded_cross_state_county_association_slots"] for x in summaries),
        "actual_county_customer_distribution_observed":False,
        "actual_hourly_county_load_observed":False,
        "geographic_model_admission":False,"model_training_permitted":False,
