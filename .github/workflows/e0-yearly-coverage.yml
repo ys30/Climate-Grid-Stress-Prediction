@@ -6,6 +6,7 @@ on:
       - 'src/c2_yearly_coverage.py'
       - 'src/c2_temporal_gate.py'
       - 'tests/test_yearly_coverage.py'
+      - 'tests/test_c2_temporal_source_contract.py'
       - '.github/workflows/e0-yearly-coverage.yml'
 jobs:
   year-coverage-pilot:
