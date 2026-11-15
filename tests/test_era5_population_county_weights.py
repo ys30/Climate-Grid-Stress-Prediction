@@ -1,11 +1,16 @@
 import unittest
 from shapely.geometry import box
-from src.c2_era5_population_county_weights import parse_population_table,county_population_overlap_weights
+from src.c2_era5_population_county_weights import parse_population_estimates_csv,county_population_overlap_weights
 class Tests(unittest.TestCase):
-    def test_valid_census_total_and_FIPS(self):
-        d=[["P1_001N","state","county"],["100","04","013"],["200","04","015"]]
-        self.assertEqual(parse_population_table(d,"04"),{"04013":100,"04015":200})
-        with self.assertRaises(ValueError):parse_population_table(d,"06")
+    def test_official_estimates_base_county_only_and_FIPS(self):
+        bulk=("SUMLEV,STATE,COUNTY,ESTIMATESBASE2020\\n"
+              "040,04,000,999999\\n"
+              "050,04,013,100\\n"
+              "050,04,015,200\\n")
+        output=parse_population_estimates_csv(bulk.encode(),{"04013","04015"})
+        self.assertEqual(output,{"04013":100,"04015":200})
+        with self.assertRaises(ValueError):
+            parse_population_estimates_csv(bulk.encode(),{"04013","06001"})
     def test_within_county_allocation_and_not_utility_customers(self):
         geom={"04013":box(-112.125,32.875,-111.875,33.125),
               "06001":box(-119.125,34.875,-118.875,35.125)}
