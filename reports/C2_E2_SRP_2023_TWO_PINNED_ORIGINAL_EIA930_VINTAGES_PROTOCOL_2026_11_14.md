@@ -1,0 +1,26 @@
+# C2 E2 — Pinned raw EIA-930 SRP February 2023 historical-vintage comparison protocol
+
+Date: 2026-11-14 Mountain. C-1 is frozen. **Result pending original ZIP fetch; E2 training blocked.**
+
+## Newly verified external evidence
+Catalyst Cooperative's Zenodo/PUDL EIA-930 original data package provides two date-separated archived raw 2023-H1 EIA-930 ZIPs:
+- **2025-11-23 v53.0.0**: https://zenodo.org/records/17688027 , `eia930-2023half1.zip` MD5 `122e5d253321b7baef657a4880f9a579`.
+- **2026-09-01 v92.0.0**: https://zenodo.org/records/22215263 , `eia930-2023half1.zip` MD5 `1b4acef4e1ec596cf92e7658f9be64c7`.
+
+This proves archived ZIP bytes differ; it does **not** establish that the specific SRP demand hours differ, that EIA officially corrected them, or that either is accurate. EIA itself notes reporting revisions and advises caution with unadjusted BA hourly data: https://www.eia.gov/electricity/930-content/about.html .
+
+## Newly implemented reproducible verification (GitHub)
+- `src/c2_srp_eia930_raw_vintage_compare.py`: downloads pinned ZIPs, checks original MD5, extracts only `*-balance.csv`, reads `SRP` actual `Demand (MW)`, translates original UTC hour-ending labels to UTC interval-start and compares 11 fixed hours from 2023-02-26 20:00Z through 2023-02-27 06:00Z.
+- `tests/test_c2_srp_eia930_raw_vintage_compare.py`: synthetic tests of hour-ending alignment, changed values, identical values and duplicate-hour failure.
+- `.github/workflows/e2-srp-eia930-vintage-comparison.yml`: on push or dispatch, runs tests and the pinned real-source comparison; emits per-hour CSV, JSON provenance and GitHub Actions summary. Real run success and row-level revisions **are not confirmed** by writing this file.
+
+The baseline project's actual original EIA-930/ERA5 source reports SRP original values at 2023-02-26 22:00,23:00 and 2023-02-27 00:00,01:00,02:00 UTC interval start as 2,958; 68,520; 45,097; 27,030; 3,578 MW. The two central extreme hours were not flagged by the original 70-hour source screen but were independently flagged by two follow-up local-median screens. The raw data must not be silently corrected or dropped.
+
+## Scientific interpretation rules
+1. Distinguish archive byte difference, actual source-hour revision across vintages, and independently verified reporting error. They are NOT equivalent.
+2. Even if the value changes between published vintage ZIPs, use the exact difference, time label and source provenance to investigate—not as automatic permission to remove observation.
+3. Preserve training=2020–2022, validation=2023, held-out=2024–2025. The new vintage audit examines the 2023 validation source event only, not 2024–2025.
+4. Original 2018 HIFLD vs county-area vs county-population ERA5 proxy comparison remains scientific sensitivity, not approved BA demand exposure. `GEO_HISTORICAL_BA_FOOTPRINT`, `GEO_LOAD_RELEVANCE`, and `LOAD_QUALITY_HOLDOUT_PROTOCOL` remain BLOCKED; `model_training_permitted=false`.
+
+## Immediate decisive output
+Obtain successful `e2-srp-eia930-vintage-comparison.yml` artifact with 11 original hour-ending records from both historical vintages, archive SHA256 and changed-hour count. Without that artifact, the retrospective source-correction question remains OPEN.
