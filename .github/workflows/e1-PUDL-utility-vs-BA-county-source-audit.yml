@@ -33,6 +33,32 @@ jobs:
           run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43672928429 }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: inputs/utility
+      - name: Fail closed on original tagged PUDL source evidence
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("inputs/utility/E1_EIA861_VERSIONED_UTILITY_SOURCE_ONLY_QA.json")
+          d=json.loads(p.read_text(encoding="utf-8"))
+          expected={
+            "core_eia861__assn_balancing_authority.parquet":"837b4f62e740a501ad8f0b96a3b7d8597fa888cf7ad516d0401cb284ab0f8ef0",
+            "core_eia861__yearly_service_territory.parquet":"3d6c4cc54bd856e678fa0b3eb162e2c8867a3fbe64dfae8f862f0dd82cca0605",
+          }
+          hashes=d["original_PUDL_v2026_10_parquet_SHA256"]
+          for name, digest in expected.items():
+              if hashes[name]["sha256"]!=digest:
+                  raise SystemExit("PUDL pinned source hash mismatch: "+name)
+          required={"BA_year_slots":24,
+                    "BA_utility_state_associations":1418,
+                    "unmatched_utility_state_associations":439,
+                    "distinct_ambiguous_utility_year_state_assignments":28}
+          for key, value in required.items():
+              if d.get(key)!=value:
+                  raise SystemExit("PUDL source audit count mismatch: "+key)
+          if d.get("actual_hourly_county_load_observed") is not False or d.get("model_training_permitted") is not False:
+              raise SystemExit("Invalid load/permission gate in PUDL artifact")
+          print("Verified tagged PUDL origin hashes and 24-slot source counts; NOT load-authorized")
+          PY
       - name: Retrieve fixed BA annual county memberships
         uses: actions/download-artifact@v4
         with:
