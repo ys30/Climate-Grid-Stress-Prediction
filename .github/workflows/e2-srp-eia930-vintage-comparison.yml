@@ -1,0 +1,45 @@
+name: C2 E2 SRP 2023 original EIA930 historical vintage comparison
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/c2_srp_eia930_raw_vintage_compare.py'
+      - 'tests/test_c2_srp_eia930_raw_vintage_compare.py'
+      - '.github/workflows/e2-srp-eia930-vintage-comparison.yml'
+jobs:
+  raw-vintage-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate strict UTC source-hour and value comparison contracts
+        run: python -m unittest discover -s tests -p 'test_c2_srp_eia930_raw_vintage_compare.py' -v
+      - name: Download two separately dated raw EIA930 ZIPs with pinned MD5 and compare SRP hours
+        run: |
+          python -u -m src.c2_srp_eia930_raw_vintage_compare --out outputs/srp_vintage
+      - name: Publish actual row-level comparison summary (never model-admit)
+        if: success()
+        run: |
+          python - <<'PY'
+          import json,os,pathlib
+          p=pathlib.Path("outputs/srp_vintage/C2_SRP_2023_FEB_VINTAGE_QA.json")
+          d=json.loads(p.read_text())
+          assert d["E2_training_permitted"] is False
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as out:
+              out.write("## C2 SRP raw EIA-930 historical snapshot comparison\n\n")
+              out.write(f"Compared source hours: {d['n_paired']} / {d['n_hours']}\n\n")
+              out.write(f"Original demand hours changed between dated PUDL archives: {d['n_changed_original_demand_hours']}\n\n")
+              out.write("A historical value difference is a revision clue, not a confirmed reporting error. E2 remains BLOCKED.\n")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e2-SRP-pinned-2023-EIA930-2025vs2026-vintage-comparison-NOT-MODEL
+          path: outputs/srp_vintage/
+          if-no-files-found: warn
