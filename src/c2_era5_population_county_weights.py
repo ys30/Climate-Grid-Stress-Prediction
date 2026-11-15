@@ -5,7 +5,7 @@ within-county density to 2024 TIGER county polygon x ERA5 0.25-deg intersections
 EIA861 BA-county membership establishes an *approximate* geographic proxy.
 NO actual customers, NO demand weights, NO approved historic BA geography.
 """
-import argparse,csv,hashlib,json,math,os,urllib.parse,urllib.request
+import argparse,csv,hashlib,json,math,os,time,urllib.error,urllib.parse,urllib.request
 from collections import defaultdict
 from pathlib import Path
 
@@ -45,8 +45,36 @@ def fetch_populations(fips):
         census_key=os.environ.get("CENSUS_API_KEY","").strip()
         request_url=public_url+("&key="+urllib.parse.quote(census_key,safe="") if census_key else "")
         req=urllib.request.Request(request_url,headers={"User-Agent":"C2-ERA5-ScientificSourceAudit/1.0"})
-        with urllib.request.urlopen(req,timeout=60) as response:raw=response.read()
-        part=parse_population_table(json.loads(raw.decode()),state)
+        response_json=None;raw=None
+        for attempt in range(4):
+            try:
+                with urllib.request.urlopen(req,timeout=60) as response:
+                    raw=response.read()
+                    content_type=response.headers.get("Content-Type","")
+                    status=response.status
+                if status!=200:
+                    raise ValueError("Non-200 Census API status "+str(status))
+                if not raw.lstrip().startswith(b"["):
+                    # Excerpt is diagnostic only, and does not contain API credentials.
+                    snippet=raw[:160].decode("utf-8",errors="replace").replace("\n"," ")
+                    print("CENSUS_API_NON_JSON",json.dumps({
+                        "state":state,"attempt":attempt+1,"bytes":len(raw),
+                        "content_type":content_type,"body_excerpt":snippet}),flush=True)
+                    if attempt<3:
+                        time.sleep(2*(attempt+1))
+                        continue
+                    raise ValueError("Census population API returned non-JSON after four attempts")
+                response_json=json.loads(raw.decode("utf-8-sig"))
+                break
+            except (urllib.error.HTTPError,urllib.error.URLError,TimeoutError) as error:
+                print("CENSUS_API_REQUEST_RETRY",json.dumps({
+                    "state":state,"attempt":attempt+1,"error_type":type(error).__name__,
+                    "status":getattr(error,"code",None)}),flush=True)
+                if attempt==3:raise
+                time.sleep(2*(attempt+1))
+        if response_json is None:
+            raise ValueError("Census API JSON not verified")
+        part=parse_population_table(response_json,state)
         combined.update(part)
         sources.append({"state":state,"query_url":public_url,"API_key_used":bool(census_key),
                         "response_sha256":hashlib.sha256(raw).hexdigest(),
