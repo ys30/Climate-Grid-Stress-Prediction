@@ -5,7 +5,7 @@ within-county density to 2024 TIGER county polygon x ERA5 0.25-deg intersections
 EIA861 BA-county membership establishes an *approximate* geographic proxy.
 NO actual customers, NO demand weights, NO approved historic BA geography.
 """
-import argparse,csv,hashlib,json,math,urllib.parse,urllib.request
+import argparse,csv,hashlib,json,math,os,urllib.parse,urllib.request
 from collections import defaultdict
 from pathlib import Path
 
@@ -39,12 +39,17 @@ def fetch_populations(fips):
     combined={};sources=[]
     for state in states:
         query=urllib.parse.urlencode({"get":"P1_001N","for":"county:*","in":"state:"+state})
-        url=POP_SOURCE+"?"+query
-        req=urllib.request.Request(url,headers={"User-Agent":"C2-ERA5-ScientificSourceAudit/1.0"})
+        # Census may require an API key. Keep it in request URL only, NEVER
+        # print or persist credentials in source manifests or logs.
+        public_url=POP_SOURCE+"?"+query
+        census_key=os.environ.get("CENSUS_API_KEY","").strip()
+        request_url=public_url+("&key="+urllib.parse.quote(census_key,safe="") if census_key else "")
+        req=urllib.request.Request(request_url,headers={"User-Agent":"C2-ERA5-ScientificSourceAudit/1.0"})
         with urllib.request.urlopen(req,timeout=60) as response:raw=response.read()
         part=parse_population_table(json.loads(raw.decode()),state)
         combined.update(part)
-        sources.append({"state":state,"query_url":url,"response_sha256":hashlib.sha256(raw).hexdigest(),
+        sources.append({"state":state,"query_url":public_url,"API_key_used":bool(census_key),
+                        "response_sha256":hashlib.sha256(raw).hexdigest(),
                         "county_records":len(part)})
         print("CENSUS_2020_PL_COUNTY_POP_SOURCE",json.dumps(sources[-1]),flush=True)
     missing=sorted(set(fips)-set(combined))
