@@ -71,6 +71,8 @@ def assess(associations,territories):
               "source_utility_state_associations":len(members),
               "associations_with_county_source":found,
               "candidate_union_counties":len(joined),
+              "candidate_union_FIPS_semicolon":";".join(sorted(joined)),
+              "unrestricted_utility_union_FIPS_semicolon":";".join(sorted(joined_any_state)),
               "unrestricted_utility_union_counties":len(joined_any_state),
               "excluded_cross_state_county_association_slots":excluded_cross_state,
               "unmatched_associations":len(members)-found,
