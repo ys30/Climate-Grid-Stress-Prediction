@@ -45,3 +45,11 @@ Attach actual source artifact, run link, SHA256, parameter settings, held-out te
 
 ## Immediate source-reconciliation outputs to inspect
 Report per BA-year: utility associations, unmatched associations (denominator annotated), intersection/difference of county FIPS vs frozen BA source, Jaccard, and multi-BA overlap. Separate these administrative geometry diagnostics from a load-relevant location estimate. The downstream workflow's manual dispatch currently uses an older fixed run ID, so a manual run must be checked to ensure it consumes corrected artifact 14144934238 / run 43672928429 rather than the earlier cross-state-overinclusive artifact.
+
+
+## Follow-up execution-chain correction (2026-11-14 Mountain)
+- Reconciliation workflow `.github/workflows/e1-PUDL-utility-vs-BA-county-source-audit.yml` was enhanced to listen for pushes affecting its Python, tests, or workflow YAML, but its previous job-level conditional accepted only `workflow_dispatch` or successful `workflow_run`. This incorrectly skipped the `push` job.
+- Commit `28e2bcb10643eeb2ecf2cf454ab23f8c806c98a1` corrects the guard to `github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'`, allowing push and manual dispatch while keeping upstream success mandatory.
+- This is a repository code/workflow correction, NOT verification of a successful new workflow execution. The independent 24 BA-year comparison's generated artifact and numerical Jaccard values remain unverified until the completed job, logs, artifact contents and hashes are inspected.
+- Latest E1 source mapping evidence remains corrected successful run `43672928429` with 1,418 BA–utility–state association rows, 439 unmatched associations, 28 multi-BA association keys and 1,127 excluded cross-state county association slots. None is an estimate of hourly load allocation.
+- Keep `model_training_permitted=false` until all scientific admission conditions independently clear. Do not silently substitute successful CI contract checks for real observed-load validation.
