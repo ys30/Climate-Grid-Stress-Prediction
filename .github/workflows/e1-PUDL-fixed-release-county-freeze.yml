@@ -1,0 +1,42 @@
+name: C2 E1 audit stable PUDL v2026.10.0 BA county upstream source freeze
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_pudl_versioned_county_freeze.py'
+      - 'tests/test_c2_pudl_versioned_county_freeze.py'
+      - '.github/workflows/e1-PUDL-fixed-release-county-freeze.yml'
+jobs:
+  validate-versioned-pudl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install official versioned PUDL Parquet source tools
+        run: python -m pip install 'pandas>=2' 'pyarrow>=15' 's3fs>=2025'
+      - name: Test versioned source consistency and missing BA guards
+        run: python -m unittest discover -s tests -p 'test_c2_pudl_versioned_county_freeze.py' -v
+      - name: Load source-frozen historical nightly-derived county crosswalk only
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-2020-25-EIA861-fourBA-annual-county-crosswalk-UNAPPROVED
+          run-id: 43647297586
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/original
+      - name: Fetch actual PUDL v2026.10.0 Parquet and audit all four BA 2020-25 county sets
+        run: |
+          python -u -m src.c2_pudl_versioned_county_freeze \
+            --old-memberships inputs/original/2020_2025_EIA861_fourBA_yearly_county_FIPS_memberships_UNAPPROVED.csv \
+            --out outputs/fixed_source
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-PUDL-v2026-10-stable-EIA861-BA-county-source-diff-NOT-MODEL
+          path: outputs/fixed_source/
+          if-no-files-found: warn
