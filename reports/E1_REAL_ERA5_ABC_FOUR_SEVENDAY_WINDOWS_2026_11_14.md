@@ -57,3 +57,38 @@ At the time this report was initially authored the audit run had not yet finishe
 - Freeze actual PUDL county source to a stable tagged release before publication because the previous PUDL county input was produced from a mutable `nightly` object.
 
 **Current gate: historical BA geography approved = FALSE; training permitted = FALSE.** C-1 is frozen.
+
+
+## Independent original source archive audit — VERIFIED SUCCESS
+
+The independent four-week source auditor completed SUCCESS, not merely an upstream compute pass:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43668226350
+
+It confirmed all **2,688 exact BA-hour UTC keys**, the four original week artifacts, true ERA5 temperatures A/B/C, arithmetic differences, frozen SHA256 of all three geographic weights and `training_permitted=false` flags. The source-audited archive is:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43668226350/artifacts/14142958514 .
+GitHub archive SHA256 `146090c894e4b9d6e3877dd2bd0bc5a05e8aa842957dda1982249b69322a7a63`.
+
+Combined descriptive four-week real ERA5 B-versus-C sample statistics:
+
+| BA | 672-hour mean C−B °C | Min C−B °C | Max C−B °C | C warmer hourly observations | C warmer daily averages |
+|---|---:|---:|---:|---:|---:|
+| AZPS | +4.695452 | +1.731691 | +7.856909 | 672/672 | 28/28 |
+| BPAT | +1.349763 | −4.690336 | +6.796940 | 398/672 | 16/28 |
+| CISO | +0.666293 | −4.041059 | +4.700795 | 345/672 | 14/28 |
+| SRP | +1.876741 | +0.541132 | +3.874354 | 672/672 | 28/28 |
+
+**Important:** 28 selected days are not 28 random independent weeks, and 672 serially correlated hourly values are not 672 independent experiments. This identifies exposure sensitivity, not temperature-demand forecasting skill or correct operational BA geography.
+
+## Executable E1-to-E2 scientific gate
+
+The new independent `src/c2_e1_e2_source_admission_gate.py` checks the *previously frozen source artifacts* themselves. It requires the 2,688-row revalidated ABC archive, Census 2020 estimates-base source C files (frozen original CSV SHA256), and the original EIA-861 annual BA–county crosswalk 2020–2025. Its machine-readable output distinguishes:
+- `source_only_evidence_verified=true` only after direct checks pass;
+- `model_training_permitted=false` and `approved_historical_BA_geography=false` regardless of an ERA5 source archive success, until new independent certification is provided;
+- PUDL nightly *upstream* Parquet still not version-pinned, even though the derived county crosswalk artifact has a fixed SHA256;
+- need documented customer/BA weather footprint, original demand anomaly decisions, missing-hour rules and chronological validation/holdout before substantive E2 model claims.
+
+New gate workflow:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669567273 .
+**At the time this section was added, this independent gate workflow was queued; its success is not yet claimed.**
+
+C-1 remains frozen. No SSP-PyPSA, ALL/NAT attribution or E2 GAM/XGBoost load model trained.
