@@ -81,6 +81,12 @@ def run(bridge,original,out):
     with bridge.open(newline="",encoding="utf-8") as f:bt=list(csv.DictReader(f))
     with original.open(newline="",encoding="utf-8") as f:ot=list(csv.DictReader(f))
     rows=compare(bt,ot)
+    # Cross-check the audited, version-pinned upstream artifact before publishing
+    # descriptive geographic overlap metrics. These are association rows, not load.
+    if (sum(x["utility_state_associations_total"] for x in rows)!=1418
+        or sum(x["unmatched_utility_state_associations"] for x in rows)!=439
+        or len(rows)!=24):
+        raise ValueError("Pinned PUDL bridge totals do not match audited 24-slot source")
     out=Path(out);out.mkdir(parents=True,exist_ok=True)
     file=out/"E1_24_BAYEARS_UTILITY_VS_BA_SOURCE_COUNTY_DIFFERENCES.csv"
     with file.open("w",newline="") as f:
@@ -105,6 +111,9 @@ def run(bridge,original,out):
         "descriptive_source_coverage_by_BA":by_ba,
         "BA_year_slots_with_incomplete_utility_join":sum(r["incomplete_utility_territory_join"] for r in rows),
         "association_coverage_not_customer_or_load_coverage":True,
+        "audited_upstream_association_rows":1418,
+        "audited_upstream_unmatched_association_rows":439,
+        "source_linkage_not_a_customer_or_energy_fraction":True,
         "BA_utility_source_csv_SHA256":hashlib.sha256(bridge.read_bytes()).hexdigest(),
         "BA_county_versioned_PUDL_snapshot_SHA256":EXPECTED_SHA,
         "exact_county_set_matches":sum(r["restricted_state_union_equals_frozen_BA_counties"] for r in rows),
