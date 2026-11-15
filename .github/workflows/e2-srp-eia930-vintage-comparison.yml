@@ -34,10 +34,10 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as out:
               out.write("## C2 SRP raw EIA-930 historical snapshot comparison\n\n")
               out.write(f"Compared source hours: {d['n_paired']} / {d['n_hours']}\n\n")
-              out.write(f"Raw balance CSV identical between dated archives: {d['original_balance_files_identical']}\\n\\n")
-              out.write("| Source vintage | Raw balance CSV SHA-256 |\\n|---|---|\\n")
+              out.write(f"Raw balance CSV identical between dated archives: {d['original_balance_files_identical']}\n\n")
+              out.write("| Source vintage | Raw balance CSV SHA-256 |\n|---|---|\n")
               for vintage,source in sorted(d["sources"].items()):
-                  out.write(f"| {vintage} | \`{source['balance_csv_sha256']}\` |\\n")
+                  out.write(f"| {vintage} | {source['balance_csv_sha256']} |\n")
 
               out.write(f"Original demand hours changed between dated PUDL archives: {d['n_changed_original_demand_hours']}\n\n")
               out.write("A historical value difference is a revision clue, not a confirmed reporting error. E2 remains BLOCKED.\n")
