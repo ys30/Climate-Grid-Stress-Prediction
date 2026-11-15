@@ -113,3 +113,35 @@ https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669704182 
 At time of this report update **this job had not been independently verified successful**; do not assert that original PUDL stable data and snapshot are equal or that the upstream release provenance gate is cleared before inspecting that actual result.
 
 C-1 remains frozen and unchanged.
+
+
+## 2026-11-14 latest: PUDL original fixed-release lineage CONFIRMED
+
+Actual tagged public PUDL `v2026.10.0` original source audit completed **SUCCESS**:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669704182 .
+The two original input Parquet immutable-source digests were recorded:
+
+- `core_eia861__yearly_balancing_authority.parquet`: SHA256 `0fdb3930b3fbec15845242d1fbd96182bc015dfaf9ba23a04ebb646886d9ea4d` (14,301 bytes).
+- `out_eia861__yearly_balancing_authority_service_territory.parquet`: SHA256 `a50f78de5c7a70ec510a9de241872955e737d73e15a48842ede80c5c610b6791` (813,302 bytes).
+
+Both live under source `s3://pudl.catalyst.coop/v2026.10.0/`. All **24/24** annual BA-identity mappings and all **24/24** BA-year county membership sets matched the original nightly-derived SHA-pinned snapshot exactly; **no FIPS changes or identity disagreements** were found. The source verification artifact:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43669704182/artifacts/14143697152 .
+
+The *upstream PUDL provenance blocker* is therefore scientifically resolved **for the 24 source BA-year county mappings used here**, but not for all possible PUDL tables, and not for true electricity BA service geography. To propagate this evidence correctly, the enhanced source gate in `src/c2_e1_e2_source_admission_gate.py` now independently verifies every original annual county FIPS row against the tagged release, requires both original Parquet checksums, and marks **only** `PROVENANCE_PUDL_RELEASE` cleared. E2 remains **model_training_permitted=false**, with other scientific blockers still open.
+
+Updated E1→E2 machine gate workflow:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43670320754 .
+This updated gate has been submitted; at document writing its successful execution is **not yet verified**, and the prior gate's success was based on the earlier (unfixed PUDL) evidence set.
+
+### Candidate real EIA-861 utility service link: source-only discovery
+
+PUDL v2026.10.0 documents an observed annual `core_eia861__assn_balancing_authority` table keyed by BA, utility, state, year and a separate `core_eia861__yearly_service_territory` utility-to-county table. The utility-to-BA association is not a unique mapping of each electric meter to a 0.25° ERA5 cell and does not report hourly utility load. Treat possible many-to-many relations and missing source county coverage explicitly:
+https://docs.catalyst.coop/pudl/en/v2026.10.0/data_dictionaries/pudl_db.html
+
+The code `src/c2_eia861_ba_utility_county_probe.py` now retrieves and hashes both original versioned Parquet tables, checks 2020–2025 BA-utility-state associations, relates utility IDs to county FIPS, and audits missing matches and utilities associated with multiple BAs. It **does not** generate customer-load weights or change historical model admission status.
+
+The actual-source probe workflow:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43670452362 .
+**Its BA utility coverage/ambiguity results are still unverified until the CI completes successfully; do not assert counts.**
+
+C-1 remains frozen. No electricity demand model or climate counterfactual has been trained or simulated.
