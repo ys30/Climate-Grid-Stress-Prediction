@@ -1,0 +1,47 @@
+name: C2 E1 reconcile 24 PUDL BA-year source counties with actual state-scoped utility county evidence
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows:
+      - C2 E1 PUDL v2026.10 BA utility state county source bridge audit
+    types: [completed]
+jobs:
+  audit:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test source county differences, state-limitation and no-load model gates
+        run: python -m unittest discover -s tests -p 'test_c2_eia861_utility_BA_source_comparison.py' -v
+      - name: Retrieve genuine PUDL v2026.10 BA utility state county bridge
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-PUDL-fixed-v2026-10-real-BA-utility-county-bridge-NOT-LOAD
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43670963932 }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/utility
+      - name: Retrieve fixed BA annual county memberships
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-2020-25-EIA861-fourBA-annual-county-crosswalk-UNAPPROVED
+          run-id: 43647297586
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/BA
+      - name: Compare exact county FIPS across 24 BA/year slots without claiming official load geography
+        run: |
+          python -u -m src.c2_eia861_utility_BA_source_comparison \
+            --utility-source inputs/utility/EIA861_2020_25_fourBA_utility_state_counts_SOURCE_ONLY.csv \
+            --BA-memberships inputs/BA/2020_2025_EIA861_fourBA_yearly_county_FIPS_memberships_UNAPPROVED.csv \
+            --out outputs/BA_utility_county_comparison
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-24-BA-year-utility-versus-versioned-BA-county-difference-NOT-MODEL
+          path: outputs/BA_utility_county_comparison/
+          if-no-files-found: error
