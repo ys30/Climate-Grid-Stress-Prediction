@@ -50,3 +50,26 @@ https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43659771480 
 - No E2 calendar/GAM/XGBoost forecasts, E3 PyPSA future-grid simulation, SSP scenarios, or ALL/NAT attribution conducted.
 
 **Model admission: CLOSED.**
+
+
+## Independent four-month reconciliation — subsequently verified SUCCESS
+
+The independent read-only audit completed SUCCESS:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43659771480 .
+
+All four actual original monthly source CSV SHA256 digests, frozen BA candidate weight hashes and exactly matching UTC BA-hour keys were checked. All four full months have 2,976 BA-hour rows, yielding **11,904 verified ERA5 BA-hour A/B differences** and **496 BA-daily means** (= 124 calendar days × 4 BAs). The A/B temperature subtraction was verified independently against both source temperature fields on every record; geography approval and training flags remain false.
+
+Download consolidated 11,904 original hours, 496 BA-daily means, BA and month summaries and manifest:
+https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/43659771480/artifacts/14140205056 .
+Outer archive ZIP SHA256 `7d073717d1845d5efde92f91a89ad23f52e9c14c2c92f9f334b2b744727f86ae`.
+
+| BA | 4-month mean B−A °C | 4-month minimum °C | 4-month maximum °C | Hours B colder (of 2,976) | Days with lower B daily mean (of 124) |
+|---|---:|---:|---:|---:|---:|
+| AZPS | **−1.718734** | −3.625580 | +0.543350 | 2,969 | **124** |
+| BPAT | +0.041321 | −0.611929 | +0.746584 | 1,340 | 58 |
+| CISO | −0.363479 | −1.167266 | +0.337229 | 2,688 | 114 |
+| SRP | **−1.846138** | −3.810149 | −0.177325 | **2,976** | **124** |
+
+**Important refinement:** while all 124 AZPS daily means are negative, **7 of AZPS's 2,976 underlying hours have positive B−A values**; therefore do NOT claim all hourly observations are negative over the complete months. All SRP hours were negative in the four sampled months. A percentage of hours is descriptive only: serially correlated hourly reanalysis is not 2,976 independent trials. No spatial mask is approved as historically representative of electricity-load exposure.
+
+These findings demonstrate significant *descriptive* sensitivity of BA candidate weather estimates to geographically different area-support definitions. They do not establish climate-change attribution, better load prediction, or that 2024 TIGER whole-county proxy is accurate for historical BA operations.
