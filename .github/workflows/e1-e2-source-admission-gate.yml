@@ -1,0 +1,55 @@
+name: C2 E1 source-frozen ledger and E2 fail-closed scientific model admission
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/c2_e1_e2_source_admission_gate.py'
+      - 'tests/test_c2_e1_e2_source_admission_gate.py'
+      - '.github/workflows/e1-e2-source-admission-gate.yml'
+jobs:
+  audit-E1-source-and-E2-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Unit-test mandatory source and scientific gate failure rules
+        run: python -m unittest discover -s tests -p 'test_c2_e1_e2_source_admission_gate.py' -v
+      - name: Fetch independently source-verified 2688 ERA5 A B C BA-hour evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-2688-BA-hour-real-ERA5-ABC-4week-AUDITED-NOT-MODEL
+          run-id: 43668226350
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/abc
+      - name: Fetch immutable-artifact Census estimates-base population source C
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-2020-Census-population-2024-TIGER-proxy-C-UNAPPROVED
+          run-id: 43665930801
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/census
+      - name: Fetch original EIA861 annual BA to county FIPS source snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: c2-e1-real-2020-25-EIA861-fourBA-annual-county-crosswalk-UNAPPROVED
+          run-id: 43647297586
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: inputs/eia861
+      - name: Verify source evidence and produce independent fail-closed admission decision
+        run: |
+          python -u -m src.c2_e1_e2_source_admission_gate \
+            --abc-audit inputs/abc \
+            --population inputs/census \
+            --crosswalk inputs/eia861 \
+            --out outputs/e1_to_e2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: c2-e1-E2-admission-source-frozen-evidence-ledger-BLOCKED
+          path: outputs/e1_to_e2/
+          if-no-files-found: error
