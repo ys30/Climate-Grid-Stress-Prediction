@@ -32,6 +32,25 @@ def get_zip(label,download_dir):
         raise ValueError("Pinned raw ZIP MD5 mismatch: "+label)
     return raw
 
+def archived_balance_digest(raw):
+    """Hash uncompressed raw source balance CSV, distinguishing ZIP metadata from data changes."""
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
+        names=[n for n in archive.namelist() if n.lower().endswith("-balance.csv")]
+        if len(names)!=1:
+            raise ValueError("Raw archive must have one balance CSV")
+        with archive.open(names[0]) as f:
+            sha=hashlib.sha256()
+            size=0
+            while True:
+                chunk=f.read(1024*1024)
+                if not chunk:
+                    break
+                sha.update(chunk)
+                size+=len(chunk)
+        if size==0:
+            raise ValueError("Raw balance CSV is empty")
+        return {"filename":names[0],"balance_csv_sha256":sha.hexdigest(),"uncompressed_bytes":size}
+
 def read_srp(raw):
     found={}
     with zipfile.ZipFile(io.BytesIO(raw)) as archive:
@@ -78,7 +97,9 @@ def compare(snapshots):
       "original_source_values_modified":False,"E2_training_permitted":False,
       "source_archive_hash_difference_alone_proves_hourly_revision":False,
       "sources":{k:{"zenodo_record":SOURCES[k][0],"pinned_zip_md5":SOURCES[k][1],
-         "download_zip_sha256":hashlib.sha256(v).hexdigest()} for k,v in snapshots.items()}}
+         "download_zip_sha256":hashlib.sha256(v).hexdigest(),
+         **archived_balance_digest(v)} for k,v in snapshots.items()},
+      "original_balance_files_identical":archived_balance_digest(snapshots["2025-11-v53"])["balance_csv_sha256"]==archived_balance_digest(snapshots["2026-09-v92"])["balance_csv_sha256"]}
 
 def main():
     p=argparse.ArgumentParser()
