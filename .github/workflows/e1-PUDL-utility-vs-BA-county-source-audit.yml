@@ -24,7 +24,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: c2-e1-PUDL-fixed-v2026-10-real-BA-utility-county-bridge-NOT-LOAD
-          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43670963932 }}
+          run-id: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || 43672928429 }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: inputs/utility
       - name: Retrieve fixed BA annual county memberships
