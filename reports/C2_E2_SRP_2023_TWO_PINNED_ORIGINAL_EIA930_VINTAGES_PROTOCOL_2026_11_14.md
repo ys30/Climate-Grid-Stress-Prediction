@@ -24,3 +24,16 @@ The baseline project's actual original EIA-930/ERA5 source reports SRP original 
 
 ## Immediate decisive output
 Obtain successful `e2-srp-eia930-vintage-comparison.yml` artifact with 11 original hour-ending records from both historical vintages, archive SHA256 and changed-hour count. Without that artifact, the retrospective source-correction question remains OPEN.
+
+## November 14 follow-up: archive-member identity and three-level revision QA
+
+Both dated Zenodo ZIP previews independently confirm three members: `eia930-2023half1-balance.csv` (42.0 MB uncompressed), `eia930-2023half1-interchange.csv`, `eia930-2023half1-subregion.csv`. Therefore the `*-balance.csv` selection in the repo is grounded in the actual archive structure rather than guessed.
+
+The comparison now records each original ZIP SHA256 **and each uncompressed original Balance CSV SHA256**, plus per-hour SRP original demand equality and source QA. This separates:
+1. **ZIP byte changes** (documented by distinct official archive MD5) — do not prove input CSV changes;
+2. **Raw Balance CSV changes** (must check extracted CSV SHA256) — do not prove target-hour SRP revisions;
+3. **SRP target-hour demand value changes** (only counted after matching original UTC hour-ending labels).
+
+Expanded synthetic regression tests cover changed raw values, unchanged raw values, duplicate UTC keys, incomplete SRP hour coverage, and archives with distinct metadata but identical raw Balance CSV. The original four-test standalone Python protocol suite was rerun locally and passed 4/4; the new GitHub regression tests and workflow **have not yet returned verified run results**. An independent ZIP/inner-file-hash synthetic edge-case check also passed locally.
+
+These enhancements were committed in GitHub commits `4068a0d9723c86a94925b74133f5021479025d65`, `4cada625581939a7f1840ef562e513ef106e2bbb`, and `e3e58e46aa9003ed67ee9a7ba019f8dcb6c491ff` (workflow summary formatting fix). The direct external 19.5 MB ZIP download could not be completed in this session, and latest Actions result cannot be established via current connector. Thus **no verified SRP cross-vintage numerical change claim is made**. Gate unchanged: `model_training_permitted=false`.
