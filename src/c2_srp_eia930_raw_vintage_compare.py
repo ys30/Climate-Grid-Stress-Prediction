@@ -89,16 +89,23 @@ def compare(snapshots):
           "pudl_2025june_demand_mw":early,
           "pudl_2025v53_demand_mw":a,"pudl_2026v92_demand_mw":b,
           "june_to_nov_demand_changed":early!=a if early is not None and a is not None else None,
+          "june_to_september_demand_changed":early!=b if early is not None and b is not None else None,
+          "november_revision_reverted_by_september":(
+              early==b and a!=b if early is not None and a is not None and b is not None else None),
           "project_source_panel_demand_mw":orig,
           "historic_vintage_value_changed":a!=b if a is not None and b is not None else None,
           "matches_existing_project_source_v53":a==orig if a is not None and orig is not None else None,
           "matches_existing_project_source_v92":b==orig if b is not None and orig is not None else None})
     paired=[r for r in rows if r["historic_vintage_value_changed"] is not None]
     early_paired=[r for r in rows if r["june_to_nov_demand_changed"] is not None]
+    early_late_paired=[r for r in rows if r["june_to_september_demand_changed"] is not None]
     return rows,{"n_hours":HOURS,"n_paired":len(paired),
       "earliest_archive_comparison_available":"2025-06-archive" in snapshots,
       "n_june_nov_paired":len(early_paired),
       "n_changed_demand_hours_june_to_nov":sum(r["june_to_nov_demand_changed"] for r in early_paired),
+      "n_june_september_paired":len(early_late_paired),
+      "n_changed_demand_hours_june_to_september":sum(r["june_to_september_demand_changed"] for r in early_late_paired),
+      "n_november_revisions_reverted_by_september":sum(r["november_revision_reverted_by_september"] is True for r in rows),
       "all_hours_present_in_three_sources":len(early_paired)==HOURS and len(paired)==HOURS,
       "n_changed_original_demand_hours":sum(r["historic_vintage_value_changed"] for r in paired),
       "all_hours_present_in_both_sources":all(
