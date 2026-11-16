@@ -1,0 +1,30 @@
+name: C2 E0 QA candidate vs model admission regression
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/c2_episode_quarantine.py'
+      - 'tests/test_c2_episode_quarantine_model_admission.py'
+      - '.github/workflows/e0-source-vs-model-admission-regression.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fail-closed-admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify candidate-source eligibility cannot enable model training
+        run: python -m unittest discover -s tests -p 'test_c2_episode_quarantine_model_admission.py' -v
+      - name: Record source QA gate decision
+        if: success()
+        run: |
+          echo '### C2 source screening versus model admission' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Synthetic CSV/JSON gate tests pass. Model admission remains BLOCKED.' >> "$GITHUB_STEP_SUMMARY"
