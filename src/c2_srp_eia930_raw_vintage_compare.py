@@ -133,10 +133,10 @@ def main():
                 "E2_training_permitted":False
             }
             (dest/"C2_SRP_VINTAGE_FETCH_FAILURE_QA.json").write_text(
-                json.dumps(issue,indent=2)+"\\n")
+                json.dumps(issue,indent=2)+"\n")
             raise
     rows,report=compare(snapshots)
-    with (dest/"C2_SRP_2023_FEB_TWO_SOURCE_VINTAGES.csv").open("w",newline="") as f:
+    with (dest/"C2_SRP_2023_FEB_THREE_SOURCE_VINTAGES.csv").open("w",newline="") as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     (dest/"C2_SRP_2023_FEB_VINTAGE_QA.json").write_text(json.dumps(report,indent=2)+"\n")
     print("PUDL_EIA930_VINTAGE_COMPARE",json.dumps(report),flush=True)
