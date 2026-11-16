@@ -83,6 +83,17 @@ class TestVintage(unittest.TestCase):
                       "2025-11-v53":complete,"2026-09-v92":complete})
         self.assertFalse(qa["all_hours_present_in_three_sources"])
 
+    def test_nonfinite_and_negative_original_reported_demand_fail_closed(self):
+        for value in ("NaN","inf","-inf","-1"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError,"Nonfinite or negative"):
+                    read_srp(source_zip([(4,value)]))
+    def test_explicit_blank_is_not_equal_to_observed_zero(self):
+        archive=source_zip([(4,""),(5,"0")])
+        records=read_srp(archive)
+        self.assertIsNone(records["2023-02-27T00:00:00Z"])
+        self.assertEqual(records["2023-02-27T01:00:00Z"],0.0)
+
     def test_duplicate_key_rejected(self):
         with self.assertRaisesRegex(ValueError,"Duplicate"):
             read_srp(source_zip([(3,3000),(3,3000)]))
