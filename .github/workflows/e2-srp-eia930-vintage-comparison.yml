@@ -1,4 +1,4 @@
-name: C2 E2 SRP 2023 original EIA930 historical vintage comparison
+name: C2 E2 SRP 2023 three-version original EIA930 historical comparison
 on:
   workflow_dispatch:
   push:
@@ -20,7 +20,7 @@ jobs:
           python-version: '3.11'
       - name: Validate strict UTC source-hour and value comparison contracts
         run: python -m unittest discover -s tests -p 'test_c2_srp_eia930_raw_vintage_compare.py' -v
-      - name: Download two separately dated raw EIA930 ZIPs with pinned MD5 and compare SRP hours
+      - name: Download three dated original EIA930 ZIPs with pinned MD5 and compare SRP hours
         run: |
           python -u -m src.c2_srp_eia930_raw_vintage_compare --out outputs/srp_vintage
       - name: Publish actual row-level comparison summary (never model-admit)
@@ -34,7 +34,10 @@ jobs:
           with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as out:
               out.write("## C2 SRP raw EIA-930 historical snapshot comparison\n\n")
               out.write(f"Compared source hours: {d['n_paired']} / {d['n_hours']}\n\n")
-              out.write(f"Raw balance CSV identical between dated archives: {d['original_balance_files_identical']}\n\n")
+              out.write(f"Raw balance CSV identical between dated archives: {d['original_balance_files_identical']}\n\n") 
+              out.write(f"June-to-Nov paired hours: {d['n_june_nov_paired']} / {d['n_hours']}\n\n")
+              out.write(f"June-to-Nov changed demand hours: {d['n_changed_demand_hours_june_to_nov']}\n\n")
+              out.write(f"All three vintages complete: {d['all_hours_present_in_three_sources']}\n\n")
               out.write("| Source vintage | Raw balance CSV SHA-256 |\n|---|---|\n")
               for vintage,source in sorted(d["sources"].items()):
                   out.write(f"| {vintage} | {source['balance_csv_sha256']} |\n")
