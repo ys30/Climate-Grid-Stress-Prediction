@@ -62,6 +62,19 @@ class TestVintage(unittest.TestCase):
         self.assertEqual(qa["n_changed_demand_hours_june_to_nov"],1)
         self.assertEqual(qa["n_changed_original_demand_hours"],0)
         self.assertTrue(rows[4]["june_to_nov_demand_changed"])
+        self.assertTrue(rows[4]["june_to_september_demand_changed"])
+        self.assertEqual(qa["n_november_revisions_reverted_by_september"],0)
+
+    def test_three_archive_intermediate_change_can_revert(self):
+        early=source_zip([(h,3000) for h in range(11)])
+        changed=source_zip([(h,12345 if h==4 else 3000) for h in range(11)])
+        rows,qa=compare({"2025-06-archive":early,
+                         "2025-11-v53":changed,"2026-09-v92":early})
+        self.assertEqual(qa["n_changed_demand_hours_june_to_nov"],1)
+        self.assertEqual(qa["n_changed_original_demand_hours"],1)
+        self.assertEqual(qa["n_changed_demand_hours_june_to_september"],0)
+        self.assertEqual(qa["n_november_revisions_reverted_by_september"],1)
+        self.assertTrue(rows[4]["november_revision_reverted_by_september"])
 
     def test_three_archive_incomplete_hour_fails_qa(self):
         complete=source_zip([(h,3000) for h in range(11)])
