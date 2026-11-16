@@ -4,6 +4,7 @@ from datetime import datetime,timedelta,timezone
 from pathlib import Path
 
 SOURCES={
+  "2025-06-archive":("15568995","691d52a09eff623571a4f18d504c0d25"),
   "2025-11-v53":("17688027","122e5d253321b7baef657a4880f9a579"),
   "2026-09-v92":("22215263","1b4acef4e1ec596cf92e7658f9be64c7")}
 FIRST=datetime(2023,2,26,20,tzinfo=timezone.utc)
@@ -83,14 +84,22 @@ def compare(snapshots):
         a=values["2025-11-v53"].get(key)
         b=values["2026-09-v92"].get(key)
         orig=ORIGINAL.get(key)
+        early=values.get("2025-06-archive",{}).get(key)
         rows.append({"utc_interval_start":key,"utc_hour_ending":end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+          "pudl_2025june_demand_mw":early,
           "pudl_2025v53_demand_mw":a,"pudl_2026v92_demand_mw":b,
+          "june_to_nov_demand_changed":early!=a if early is not None and a is not None else None,
           "project_source_panel_demand_mw":orig,
           "historic_vintage_value_changed":a!=b if a is not None and b is not None else None,
           "matches_existing_project_source_v53":a==orig if a is not None and orig is not None else None,
           "matches_existing_project_source_v92":b==orig if b is not None and orig is not None else None})
     paired=[r for r in rows if r["historic_vintage_value_changed"] is not None]
+    early_paired=[r for r in rows if r["june_to_nov_demand_changed"] is not None]
     return rows,{"n_hours":HOURS,"n_paired":len(paired),
+      "earliest_archive_comparison_available":"2025-06-archive" in snapshots,
+      "n_june_nov_paired":len(early_paired),
+      "n_changed_demand_hours_june_to_nov":sum(r["june_to_nov_demand_changed"] for r in early_paired),
+      "all_hours_present_in_three_sources":len(early_paired)==HOURS and len(paired)==HOURS,
       "n_changed_original_demand_hours":sum(r["historic_vintage_value_changed"] for r in paired),
       "all_hours_present_in_both_sources":all(
          r["pudl_2025v53_demand_mw"] is not None and r["pudl_2026v92_demand_mw"] is not None for r in rows),
@@ -113,7 +122,7 @@ def main():
         w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     (dest/"C2_SRP_2023_FEB_VINTAGE_QA.json").write_text(json.dumps(report,indent=2)+"\n")
     print("PUDL_EIA930_VINTAGE_COMPARE",json.dumps(report),flush=True)
-    if not report["all_hours_present_in_both_sources"]:
-        raise SystemExit("Missing SRP original source hour: cannot declare complete vintage comparison")
+    if not report["all_hours_present_in_three_sources"]:
+        raise SystemExit("Missing SRP original source hour in at least one of three historical archives")
 
 if __name__=="__main__":main()
