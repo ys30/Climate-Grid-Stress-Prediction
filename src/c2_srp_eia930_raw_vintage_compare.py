@@ -10,11 +10,19 @@ SOURCES={
 FIRST=datetime(2023,2,26,20,tzinfo=timezone.utc)
 HOURS=11
 FORMAT="%m/%d/%Y %I:%M:%S %p"
-ORIGINAL={"2023-02-26T22:00:00Z":2958,
+# Immutable observational baseline from original C2 six-year EIA-930 source archive,
+# not a corrected or validated BA demand time series.
+ORIGINAL={"2023-02-26T20:00:00Z":3049,
+          "2023-02-26T21:00:00Z":3031,
+          "2023-02-26T22:00:00Z":2958,
           "2023-02-26T23:00:00Z":68520,
           "2023-02-27T00:00:00Z":45097,
           "2023-02-27T01:00:00Z":27030,
-          "2023-02-27T02:00:00Z":3578}
+          "2023-02-27T02:00:00Z":3578,
+          "2023-02-27T03:00:00Z":3626,
+          "2023-02-27T04:00:00Z":3559,
+          "2023-02-27T05:00:00Z":3355,
+          "2023-02-27T06:00:00Z":3178}
 
 def get_zip(label,download_dir):
     record,expected_md5=SOURCES[label]
@@ -100,6 +108,7 @@ def compare(snapshots):
               early==b and a!=b if early is not None and a is not None and b is not None else None),
           "project_source_panel_demand_mw":orig,
           "historic_vintage_value_changed":a!=b if a is not None and b is not None else None,
+          "matches_existing_project_source_june":early==orig if early is not None and orig is not None else None,
           "matches_existing_project_source_v53":a==orig if a is not None and orig is not None else None,
           "matches_existing_project_source_v92":b==orig if b is not None and orig is not None else None})
     paired=[r for r in rows if r["historic_vintage_value_changed"] is not None]
@@ -114,6 +123,11 @@ def compare(snapshots):
       "n_november_revisions_reverted_by_september":sum(r["november_revision_reverted_by_september"] is True for r in rows),
       "all_hours_present_in_three_sources":len(early_paired)==HOURS and len(paired)==HOURS,
       "n_changed_original_demand_hours":sum(r["historic_vintage_value_changed"] for r in paired),
+      "n_baseline_hours":len(ORIGINAL),
+      "baseline_matches_all_three_vintages":all(
+          r["matches_existing_project_source_june"] is True and
+          r["matches_existing_project_source_v53"] is True and
+          r["matches_existing_project_source_v92"] is True for r in rows),
       "all_hours_present_in_both_sources":all(
          r["pudl_2025v53_demand_mw"] is not None and r["pudl_2026v92_demand_mw"] is not None for r in rows),
       "original_source_values_modified":False,"E2_training_permitted":False,
