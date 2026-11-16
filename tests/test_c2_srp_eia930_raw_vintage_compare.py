@@ -1,7 +1,7 @@
 """Synthetic fixtures only: verify raw EIA-930 vintage comparison contracts."""
 import csv,io,unittest,zipfile
 from datetime import timedelta
-from src.c2_srp_eia930_raw_vintage_compare import FIRST,read_srp,compare,archived_balance_digest
+from src.c2_srp_eia930_raw_vintage_compare import FIRST,ORIGINAL,read_srp,compare,archived_balance_digest
 
 def source_zip(vals,extra=None):
     s=io.StringIO()
@@ -93,6 +93,19 @@ class TestVintage(unittest.TestCase):
         records=read_srp(archive)
         self.assertIsNone(records["2023-02-27T00:00:00Z"])
         self.assertEqual(records["2023-02-27T01:00:00Z"],0.0)
+
+    def test_complete_original_baseline_matching_three_synthetic_archives(self):
+        from datetime import timezone
+        source=[]
+        for hour in range(11):
+            utc=(FIRST+timedelta(hours=hour)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            source.append((hour,ORIGINAL[utc]))
+        raw=source_zip(source)
+        rows,qa=compare({"2025-06-archive":raw,"2025-11-v53":raw,"2026-09-v92":raw})
+        self.assertTrue(qa["baseline_matches_all_three_vintages"])
+        self.assertEqual(qa["n_baseline_hours"],11)
+        self.assertEqual(qa["n_changed_demand_hours_june_to_nov"],0)
+        self.assertEqual(len(rows),11)
 
     def test_duplicate_key_rejected(self):
         with self.assertRaisesRegex(ValueError,"Duplicate"):
