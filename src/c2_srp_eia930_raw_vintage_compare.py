@@ -1,5 +1,5 @@
 """Compare archived RAW EIA-930 balance hourly demand (NOT PUDL-imputed)."""
-import argparse,csv,hashlib,io,json,urllib.request,zipfile
+import argparse,csv,hashlib,io,json,math,urllib.request,zipfile
 from datetime import datetime,timedelta,timezone
 from pathlib import Path
 
@@ -71,7 +71,13 @@ def read_srp(raw):
                 key=start.strftime("%Y-%m-%dT%H:%M:%SZ")
                 if key in found:raise ValueError("Duplicate SRP UTC hour-ending source")
                 value=row["Demand (MW)"].strip()
-                found[key]=None if not value else float(value)
+                if not value:
+                    found[key]=None
+                else:
+                    parsed=float(value)
+                    if not math.isfinite(parsed) or parsed<0:
+                        raise ValueError("Nonfinite or negative raw EIA-930 demand at "+key)
+                    found[key]=parsed
     return found
 
 def compare(snapshots):
@@ -142,7 +148,19 @@ def main():
             (dest/"C2_SRP_VINTAGE_FETCH_FAILURE_QA.json").write_text(
                 json.dumps(issue,indent=2)+"\n")
             raise
-    rows,report=compare(snapshots)
+    try:
+        rows,report=compare(snapshots)
+    except Exception as exc:
+        issue={
+            "stage":"raw_balance_extraction_or_value_validation",
+            "exception_type":type(exc).__name__,
+            "reason":str(exc)[:400],
+            "pinned_archives_verified":list(snapshots),
+            "E2_training_permitted":False
+        }
+        (dest/"C2_SRP_VINTAGE_PARSE_FAILURE_QA.json").write_text(
+            json.dumps(issue,indent=2)+"\n")
+        raise
     with (dest/"C2_SRP_2023_FEB_THREE_SOURCE_VINTAGES.csv").open("w",newline="") as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     (dest/"C2_SRP_2023_FEB_VINTAGE_QA.json").write_text(json.dumps(report,indent=2)+"\n")
