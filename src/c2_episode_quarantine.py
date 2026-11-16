@@ -44,7 +44,8 @@ def training_status(data,year):
             statuses.append({"year":year,"ba":ba,"timestamp_utc_start":t.isoformat(),
               "raw_demand_mw":v,"quarantine":bool(flag),
               "reason":flag["candidate_reason"] if flag else "",
-              "model_eligible":not bool(flag)})
+              "source_candidate_eligible":not bool(flag),
+              "model_eligible":False})
     return statuses,flags
 
 def dump_csv(path,records,fields):
@@ -66,11 +67,17 @@ def main():
     dump_csv(out/"missing_episodes.csv",eps,["year","ba","start_utc","end_utc_inclusive",
       "duration_hours","absent_hours","blank_hours"])
     dump_csv(out/"observed_values_with_quarantine.csv",rows,["year","ba",
-      "timestamp_utc_start","raw_demand_mw","quarantine","reason","model_eligible"])
+      "timestamp_utc_start","raw_demand_mw","quarantine","reason",
+      "source_candidate_eligible","model_eligible"])
     summary={"year":a.year,"source_files":snapshots,"missing_episodes":len(eps),
        "missing_episode_max_hours":max([e["duration_hours"] for e in eps],default=0),
-       "quarantined_candidate_points":len(flags),"model_eligible_observed_points":
-       sum(x["model_eligible"] for x in rows),"raw_observed_points":len(rows),
+       "quarantined_candidate_points":len(flags),
+       "source_candidate_eligible_observed_points":sum(x["source_candidate_eligible"] for x in rows),
+       "model_eligible_observed_points":sum(x["model_eligible"] for x in rows),
+       "raw_observed_points":len(rows),
+       "historical_BA_geography_approved":False,
+       "load_relevance_approved":False,
+       "model_training_permitted":False,
        "training_executed":False,"imputation_performed":False}
     (out/"episode_quarantine_manifest.json").write_text(json.dumps(summary,indent=2)+"\n")
     print("QUALITY_SUMMARY",json.dumps(summary))
