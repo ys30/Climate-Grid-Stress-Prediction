@@ -1,0 +1,28 @@
+name: C2 E2 fail-closed source-to-training admission guard
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/c2_e2_training_input_guard.py'
+      - 'tests/test_c2_e2_training_input_guard.py'
+      - '.github/workflows/e2-training-input-guard-tests.yml'
+permissions:
+  contents: read
+jobs:
+  source-only-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify source-only candidate data cannot bypass model admission
+        run: python -m unittest discover -s tests -p 'test_c2_e2_training_input_guard.py' -v
+      - name: Write explicit gate status
+        if: success()
+        run: |
+          echo '## C2 E2 source-to-training gate regression' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Synthetic tests verify candidate CSV/JSON sources cannot auto-admit E2 models.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Model-training permission remains FALSE; no EIA-930 holdout read.' >> "$GITHUB_STEP_SUMMARY"
