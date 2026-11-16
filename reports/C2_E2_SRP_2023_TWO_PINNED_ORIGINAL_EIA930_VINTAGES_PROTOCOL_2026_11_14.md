@@ -37,3 +37,19 @@ The comparison now records each original ZIP SHA256 **and each uncompressed orig
 Expanded synthetic regression tests cover changed raw values, unchanged raw values, duplicate UTC keys, incomplete SRP hour coverage, and archives with distinct metadata but identical raw Balance CSV. The original four-test standalone Python protocol suite was rerun locally and passed 4/4; the new GitHub regression tests and workflow **have not yet returned verified run results**. An independent ZIP/inner-file-hash synthetic edge-case check also passed locally.
 
 These enhancements were committed in GitHub commits `4068a0d9723c86a94925b74133f5021479025d65`, `4cada625581939a7f1840ef562e513ef106e2bbb`, and `e3e58e46aa9003ed67ee9a7ba019f8dcb6c491ff` (workflow summary formatting fix). The direct external 19.5 MB ZIP download could not be completed in this session, and latest Actions result cannot be established via current connector. Thus **no verified SRP cross-vintage numerical change claim is made**. Gate unchanged: `model_training_permitted=false`.
+
+## 2026-11-15 update: third independently dated historical vintage and run-failure diagnostics
+
+A **third original EIA-930 ZIP historical snapshot** was verified through public Zenodo record [15568995](https://zenodo.org/records/15568995) dated 2025-06-05: `eia930-2023half1.zip` MD5 `691d52a09eff623571a4f18d504c0d25`. It precedes the 2025-11-23 archive (record 17688027, MD5 `122e5d253321b7baef657a4880f9a579`) and the 2026-09 record (22215263, MD5 `1b4acef4e1ec596cf92e7658f9be64c7`).
+
+The original source-comparison program and the GitHub Actions workflow have been expanded to **download all three raw archives** with their original pinned MD5 values and explicitly compare the same 11 SRP UTC interval-start hours across three chronological snapshots. In addition to zip and uncompressed Balance CSV SHA-256 values, it emits:
+
+- June → November changed-hour count;
+- November → September changed-hour count;
+- June → September changed-hour count;
+- any hours that changed in November but reverted to June's value in September;
+- missing-hour and archive-hash failure QA (fail-closed, uploaded as an Actions artifact).
+
+Synthetic regression tests were added for **three-vintage differences, a missing hour in the earliest snapshot, and an intermediate revision subsequently reversed**. No training/validation source observation is altered by comparison. The actual 2023 source ZIP contents have not been obtained in this chat from the remote workflow, so **none of these three source-hour change counts is claimed as a verified empirical result**. Existing GitHub connector methods return no completed downstream run ID; this does not establish whether the push-triggered workflow ran.
+
+The archived ZIP MD5 values differ: this is evidence that *archives are not byte-identical*, **not** evidence that SRP demand was corrected. Formal source-error confirmation and spatial-demand geography admission remain outstanding, and `model_training_permitted=false`. C-1 frozen.
