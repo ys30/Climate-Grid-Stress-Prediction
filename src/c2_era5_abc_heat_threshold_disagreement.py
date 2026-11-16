@@ -3,7 +3,8 @@
 Input: archived 384 matched BA-hour CSV from successful E1 Actions run 43666836001.
 Do not interpret high-temperature proxy as electric grid stress or admit E2 training.
 """
-import argparse,csv,hashlib,json
+import argparse,csv,hashlib,json,math
+from datetime import datetime,timedelta,timezone
 from pathlib import Path
 from collections import defaultdict
 
@@ -11,25 +12,41 @@ BAS={"AZPS","BPAT","CISO","SRP"}
 DATES={"2023-01-15","2023-07-01","2025-01-15","2025-07-01"}
 TEMPS=("HIFLD_A_celsius","TIGER_B_celsius","population_C_celsius")
 THRESHOLDS=(25,30,35)
+SOURCE_SHA256="9ebeb843f3364d6e6726844253934a34fdc6acac0c4627c17ec207e8105cb179"
 
 def run(source,out):
     raw=Path(source).read_bytes()
+    if hashlib.sha256(raw).hexdigest()!=SOURCE_SHA256:
+        raise ValueError("Pinned 384-hour original source digest mismatch")
     data=list(csv.DictReader(raw.decode("utf-8-sig").splitlines()))
     if len(data)!=384:raise ValueError("Expected 384 real ERA5 BA-hour records")
     unique=set(); groups=defaultdict(list)
+    expected={(ba,datetime.fromisoformat(day+"T00:00:00+00:00")+timedelta(hours=h))
+              for ba in BAS for day in DATES for h in range(24)}
     for row in data:
         ba=row["BA"];utc=row["UTC_timestamp"]
-        if ba not in BAS or utc[:10] not in DATES or (ba,utc) in unique:
-            raise ValueError("Unknown/duplicate BA hour or unexpected sample date")
-        unique.add((ba,utc))
+        stamp=datetime.fromisoformat(utc.replace("Z","+00:00"))
+        key=(ba,stamp)
+        if stamp.tzinfo is None or stamp.utcoffset()!=timedelta(0):
+            raise ValueError("Source timestamp must be UTC")
+        if key not in expected or key in unique:
+            raise ValueError("Unknown/duplicate BA hour or unexpected sample time")
+        unique.add(key)
         if any(row[k]!="False" for k in ("population_is_customer_weights",
             "historical_BA_geography_approved","training_permitted")):
             raise ValueError("Unapproved geography erroneously model-admitted")
         temperatures=tuple(float(row[col]) for col in TEMPS)
-        if abs(temperatures[2]-temperatures[1]-float(row["C_minus_B_celsius"]))>2.1e-6:
-            raise ValueError("ERA5 difference violates actual source")
+        if not all(math.isfinite(z) for z in temperatures):
+            raise ValueError("Nonfinite actual ERA5 source temperature")
+        for col,value in (("C_minus_B_celsius",temperatures[2]-temperatures[1]),
+                          ("C_minus_A_celsius",temperatures[2]-temperatures[0]),
+                          ("B_minus_A_celsius",temperatures[1]-temperatures[0])):
+            reported=float(row[col])
+            if not math.isfinite(reported) or abs(reported-value)>2.1e-6:
+                raise ValueError("ERA5 source difference violates original arithmetic")
         groups[ba].append(temperatures)
-    if any(len(groups[ba])!=96 for ba in BAS):raise ValueError("BA-hour sample incomplete")
+    if unique!=expected or any(len(groups[ba])!=96 for ba in BAS):
+        raise ValueError("Exact 4 dates x 24 UTC hours x 4 BAs coverage incomplete")
     rows=[]
     for ba in sorted(BAS):
         for threshold in THRESHOLDS:
