@@ -52,6 +52,24 @@ class TestVintage(unittest.TestCase):
         self.assertFalse(qa["all_hours_present_in_both_sources"])
         self.assertEqual(qa["n_paired"],10)
 
+    def test_three_independent_archives_detect_two_change_intervals(self):
+        early=source_zip([(h,2900 if h==4 else 3000) for h in range(11)])
+        mid=source_zip([(h,45097 if h==4 else 3000) for h in range(11)])
+        late=source_zip([(h,45097 if h==4 else 3000) for h in range(11)])
+        rows,qa=compare({"2025-06-archive":early,
+                         "2025-11-v53":mid,"2026-09-v92":late})
+        self.assertTrue(qa["all_hours_present_in_three_sources"])
+        self.assertEqual(qa["n_changed_demand_hours_june_to_nov"],1)
+        self.assertEqual(qa["n_changed_original_demand_hours"],0)
+        self.assertTrue(rows[4]["june_to_nov_demand_changed"])
+
+    def test_three_archive_incomplete_hour_fails_qa(self):
+        complete=source_zip([(h,3000) for h in range(11)])
+        early=source_zip([(h,3000) for h in range(11) if h!=5])
+        _,qa=compare({"2025-06-archive":early,
+                      "2025-11-v53":complete,"2026-09-v92":complete})
+        self.assertFalse(qa["all_hours_present_in_three_sources"])
+
     def test_duplicate_key_rejected(self):
         with self.assertRaisesRegex(ValueError,"Duplicate"):
             read_srp(source_zip([(3,3000),(3,3000)]))
