@@ -115,9 +115,27 @@ def main():
     p.add_argument("--cache",default="inputs/pudl_vintages")
     p.add_argument("--out",default="outputs/srp_vintage")
     args=p.parse_args()
-    snapshots={n:get_zip(n,args.cache) for n in SOURCES}
-    rows,report=compare(snapshots)
     dest=Path(args.out);dest.mkdir(parents=True,exist_ok=True)
+    snapshots={}
+    for name in SOURCES:
+        try:
+            snapshots[name]=get_zip(name,args.cache)
+        except Exception as exc:
+            # Upload the failure evidence from Actions even when a remote archive
+            # is unreachable or no longer matches its published checksum.
+            issue={
+                "stage":"download_or_archive_hash_verification",
+                "failed_vintage":name,
+                "source_record":SOURCES[name][0],
+                "exception_type":type(exc).__name__,
+                "reason":str(exc)[:400],
+                "archives_verified_before_failure":list(snapshots),
+                "E2_training_permitted":False
+            }
+            (dest/"C2_SRP_VINTAGE_FETCH_FAILURE_QA.json").write_text(
+                json.dumps(issue,indent=2)+"\\n")
+            raise
+    rows,report=compare(snapshots)
     with (dest/"C2_SRP_2023_FEB_TWO_SOURCE_VINTAGES.csv").open("w",newline="") as f:
         w=csv.DictWriter(f,fieldnames=list(rows[0]));w.writeheader();w.writerows(rows)
     (dest/"C2_SRP_2023_FEB_VINTAGE_QA.json").write_text(json.dumps(report,indent=2)+"\n")
