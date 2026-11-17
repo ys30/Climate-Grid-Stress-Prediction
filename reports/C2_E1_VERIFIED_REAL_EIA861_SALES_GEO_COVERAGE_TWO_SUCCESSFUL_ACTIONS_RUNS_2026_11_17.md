@@ -38,3 +38,13 @@ The verified ratio is **the proportion of selected observed bundled retail MWh a
 2024–2025 rows were independently read as **annual sales-source metadata**, but 2024–2025 *sealed hourly demand test* observations were not used for fitting, anomaly threshold selection or model evaluation.
 
 Scientific gates still fail: `GEO_HISTORICAL_BA_FOOTPRINT` and `GEO_LOAD_RELEVANCE` are **not cleared** solely by annual sales association, `LOAD_QUALITY_HOLDOUT_PROTOCOL` remains blocked, and `model_training_permitted=false`. C-1 remains frozen. To move E1→E2: resolve county-level utility sales allocations (or independent validated metered load geography), report missing/total sales and source asymmetries, then review explicit spatial estimand.
+
+## Third (SHA-pinned) empirical run and full CI repair confirmation
+
+After the first two independently verified downloads, the true PUDL parquet SHA256 `996d6ac640ab664272187711a45b5944cf3116cab882ca05749f93d4a74ae9fe` was frozen as the default in workflow commit `64d4b96e7d0b9a546cfa98627aa247d29e8c20db`.
+
+- [SHA-pinned source acquisition and real sales join run 44037370237](https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44037370237) completed **successfully**; resulting artifact **14307004376**. This third artifact contains **no** `NOT_YET_PREPINNED.txt`; the workflow compared retrieved source content with its preexisting fixed SHA.
+- Both output CSVs in the pinned artifact are **byte-identical** to the prior two runs: 24-row source selected annual summary SHA256 `2b437b6288e1d8221aa555c63aadfbf16d033406b4ac5ee6c70bff0d497987c0`; 60-row source classification detail SHA256 `48a69bed00dcbcaae59b8d67b132d17f78e1e8c2db3d3c9fcd120ea288ffc9dd`.
+- The unrelated full `phase1-ci.yml` test suite had been failing with **2 errors among 154 tests**: tests/test_temporal_gate.py omitted the newly required `observed_keys`, `valid_values`, and `blank_or_invalid` input fields. Commit `5a38ff9b3ece32b1767a5b6b4b101e4fb0f23365` repaired the **synthetic test fixture** rather than weakening strict EIA-930 coverage input checks. [CI run 44037329404](https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44037329404) **passed**, as did the full [CI run 44037370218](https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44037370218) on the pinned-source workflow commit.
+
+**Therefore:** both the newly measured annual sales source coverage and the full source-contract CI can now be described as **verified successful**, not 'pending Actions'. This does **not** certify within-county utility customers, historical operational BA load location or formal E2 model admission. Those scientific gates remain blocked.
