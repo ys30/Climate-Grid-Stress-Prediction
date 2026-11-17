@@ -122,6 +122,30 @@ def analyze(bridge,records):
             "county_matched_customers":customer_num,
             "county_matched_customer_share":customer_num/customer_den if complete and customer_den else None,
             "actual_county_load_weights_validated":False,"model_training_permitted":False})
+    observed_ba_year={(row["year"],row["BA"]) for row in summary}
+    expected_ba_year={(year,ba) for year in range(2020,2026) for ba in BAS}
+    missing_ba_year=sorted(expected_ba_year-observed_ba_year)
+    # Explicitly report absent selected annual retail sales; absence is not zero.
+    for year,ba in missing_ba_year:
+        summary.append({"year":year,"BA":ba,"business_model":"NOT_REPORTED",
+            "selected_observed_bundled_sales_mwh":None,
+            "county_matched_sales_mwh":None,
+            "county_matched_share_of_selected_sales":None,
+            "nonexclusive_source_association_sales_mwh":None,
+            "nonexclusive_source_association_sales_share":None,
+            "county_matched_but_nonexclusive_sales_mwh":None,
+            "county_matched_including_nonexclusive_sales_mwh":None,
+            "nonexclusive_source_allocation_is_verified":False,
+            "customer_coverage_computable":False,
+            "selected_observed_customers":None,
+            "county_matched_customers":None,
+            "county_matched_customer_share":None,
+            "actual_county_load_weights_validated":False,
+            "model_training_permitted":False})
+    excluded["BA_year_without_selected_sales"]=len(missing_ba_year)
+    excluded["BA_year_with_selected_sales"]=len(observed_ba_year)
+    excluded["BA_year_total_expected"]=len(expected_ba_year)
+    summary.sort(key=lambda r:(r["year"],r["BA"],r["business_model"]))
     return detail,summary,dict(excluded)
 
 def write_csv(path,rows):
