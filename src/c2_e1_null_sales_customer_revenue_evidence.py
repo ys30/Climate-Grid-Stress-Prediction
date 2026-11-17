@@ -40,8 +40,8 @@ def analyze(records):
         customer=state(r.get("customers"));revenue=state(r.get("sales_revenue"))
         short=str(r.get("short_form") if r.get("short_form") is not None else "NULL").lower()
         maturity=str(r.get("data_maturity") or "NULL")
-        if customer in ("negative","invalid") or revenue in ("negative","invalid"):
-            raise ValueError("Unexpected invalid customer or revenue amount")
+        # Negative revenue can reflect source adjustments; preserve, don't
+        # discard or reinterpret it as positive electricity sales.
         categories[cls]+=1
         counts[ba,cls]+=1
         detailed[ba,year,cls,short,maturity,customer,revenue]+=1
@@ -58,6 +58,9 @@ def analyze(records):
               "both_positive":sum(n for k,n in subset if k[5]=="positive" and k[6]=="positive"),
               "either_positive":sum(n for k,n in subset if k[5]=="positive" or k[6]=="positive"),
               "both_missing":sum(n for k,n in subset if k[5]=="missing" and k[6]=="missing"),
+              "negative_customers":sum(n for k,n in subset if k[5]=="negative"),
+              "negative_revenue":sum(n for k,n in subset if k[6]=="negative"),
+              "invalid_customer_or_revenue":sum(n for k,n in subset if "invalid" in (k[5],k[6])),
               "short_form_true":sum(n for k,n in subset if k[3]=="true"),
               "short_form_false":sum(n for k,n in subset if k[3]=="false"),
               "short_form_unknown":sum(n for k,n in subset if k[3] not in ("true","false")),
