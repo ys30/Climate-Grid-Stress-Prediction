@@ -1,0 +1,72 @@
+name: C2 E1 2020-2023 original EIA861 Sales candidate lineage
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_2020_2023_original_sales_candidate_lineage.py"
+      - ".github/workflows/e1-original-2020-2023-eia861-lineage.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  four-year-original-excel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RAW_DOI: "23241340"
+      DERIVED_ARTIFACT_ID: "14312002877"
+      OUT: "outputs/c2_e1_original_sales_2020_2023"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Excel reader
+        run: python -m pip install --disable-pip-version-check 'openpyxl>=3.1'
+      - name: Download exact verified 1321-row processed original source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H "Accept: application/vnd.github+json" \
+             "repos/${GITHUB_REPOSITORY}/actions/artifacts/${DERIVED_ARTIFACT_ID}/zip" \
+             > inputs/c2_e1_verified_1321_rows.zip
+          python - <<'PY'
+          from src.c2_e1_2020_2023_original_sales_candidate_lineage import get_keys
+          keys,rows=get_keys("inputs/c2_e1_verified_1321_rows.zip")
+          print("Pinned original processed null rows:",len(rows),"unique groups",len(keys))
+          PY
+      - name: Download and MD5 check four DOI-pinned source annual archives
+        shell: bash
+        run: |
+          set -euo pipefail
+          for item in "2020 ef71e150dd76b2fbce8504ce7159358e" \
+                      "2021 c088fae5dca1c1c38a11094a2a096735" \
+                      "2022 8a88824bec4b2aecdc04b0b62fa41452" \
+                      "2023 7472a6617cc00ff4ae10440f7ef12805"; do
+            read -r year expected_md5 <<< "$item"
+            curl --fail --location --retry 3 --retry-delay 5 --connect-timeout 20 --max-time 600 \
+              --output "inputs/eia861-${year}.zip" \
+              "https://zenodo.org/records/${RAW_DOI}/files/eia861-${year}.zip"
+            printf "%s  inputs/eia861-%s.zip\n" "$expected_md5" "$year" | md5sum -c -
+          done
+      - name: Cross-check original Sales sheets against source-derived missing sector groups
+        run: |
+          python -m src.c2_e1_2020_2023_original_sales_candidate_lineage \
+            --derived-artifact inputs/c2_e1_verified_1321_rows.zip \
+            --raw-2020 inputs/eia861-2020.zip --raw-2021 inputs/eia861-2021.zip \
+            --raw-2022 inputs/eia861-2022.zip --raw-2023 inputs/eia861-2023.zip \
+            --out "$OUT"
+      - name: Preserve diagnostic evidence on failure
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          printf "No original source lineage conclusion; failed run.\n" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-original-2020-2023-EIA861-source-NOT-MODEL
+          path: outputs/c2_e1_original_sales_2020_2023/
+          if-no-files-found: warn
