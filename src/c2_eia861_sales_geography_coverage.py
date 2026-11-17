@@ -34,6 +34,14 @@ def load_bridge(path):
         if key[1] not in BAS or not 2020<=key[0]<=2025:
             raise ValueError("Out-of-scope source association")
         index[key]=row
+    # BA membership is not necessarily exclusive across utilities in the same year/state.
+    # Label overlapping utility/state sources, never silently credit them as
+    # independently located BA-specific electric demand.
+    by_utility_state=defaultdict(set)
+    for year,ba,utility,state in index:
+        by_utility_state[year,utility,state].add(ba)
+    for (year,ba,utility,state),row in index.items():
+        row["nonexclusive_utility_state_ba"]=(len(by_utility_state[year,utility,state])>1)
     return index
 
 def nonnegative(value,name):
@@ -67,8 +75,16 @@ def analyze(bridge,records):
         link=bridge.get((year,ba,int(r["utility_id_eia"]),str(r["state"]).upper()))
         status="no_utility_association"
         if link is not None:
-            status=("county_source_matched" if int(link["utility_counties_reported"])>0
-                    else "association_without_county_source")
+            # An overlapping source utility is a distinct risk class, even if
+            # the PUDL sales record itself carries a BA code.
+            has_county=(int(link["utility_counties_reported"])>0)
+            overlapping=bool(link.get("nonexclusive_utility_state_ba",False))
+            if overlapping:
+                status=("county_source_matched_NONEXCLUSIVE" if has_county
+                        else "association_without_county_source_NONEXCLUSIVE")
+            else:
+                status=("county_source_matched" if has_county
+                        else "association_without_county_source")
         business=str(r["business_model"] or "unspecified")
         slot=values[year,ba,business,status]
         slot["mwh"]+=mwh;slot["n"]+=1
@@ -86,12 +102,21 @@ def analyze(bridge,records):
     for (year,ba,business),members in sorted(groups.items()):
         denom=sum(v["selected_sales_mwh"] for v in members)
         num=sum(v["selected_sales_mwh"] for v in members if v["association_status"]=="county_source_matched")
+        nonexclusive_mwh=sum(v["selected_sales_mwh"] for v in members
+            if v["association_status"].endswith("_NONEXCLUSIVE"))
+        county_matched_nonexclusive_mwh=sum(v["selected_sales_mwh"] for v in members
+            if v["association_status"]=="county_source_matched_NONEXCLUSIVE")
         complete=all(v["selected_customer_count"] is not None for v in members)
         customer_den=sum(v["selected_customer_count"] for v in members) if complete else None
         customer_num=sum(v["selected_customer_count"] for v in members if v["association_status"]=="county_source_matched") if complete else None
         summary.append({"year":year,"BA":ba,"business_model":business,
             "selected_observed_bundled_sales_mwh":denom,"county_matched_sales_mwh":num,
             "county_matched_share_of_selected_sales":num/denom if denom else None,
+            "nonexclusive_source_association_sales_mwh":nonexclusive_mwh,
+            "nonexclusive_source_association_sales_share":nonexclusive_mwh/denom if denom else None,
+            "county_matched_but_nonexclusive_sales_mwh":county_matched_nonexclusive_mwh,
+            "county_matched_including_nonexclusive_sales_mwh":num+county_matched_nonexclusive_mwh,
+            "nonexclusive_source_allocation_is_verified":False,
             "customer_coverage_computable":complete,
             "selected_observed_customers":customer_den,
             "county_matched_customers":customer_num,
