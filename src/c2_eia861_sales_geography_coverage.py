@@ -9,6 +9,7 @@ from pathlib import Path
 
 BRIDGE_SHA="0e3d5ac5556b155456deb79bbb78be4b707907043764faca29edf1552721385e"
 BRIDGE_MEMBER="EIA861_fourBA_utility_state_association_SOURCE_ONLY.csv"
+BRIDGE_MEMBER_SHA="957d54d8b9ac1ec757d579d9ea9df47c2221548860adea2fba6b522821fbecef"
 BAS={"AZPS","BPAT","CISO","SRP"}
 CLASSES={"residential","commercial","industrial","other","transportation","direct_connection","commercial_other"}
 PRIMARY=("utility_id_eia","state","report_date","balancing_authority_code_eia","customer_class","business_model","service_type")
@@ -20,10 +21,11 @@ def digest(path):
     return h.hexdigest()
 
 def load_bridge(path):
-    if digest(path)!=BRIDGE_SHA:raise ValueError("Original PUDL association archive SHA256 mismatch")
     with zipfile.ZipFile(path) as archive:
-        with archive.open(BRIDGE_MEMBER) as stream:
-            rows=list(csv.DictReader(io.TextIOWrapper(stream,encoding="utf-8-sig")))
+        content=archive.read(BRIDGE_MEMBER)
+    if hashlib.sha256(content).hexdigest()!=BRIDGE_MEMBER_SHA:
+        raise ValueError("Original PUDL association inner CSV SHA256 mismatch")
+    rows=list(csv.DictReader(io.StringIO(content.decode("utf-8-sig"))))
     if len(rows)!=1418:raise ValueError("Expected 1,418 verified original associations")
     index={}
     for row in rows:
@@ -119,7 +121,8 @@ def main():
     output=Path(a.output);output.mkdir(parents=True,exist_ok=True)
     write_csv(output/"C2_E1_EIA861_SELECTED_SALES_ASSOCIATION_DETAIL.csv",detail)
     write_csv(output/"C2_E1_EIA861_BA_YEAR_SALES_COVERAGE.csv",summary)
-    audit={"sales_parquet_sha256":source_sha,"bridge_source_sha256":BRIDGE_SHA,
+    audit={"sales_parquet_sha256":source_sha,"bridge_source_member_sha256":BRIDGE_MEMBER_SHA,
+           "bridge_download_zip_sha256":digest(a.bridge),
            "sales_source_records":len(records),"bridge_associations":len(bridge),
            "scope":"Observed bundled non-total customer classes, stratified business model",
            "sales_record_exclusions":excluded,"groups":len(summary),
