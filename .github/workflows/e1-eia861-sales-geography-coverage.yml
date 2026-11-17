@@ -1,0 +1,95 @@
+name: C2 E1 pinned PUDL EIA861 sales source coverage
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sales_sha256:
+        description: "Optional previously verified PUDL v2026.10.0 sales file SHA256; blank for first acquisition (unapproved until pinned)"
+        type: string
+        required: false
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_eia861_sales_geography_coverage.py"
+      - "tests/test_c2_eia861_sales_geography_coverage.py"
+      - ".github/workflows/e1-eia861-sales-geography-coverage.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  pinned-source-sales-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ARTIFACT_ID: "14144934238"
+      SALES_S3_URI: "s3://pudl.catalyst.coop/v2026.10.0/core_eia861__yearly_sales.parquet"
+      SALES_PATH: "inputs/core_eia861__yearly_sales_v2026_10_0.parquet"
+      BRIDGE_PATH: "inputs/immutable_eia861_associations.zip"
+      OUT: "outputs/c2_e1_sales"
+      EXPECTED_SHA: ${{ inputs.expected_sales_sha256 || '' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run scientific accounting regression tests
+        run: python -m unittest discover -s tests -p 'test_c2_eia861_sales_geography_coverage.py' -v
+      - name: Install only Parquet and S3 acquisition dependencies
+        run: |
+          python -m pip install --disable-pip-version-check pyarrow awscli
+      - name: Download original source bridge artifact using GitHub Actions read token
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > "$BRIDGE_PATH"
+          sha256sum "$BRIDGE_PATH" | tee "$OUT/bridge_sha256.txt"
+          test "$(sha256sum "$BRIDGE_PATH" | cut -d' ' -f1)" = "0e3d5ac5556b155456deb79bbb78be4b707907043764faca29edf1552721385e"
+      - name: Retrieve actual immutable PUDL v2026.10.0 annual sales
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp --no-sign-request --region us-west-2 "$SALES_S3_URI" "$SALES_PATH"
+          test -s "$SALES_PATH"
+          sha256sum "$SALES_PATH" | tee "$OUT/sales_sha256.txt"
+          ACTUAL_SHA="$(sha256sum "$SALES_PATH" | cut -d' ' -f1)"
+          if [[ -n "$EXPECTED_SHA" && "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
+            echo "Pinned source checksum disagreement: FAIL CLOSED"
+            exit 1
+          fi
+          if [[ -z "$EXPECTED_SHA" ]]; then
+            echo "First acquisition only: computed source SHA, not previously approved/pinned" | tee "$OUT/NOT_YET_PREPINNED.txt"
+          fi
+          echo "ACTUAL_SHA=$ACTUAL_SHA" >> "$GITHUB_ENV"
+      - name: Join real observed annual sales to source geography
+        run: |
+          python -m src.c2_eia861_sales_geography_coverage \
+            --bridge "$BRIDGE_PATH" \
+            --sales "$SALES_PATH" \
+            --pinned-sales-sha256 "$ACTUAL_SHA" \
+            --output "$OUT"
+      - name: Write actual empirical result summary without admitting E2
+        if: success()
+        shell: bash
+        run: |
+          echo "## C2 E1 Actual EIA861 Sales Geography Association Coverage" >> "$GITHUB_STEP_SUMMARY"
+          echo "PUDL tagged release: v2026.10.0" >> "$GITHUB_STEP_SUMMARY"
+          echo "Sales Parquet SHA256: \`$ACTUAL_SHA\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Source only; not valid county-hourly demand weights. E2 blocked." >> "$GITHUB_STEP_SUMMARY"
+          echo "Download the workflow artifact for per BA/year business-model observed bundled MWh and customers." >> "$GITHUB_STEP_SUMMARY"
+      - name: Persist diagnostic on any failure
+        if: failure()
+        shell: bash
+        run: |
+          mkdir -p "$OUT"
+          printf 'result: failure\nsource: %s\nbridge_artifact_id: %s\nmodel_training_permitted: false\n' \
+            "$SALES_S3_URI" "$ARTIFACT_ID" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - name: Upload real empirical outputs or failure evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-PUDL-v2026-10-EIA861-observed-bundled-sales-NOT-MODEL
+          path: outputs/c2_e1_sales/
+          if-no-files-found: warn
