@@ -174,7 +174,12 @@ def main():
            "bridge_download_zip_sha256":digest(a.bridge),
            "sales_source_records":len(records),"bridge_associations":len(bridge),
            "scope":"Observed bundled non-total customer classes, stratified business model",
-           "sales_record_exclusions":excluded,"groups":len(summary),
+           "sales_record_exclusions":excluded,"result_rows_including_explicit_missing_BA_years":len(summary),
+           "BA_years_expected":24,
+           "BA_years_with_selected_sales":excluded["BA_year_with_selected_sales"],
+           "BA_years_without_selected_sales":excluded["BA_year_without_selected_sales"],
+           "complete_BA_year_selected_sales_coverage":excluded["BA_year_without_selected_sales"]==0,
+           "missing_BA_year_is_zero_sales":False,
            "spatial_load_weights_validated":False,"model_training_permitted":False,
            "sealed_2024_2025_demand_test_accessed":False}
     (output/"C2_E1_EIA861_SALES_COVERAGE_PROVENANCE.json").write_text(json.dumps(audit,indent=2)+"\n")
