@@ -59,12 +59,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          aws s3 cp --no-sign-request --region us-west-2 "$SALES_S3_URI" "$SALES_PATH"
+          mkdir -p "$OUT" "$(dirname "$SALES_PATH")"
+          echo "PUDL v2026.10.0 source: $SALES_S3_URI" > "$OUT/sales_acquisition.log"
+          if ! aws s3 cp --no-progress --no-sign-request --region us-west-2 "$SALES_S3_URI" "$SALES_PATH" 2>> "$OUT/sales_acquisition.log"; then
+            echo "AWS CLI failed; retrying the same immutable object with HTTPS path-style URL" | tee -a "$OUT/sales_acquisition.log"
+            rm -f "$SALES_PATH"
+            curl --fail --location --retry 3 --retry-delay 5 --connect-timeout 15 \
+              --max-time 900 --output "$SALES_PATH" \
+              "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.10.0/core_eia861__yearly_sales.parquet" \
+              2>> "$OUT/sales_acquisition.log"
+          fi
           test -s "$SALES_PATH"
+          file "$SALES_PATH" >> "$OUT/sales_acquisition.log" || true
           sha256sum "$SALES_PATH" | tee "$OUT/sales_sha256.txt"
           ACTUAL_SHA="$(sha256sum "$SALES_PATH" | cut -d' ' -f1)"
           if [[ -n "$EXPECTED_SHA" && "$ACTUAL_SHA" != "$EXPECTED_SHA" ]]; then
-            echo "Pinned source checksum disagreement: FAIL CLOSED"
+            echo "Pinned source checksum disagreement: FAIL CLOSED" | tee -a "$OUT/sales_acquisition.log"
             exit 1
           fi
           if [[ -z "$EXPECTED_SHA" ]]; then
@@ -94,6 +104,9 @@ jobs:
           mkdir -p "$OUT"
           printf 'result: failure\nsource: %s\nbridge_artifact_id: %s\nmodel_training_permitted: false\n' \
             "$SALES_S3_URI" "$ARTIFACT_ID" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+          if [[ -f "$SALES_PATH" ]]; then
+            printf 'downloaded_file_size_bytes: %s\n' "$(wc -c < "$SALES_PATH")" >> "$OUT/FAILURE_DIAGNOSTIC.txt"
+          fi
       - name: Upload real empirical outputs or failure evidence
         uses: actions/upload-artifact@v4
         if: always()
