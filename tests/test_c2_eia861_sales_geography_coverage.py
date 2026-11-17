@@ -44,6 +44,22 @@ class TestSourceCoverage(unittest.TestCase):
         for value in (-1,float("nan"),float("inf")):
             with self.subTest(value=value),self.assertRaisesRegex(ValueError,"Invalid"):
                 analyze(self.bridge,[make(mwh=value)])
+    def test_nonexclusive_county_source_is_not_credited_as_strict_matched(self):
+        overlapping_bridge={(2023,"AZPS",1,"AZ"):
+             {"utility_counties_reported":"2","nonexclusive_utility_state_ba":True},
+            (2023,"AZPS",2,"AZ"):
+             {"utility_counties_reported":"2","nonexclusive_utility_state_ba":False}}
+        _,summary,_=analyze(overlapping_bridge,[
+            make(uid=1,mwh=100),
+            make(uid=2,mwh=50,customer_class="industrial")])
+        r=summary[0]
+        self.assertEqual(r["selected_observed_bundled_sales_mwh"],150)
+        self.assertEqual(r["county_matched_sales_mwh"],50)
+        self.assertEqual(r["nonexclusive_source_association_sales_mwh"],100)
+        self.assertEqual(r["county_matched_but_nonexclusive_sales_mwh"],100)
+        self.assertEqual(r["county_matched_including_nonexclusive_sales_mwh"],150)
+        self.assertFalse(r["nonexclusive_source_allocation_is_verified"])
+
     def test_business_models_separated(self):
         _,summaries,_=analyze(self.bridge,[make(business_model="retail"),
                         make(business_model="other",customer_class="industrial")])
