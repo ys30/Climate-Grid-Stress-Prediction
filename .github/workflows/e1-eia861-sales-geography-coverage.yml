@@ -46,7 +46,15 @@ jobs:
           gh api -H 'Accept: application/vnd.github+json' \
             "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > "$BRIDGE_PATH"
           sha256sum "$BRIDGE_PATH" | tee "$OUT/bridge_sha256.txt"
-          test "$(sha256sum "$BRIDGE_PATH" | cut -d' ' -f1)" = "0e3d5ac5556b155456deb79bbb78be4b707907043764faca29edf1552721385e"
+          python - <<'PY'
+          import hashlib,os,zipfile
+          with zipfile.ZipFile(os.environ["BRIDGE_PATH"]) as z:
+              data=z.read("EIA861_fourBA_utility_state_association_SOURCE_ONLY.csv")
+          actual=hashlib.sha256(data).hexdigest()
+          expected="957d54d8b9ac1ec757d579d9ea9df47c2221548860adea2fba6b522821fbecef"
+          print("Immutable original source association CSV sha256:",actual)
+          if actual!=expected:raise SystemExit("Original association CSV digest mismatch")
+          PY
       - name: Retrieve actual immutable PUDL v2026.10.0 annual sales
         shell: bash
         run: |
