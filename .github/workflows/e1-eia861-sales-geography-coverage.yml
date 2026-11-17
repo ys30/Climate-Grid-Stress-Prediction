@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
     inputs:
       expected_sales_sha256:
-        description: "Optional previously verified PUDL v2026.10.0 sales file SHA256; blank for first acquisition (unapproved until pinned)"
+        description: "Optional override for previously verified PUDL v2026.10.0 sales SHA256; defaults to pinned two-run verified SHA"
         type: string
         required: false
         default: ""
@@ -26,7 +26,7 @@ jobs:
       SALES_PATH: "inputs/core_eia861__yearly_sales_v2026_10_0.parquet"
       BRIDGE_PATH: "inputs/immutable_eia861_associations.zip"
       OUT: "outputs/c2_e1_sales"
-      EXPECTED_SHA: ${{ inputs.expected_sales_sha256 || '' }}
+      EXPECTED_SHA: ${{ inputs.expected_sales_sha256 || '996d6ac640ab664272187711a45b5944cf3116cab882ca05749f93d4a74ae9fe' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
