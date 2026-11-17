@@ -17,6 +17,7 @@ class TestSourceCoverage(unittest.TestCase):
         data=[make(uid=1,mwh=100),make(uid=2,mwh=50,customer_class="industrial"),
               make(uid=3,mwh=25,customer_class="commercial")]
         detail,summary,_=analyze(self.bridge,data)
+        summary=[r for r in summary if r["business_model"]!="NOT_REPORTED"]
         self.assertEqual(len(detail),3)
         self.assertEqual(summary[0]["selected_observed_bundled_sales_mwh"],175)
         self.assertEqual(summary[0]["county_matched_sales_mwh"],100)
@@ -25,16 +26,19 @@ class TestSourceCoverage(unittest.TestCase):
         self.assertFalse(summary[0]["model_training_permitted"])
     def test_missing_customers_not_invented_as_zero(self):
         _,summary,_=analyze(self.bridge,[make(customers=None)])
+        summary=[r for r in summary if r["business_model"]!="NOT_REPORTED"]
         self.assertFalse(summary[0]["customer_coverage_computable"])
         self.assertIsNone(summary[0]["selected_observed_customers"])
     def test_aggregate_total_and_unobserved_excluded(self):
         _,summary,exc=analyze(self.bridge,[make(mwh=100),make(mwh=999,customer_class="total"),
                        make(mwh=800,customer_class="commercial",data_observed=False)])
+        summary=[r for r in summary if r["business_model"]!="NOT_REPORTED"]
         self.assertEqual(summary[0]["selected_observed_bundled_sales_mwh"],100)
         self.assertEqual(exc["aggregate_or_unknown_customer_class"],1)
         self.assertEqual(exc["not_observed"],1)
     def test_nonbundled_excluded(self):
         _,summary,exc=analyze(self.bridge,[make(),make(service_type="delivery",customer_class="industrial")])
+        summary=[r for r in summary if r["business_model"]!="NOT_REPORTED"]
         self.assertEqual(summary[0]["selected_observed_bundled_sales_mwh"],100)
         self.assertEqual(exc["not_bundled"],1)
     def test_duplicate_primary_key_rejected(self):
@@ -52,7 +56,7 @@ class TestSourceCoverage(unittest.TestCase):
         _,summary,_=analyze(overlapping_bridge,[
             make(uid=1,mwh=100),
             make(uid=2,mwh=50,customer_class="industrial")])
-        r=summary[0]
+        r=next(x for x in summary if x["business_model"]=="retail")
         self.assertEqual(r["selected_observed_bundled_sales_mwh"],150)
         self.assertEqual(r["county_matched_sales_mwh"],50)
         self.assertEqual(r["nonexclusive_source_association_sales_mwh"],100)
@@ -63,7 +67,19 @@ class TestSourceCoverage(unittest.TestCase):
     def test_business_models_separated(self):
         _,summaries,_=analyze(self.bridge,[make(business_model="retail"),
                         make(business_model="other",customer_class="industrial")])
-        self.assertEqual(len(summaries),2)
-        self.assertEqual(sum(x["selected_observed_bundled_sales_mwh"] for x in summaries),200)
+        observed=[x for x in summaries if x["business_model"]!="NOT_REPORTED"]
+        self.assertEqual(len(observed),2)
+        self.assertEqual(sum(x["selected_observed_bundled_sales_mwh"] for x in observed),200)
+
+    def test_all_24_ba_year_slots_explicitly_preserved(self):
+        _,summary,qa=analyze(self.bridge,[make()])
+        observed=[r for r in summary if r["business_model"]!="NOT_REPORTED"]
+        missing=[r for r in summary if r["business_model"]=="NOT_REPORTED"]
+        self.assertEqual(len(observed),1)
+        self.assertEqual(len(missing),23)
+        self.assertEqual(qa["BA_year_total_expected"],24)
+        self.assertEqual(qa["BA_year_without_selected_sales"],23)
+        self.assertIsNone(missing[0]["selected_observed_bundled_sales_mwh"])
+        self.assertFalse(missing[0]["model_training_permitted"])
 
 if __name__=="__main__":unittest.main()
