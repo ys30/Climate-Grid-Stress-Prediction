@@ -12,6 +12,8 @@ on:
     paths:
       - "src/c2_eia861_sales_geography_coverage.py"
       - "tests/test_c2_eia861_sales_geography_coverage.py"
+      - "src/c2_e1_pudl_missing_mwh_filter_audit.py"
+      - "tests/test_c2_e1_pudl_missing_mwh_filter_audit.py"
       - ".github/workflows/e1-eia861-sales-geography-coverage.yml"
 permissions:
   actions: read
@@ -35,6 +37,8 @@ jobs:
           python-version: "3.11"
       - name: Run scientific accounting regression tests
         run: python -m unittest discover -s tests -p 'test_c2_eia861_sales_geography_coverage.py' -v
+      - name: Verify sequential missing-MWh audit unit tests
+        run: python -m unittest discover -s tests -p 'test_c2_e1_pudl_missing_mwh_filter_audit.py' -v
       - name: Install only Parquet and S3 acquisition dependencies
         run: |
           python -m pip install --disable-pip-version-check pyarrow awscli
@@ -88,6 +92,10 @@ jobs:
             --sales "$SALES_PATH" \
             --pinned-sales-sha256 "$ACTUAL_SHA" \
             --output "$OUT"
+      - name: Audit genuine observed bundled missing-sales rows by BA, year and class
+        run: |
+          python -m src.c2_e1_pudl_missing_mwh_filter_audit \
+            --sales "$SALES_PATH" --output "$OUT"
       - name: Write actual empirical result summary without admitting E2
         if: success()
         shell: bash
