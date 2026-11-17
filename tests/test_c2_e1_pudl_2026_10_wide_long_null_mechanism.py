@@ -20,7 +20,16 @@ class TestTaggedPUDLWideToLongNullMechanism(unittest.TestCase):
         values.columns=values.columns.str.split(
             r"(?<=residential)_(?=sales|customers)|(?<=other)_(?=sales|customers)",
             n=1,expand=True)
-        long=values.stack(level=0,dropna=False)
+        # PUDL v2026.10.0 was written for the legacy pandas stack API.
+        # pandas >=3 removed dropna=False, so demonstrate the same preserved
+        # all-null sector row using an explicit NA-preserving long conversion.
+        if int(pd.__version__.split(".")[0]) < 3:
+            long=values.stack(level=0,dropna=False)
+        else:
+            long=(values.stack(level=0)
+                  .reindex(pd.MultiIndex.from_product(
+                      [values.index,["other","residential"]],
+                      names=[values.index.name,values.columns.names[0]])))
         # Historical PUDL v2026.10.0 _tidy_class_dfs uses stack(level=0, dropna=False).
         self.assertEqual(len(long),2)
         self.assertEqual(long.loc[(123,"residential"),"sales_mwh"],100.0)
