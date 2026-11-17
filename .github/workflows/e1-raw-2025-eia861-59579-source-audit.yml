@@ -1,0 +1,50 @@
+name: C2 E1 original 2025 EIA861 source utility audit
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_raw_2025_eia861_utility_59579_audit.py"
+      - ".github/workflows/e1-raw-2025-eia861-59579-source-audit.yml"
+permissions:
+  contents: read
+jobs:
+  raw-2025-eia861-source-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ARCHIVE_URL: "https://zenodo.org/records/23241340/files/eia861-2025.zip"
+      RAW_MD5: "dff89c8f144a4497057ff7dad93e1944"
+      ARCHIVE: "inputs/eia861-2025-zenodo23241340.zip"
+      OUT: "outputs/c2_e1_2025_raw_original"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install original Excel reader
+        run: python -m pip install --disable-pip-version-check openpyxl
+      - name: Download the original version-pinned 2025 EIA861 archive and verify MD5
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          curl --fail --location --retry 3 --retry-delay 5 --connect-timeout 20 --max-time 600 \
+            --output "$ARCHIVE" "$ARCHIVE_URL"
+          printf '%s  %s\n' "$RAW_MD5" "$ARCHIVE" | md5sum -c -
+          sha256sum "$ARCHIVE" | tee "$OUT/raw_archive_sha256.txt"
+      - name: Inspect original source workbooks and utility 59579
+        run: |
+          python -m src.c2_e1_raw_2025_eia861_utility_59579_audit \
+            --archive "$ARCHIVE" --out "$OUT"
+      - name: Persist failure diagnostics
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "FAILED: 2025 original EIA861 source audit; no raw-field conclusions" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-original-2025-EIA861-59579-NOT-E2
+          path: outputs/c2_e1_2025_raw_original/
+          if-no-files-found: warn
