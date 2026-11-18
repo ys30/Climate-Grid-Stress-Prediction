@@ -106,7 +106,6 @@ def save(rows: list[dict], output: Path, *, ba: str, start: str, end: str) -> di
                 "sha256_csv": digest, "clock_status": "source_label_unconverted",
                 "claim_status": "raw_api_retrieval_only_not_hourly_model_eligible",
                 "caveat": "EIA API period convention and source revisions require separate audit"}
-    output.rename(output) if False else None
     tmp.rename(output)
     output.with_suffix(".manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
