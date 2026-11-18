@@ -1,0 +1,49 @@
+name: C2 E1 verified multi county retail MWh utility source priorities
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_real_multicounty_source_evidence_priority.py"
+      - "tests/test_c2_e1_real_multicounty_source_evidence_priority.py"
+      - ".github/workflows/e1-real-multicounty-source-priority.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  actual-multicounty-source-priority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OUT: outputs/c2_e1_real_source_priority
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify source priority tests
+        run: python -m unittest discover -s tests -p 'test_c2_e1_real_multicounty_source_evidence_priority.py' -v
+      - name: Fetch previously source verified 2020-23 annual utility MWh with original county FIPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/14400293606/zip" \
+            > inputs/verified_original_county_partial_bounds.zip
+      - name: Rank true 2020-23 observed multi-county sources under frozen original source control
+        run: |
+          python -m src.c2_e1_real_multicounty_source_evidence_priority \
+            --artifact inputs/verified_original_county_partial_bounds.zip --out "$OUT"
+      - name: Preserve fail closed status
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "FAILED: no utility county load allocation or E2 admission" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-multicounty-utility-source-priorities-NOT-E2
+          path: outputs/c2_e1_real_source_priority/
+          if-no-files-found: warn
