@@ -1,0 +1,63 @@
+name: C2 E1 strict 2020-2023 original Sales source disambiguation
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_2020_2023_strict_raw_sales_disambiguation.py"
+      - "tests/test_c2_e1_2020_2023_strict_raw_sales_disambiguation.py"
+      - ".github/workflows/e1-strict-original-sales-disambiguation.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  strict-original-row-provenance:
+    runs-on: ubuntu-latest
+    env:
+      ORIGINAL_ARTIFACT_ID: "14313717508"
+      GH_TOKEN: ${{ github.token }}
+      OUT: "outputs/c2_e1_strict_original_sales"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run strict source row identification regression
+        run: python -m unittest discover -s tests -p 'test_c2_e1_2020_2023_strict_raw_sales_disambiguation.py' -v
+      - name: Fetch prior original-source candidate artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ORIGINAL_ARTIFACT_ID}/zip" \
+            > inputs/pinned_original_candidates.zip
+          python - <<'PY'
+          import hashlib,zipfile
+          expected={
+          "C2_E1_2020_2023_ORIGINAL_SALES_CANDIDATE_EXCEL_ROWS.csv":"1527647b41c22e1e80b9bfd997276fd3c63b9a73b27924439e739f6cd5caf415",
+          "C2_E1_2020_2023_RAW_SALES_CANDIDATE_GROUPS.csv":"ac59f6534934f60b2a00660edb8395cd908c147d70ae34b7594874fefb9768e7"}
+          with zipfile.ZipFile("inputs/pinned_original_candidates.zip") as z:
+              for name,sha in expected.items():
+                  data=z.read(name)
+                  if hashlib.sha256(data).hexdigest()!=sha:
+                      raise SystemExit(f"FAIL CLOSED: pinned candidate {name} differs")
+                  with open("inputs/"+name,"wb") as f:f.write(data)
+          PY
+      - name: Resolve all 468 original report groups to strict exact filing
+        run: |
+          python -m src.c2_e1_2020_2023_strict_raw_sales_disambiguation \
+            --candidates inputs/C2_E1_2020_2023_ORIGINAL_SALES_CANDIDATE_EXCEL_ROWS.csv \
+            --groups inputs/C2_E1_2020_2023_RAW_SALES_CANDIDATE_GROUPS.csv \
+            --out "$OUT"
+      - name: Failure indicator
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "Exact original filing source disambiguation failed" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-468-strict-original-2020-2023-rows-NOT-E2
+          path: outputs/c2_e1_strict_original_sales/
+          if-no-files-found: warn
