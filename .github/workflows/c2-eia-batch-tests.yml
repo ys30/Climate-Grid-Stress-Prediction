@@ -1,0 +1,41 @@
+name: C2 EIA Batch Orchestration Contract
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_eia930_batch_intake.py'
+      - 'tests/test_c2_eia930_batch_intake.py'
+      - '.github/workflows/c2-eia-batch-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_eia930_batch_intake.py'
+      - 'tests/test_c2_eia930_batch_intake.py'
+      - '.github/workflows/c2-eia-batch-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-batch-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run offline batch contract tests
+        run: python -m unittest discover -s tests -p 'test_c2_eia930_batch_intake.py' -v
+      - name: Verify the 24-job dry-run is free of external API calls
+        run: python -m scripts.c2_eia930_batch_intake --outdir /tmp/c2-source-vintage --dry-run > /tmp/c2-dry-run.json
+      - name: Validate dry-run metadata
+        run: |
+          python - <<'PY'
+          import json
+          with open('/tmp/c2-dry-run.json') as f:
+              data=json.load(f)
+          assert data['status']=='dry_run_no_network_no_data'
+          assert len(data['jobs']) == 24
+          print('24 BA-years planned; zero downloaded records')
+          PY
