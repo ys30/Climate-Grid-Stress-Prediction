@@ -1,0 +1,29 @@
+name: C2 EIA-ERA5 Provenance Join Contract
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_eia_era5_provenance_join.py'
+      - 'tests/test_c2_eia_era5_provenance_join.py'
+      - '.github/workflows/c2-eia-era5-join-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_eia_era5_provenance_join.py'
+      - 'tests/test_c2_eia_era5_provenance_join.py'
+      - '.github/workflows/c2-eia-era5-join-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify source-pinned hourly merge guardrails
+        run: python -m unittest discover -s tests -p 'test_c2_eia_era5_provenance_join.py' -v
