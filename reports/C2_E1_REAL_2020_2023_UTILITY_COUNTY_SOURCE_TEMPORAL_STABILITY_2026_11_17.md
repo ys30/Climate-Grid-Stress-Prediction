@@ -28,6 +28,12 @@ For 2020–23 observed bundled annual retail MWh and strict county-source matche
 - GitHub Actions [run 44223107462](https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44223107462) was **queued** when this report was first composed; do **not** count as independently verified until its conclusion and artifact are checked.
 - Local CSV output `C2_2020_2023_REAL_FOUR_BA_GEO_SOURCE_STABILITY_SUMMARY.csv` and `C2_2020_2023_REAL_UTILITY_STATE_GEO_TEMPORAL_STABILITY.csv`, all derived from the hash-pinned original PUDL association bridge.
 
+## Independent GitHub Actions verified (after initial report)
+
+The source-pinned empirical [GitHub Actions run 44223107462](https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44223107462) completed **SUCCESS**, artifact **14390974625**. Its four-BA CSV has exactly the values reported here: AZPS 27/23/15/0/5/0, BPAT 114/108/3/0/0/22, CISO 105/78/63/1/2/3 and SRP 9/8/7/0/5/0 (utility-state entities / 4-year entities / always-zero / presence-switch / nonexclusive entities / cross-state-exclusion entities). All four summaries and all **255** utility-state detail entries were independently compared with locally calculated original-bridge results; **every shared data field matches**. Local and GitHub code use slightly different *names* for two always-false approval columns (`annual_sales_MWh_county_allocated` versus `annual_MWh_county_allocated`, and `valid_utility_customer_county_allocation` versus `valid_customer_county_allocation`); these are presentation differences, not source disagreement.
+
+The GitHub source-only summary CSV SHA256 is **`da521ba1c58a4453dc254c2e70e39261451868e9361e70eae77fe848d92eae24`**; 255-row detail CSV SHA256 is **`afc2bf1bd2002acbf835ddbe0178b542d068a9371dcef1d9931d4829e83b0a0c`**. The complete C2 phase-1 CI run associated with the workflow change **44223107450** also completed SUCCESS.
+
 ## Scientific admission
 **This does not solve `GEO_HISTORICAL_BA_FOOTPRINT` or `GEO_LOAD_RELEVANCE`.** The next decisive study is year-specific verified county FIPS from original EIA-861 utility service territory *plus actual allocations (customer counts, retail revenue or preferably MWh at county/service territory level)*, independent historical BA boundaries and explicit utility/county overlaps; a population proxy or reporting-source match alone is not sufficient.
 
