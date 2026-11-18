@@ -1,0 +1,29 @@
+name: C2 EIA Raw API Intake Contract Tests
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_eia930_raw_api_intake.py'
+      - 'tests/test_c2_eia930_raw_api_intake.py'
+      - '.github/workflows/c2-eia-raw-intake-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_eia930_raw_api_intake.py'
+      - 'tests/test_c2_eia930_raw_api_intake.py'
+      - '.github/workflows/c2-eia-raw-intake-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-api-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate raw EIA intake with no external API calls
+        run: python -m unittest discover -s tests -p 'test_c2_eia930_raw_api_intake.py' -v
