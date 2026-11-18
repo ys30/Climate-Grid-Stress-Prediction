@@ -1,0 +1,51 @@
+name: C2 E1 verify 810 original raw 2020-23 MWh class cells
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_exact_original_810_null_sales_cell_lineage.py"
+      - ".github/workflows/e1-810-original-sales-cells-verified.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  exact-raw-sales-cell-reconciliation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OUT: outputs/c2_e1_810_original_raw_cells
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Download four successfully checked source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          for item in "exact 14387478090" "candidate 14313717508" \
+                      "processed 14312002877" "header 14388378072"; do
+            read -r label artifact_id <<< "$item"
+            gh api -H "Accept: application/vnd.github+json" \
+               "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" \
+               > "inputs/${label}.zip"
+          done
+      - name: Reconcile all 810 actual source-null rows to year-specific original cells
+        run: |
+          python -m src.c2_e1_exact_original_810_null_sales_cell_lineage \
+            --exact inputs/exact.zip --candidate inputs/candidate.zip \
+            --processed inputs/processed.zip --header inputs/header.zip --out "$OUT"
+      - name: Preserve fail-closed diagnostics
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "FAILED: original 810 sector-cell lineage not verified; E2 training remains blocked" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-810-raw-original-sales-cell-lineage-NOT-E2
+          path: outputs/c2_e1_810_original_raw_cells/
+          if-no-files-found: warn
