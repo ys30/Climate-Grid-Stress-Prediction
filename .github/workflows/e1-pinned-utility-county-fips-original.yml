@@ -1,0 +1,63 @@
+name: C2 E1 pinned 2020-23 real utility county FIPS source
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_pudl_2026_10_utility_county_fips_original.py"
+      - "tests/test_c2_e1_pudl_2026_10_utility_county_fips_original.py"
+      - ".github/workflows/e1-pinned-utility-county-fips-original.yml"
+permissions:
+  contents: read
+  actions: read
+jobs:
+  fixed-release-original-utility-fips:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OUT: outputs/c2_e1_pinned_utility_fips
+      S3_URI: "s3://pudl.catalyst.coop/v2026.10.0/core_eia861__yearly_service_territory.parquet"
+      SOURCE: inputs/core_eia861__yearly_service_territory.parquet
+      ORIGINAL_ASSOCIATION_ARTIFACT: "14144934238"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install only read-only source dependencies
+        run: python -m pip install --disable-pip-version-check pyarrow awscli
+      - name: Run original FIPS and source reconciliation tests
+        run: python -m unittest discover -s tests -p 'test_c2_e1_pudl_2026_10_utility_county_fips_original.py' -v
+      - name: Retrieve exact verified 1418 original utility-BA source links
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ORIGINAL_ASSOCIATION_ARTIFACT}/zip" \
+            > inputs/pudl_immutable_original_utility_links.zip
+      - name: Retrieve the same immutable PUDL v2026.10.0 original utility service territory Parquet
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws s3 cp --no-progress --no-sign-request --region us-west-2 \
+            "$S3_URI" "$SOURCE"
+          test -s "$SOURCE"
+          sha256sum "$SOURCE" | tee "$OUT/ORIGINAL_TERRITORY_PARQUET_SHA256.txt"
+      - name: Reconcile every source utility-state-BA county count to actual original FIPS list
+        run: |
+          python -m src.c2_e1_pudl_2026_10_utility_county_fips_original \
+            --bridge inputs/pudl_immutable_original_utility_links.zip \
+            --territory "$SOURCE" --out "$OUT"
+      - name: Save failure diagnostic
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          printf "Original service-territory mapping FAILED; no geometry or E2 admission\n" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-original-PUDL2026-10-utility-county-FIPS-source-NOT-MODEL
+          path: outputs/c2_e1_pinned_utility_fips/
+          if-no-files-found: warn
