@@ -1,0 +1,52 @@
+name: C2 E1 original 2020-23 Sales exact header mapping
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_original_2020_2023_sales_header_inventory.py"
+      - ".github/workflows/e1-original-2020-2023-sales-header-mapping.yml"
+permissions:
+  contents: read
+jobs:
+  original-source-column-headers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      OUT: "outputs/c2_e1_exact_original_2020_23_headers"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install --disable-pip-version-check openpyxl
+      - name: Download and checksum tagged Zenodo 2020–2023 original annual files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          for item in "2020 ef71e150dd76b2fbce8504ce7159358e" \
+                      "2021 c088fae5dca1c1c38a11094a2a096735" \
+                      "2022 8a88824bec4b2aecdc04b0b62fa41452" \
+                      "2023 7472a6617cc00ff4ae10440f7ef12805"; do
+            read -r year md5 <<< "$item"
+            curl --fail --location --retry 3 --retry-delay 5 --connect-timeout 15 --max-time 600 \
+              "https://zenodo.org/records/23241340/files/eia861-${year}.zip" \
+              --output "inputs/eia861-${year}.zip"
+            printf "%s  inputs/eia861-%s.zip\n" "$md5" "$year" | md5sum -c -
+          done
+      - name: Preserve exact year-specific column headers (not guessed)
+        run: |
+          python -m src.c2_e1_original_2020_2023_sales_header_inventory \
+            --raw-2020 inputs/eia861-2020.zip --raw-2021 inputs/eia861-2021.zip \
+            --raw-2022 inputs/eia861-2022.zip --raw-2023 inputs/eia861-2023.zip --out "$OUT"
+      - if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "FAIL: original source headers unverified" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-original-2020-23-exact-sales-headers-NOT-MODEL
+          path: outputs/c2_e1_exact_original_2020_23_headers/
+          if-no-files-found: warn
