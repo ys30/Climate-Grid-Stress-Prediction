@@ -1,0 +1,48 @@
+name: C2 E1 real 2020-23 utility county source stability
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_real_utility_county_temporal_stability.py"
+      - "tests/test_c2_e1_real_utility_county_temporal_stability.py"
+      - ".github/workflows/e1-real-utility-county-temporal-stability.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  original-utility-county-source:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRIDGE_ARTIFACT_ID: "14144934238"
+      OUT: outputs/c2_e1_real_utility_county_stability
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Source-only temporal risk contract tests
+        run: python -m unittest discover -s tests -p 'test_c2_e1_real_utility_county_temporal_stability.py' -v
+      - name: Fetch immutable official PUDL utility association artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/${BRIDGE_ARTIFACT_ID}/zip" > inputs/immutable_original_eia861_associations.zip
+      - name: Reproduce real source temporal stability with frozen 1418-row bridge
+        run: |
+          python -m src.c2_e1_real_utility_county_temporal_stability \
+            --artifact inputs/immutable_original_eia861_associations.zip --out "$OUT"
+      - name: Preserve failure evidence
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "FAILED source-only audit; no BA footprint or load approval" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-2020-23-utility-county-source-stability-NOT-MODEL
+          path: outputs/c2_e1_real_utility_county_stability/
+          if-no-files-found: warn
