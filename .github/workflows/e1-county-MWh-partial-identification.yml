@@ -1,0 +1,80 @@
+name: C2 E1 actual sales county marginal identification bounds
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_actual_sales_county_partial_identification.py"
+      - "tests/test_c2_e1_actual_sales_county_partial_identification.py"
+      - ".github/workflows/e1-county-MWh-partial-identification.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  source-only-county-partial-bounds:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SALES_SOURCE: s3://pudl.catalyst.coop/v2026.10.0/core_eia861__yearly_sales.parquet
+      OUT: outputs/c2_e1_county_mwh_partial_bounds
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate conditional bounds using synthetic non-imputed source tests
+        run: python -m unittest discover -s tests -p 'test_c2_e1_actual_sales_county_partial_identification.py' -v
+      - name: Install real Parquet-only source dependencies
+        run: python -m pip install pyarrow awscli
+      - name: Download pinned sales and verified source utility FIPS evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H 'Accept: application/vnd.github+json' \
+             "repos/${GITHUB_REPOSITORY}/actions/artifacts/14393473675/zip" \
+             > inputs/verified_933_utility_county_fips.zip
+          aws s3 cp --no-progress --no-sign-request --region us-west-2 \
+             "$SALES_SOURCE" inputs/annual_sales.parquet
+          printf '%s  %s\n' \
+             '996d6ac640ab664272187711a45b5944cf3116cab882ca05749f93d4a74ae9fe' \
+             inputs/annual_sales.parquet | sha256sum -c -
+      - name: Compute county marginal support-constrained bounds (not observed county loads)
+        run: |
+          python -m src.c2_e1_actual_sales_county_partial_identification \
+             --sales inputs/annual_sales.parquet \
+             --fips-artifact inputs/verified_933_utility_county_fips.zip --out "$OUT"
+      - name: Verify all BA-year totals against independent original sales audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/14400412064/zip" > inputs/independent_16_BA_year_sales.zip
+          python - <<'PY'
+          import csv,io,math,os,zipfile
+          with zipfile.ZipFile("inputs/independent_16_BA_year_sales.zip") as z:
+              expected=list(csv.DictReader(io.StringIO(z.read("C2_16_BAYEAR_OBSERVED_MWH_COUNTY_IDENTIFIABILITY.csv").decode("utf-8-sig"))))
+          with open(os.environ["OUT"]+"/C2_E1_BA_YEAR_MWH_PARTIAL_IDENTIFICATION.csv") as f:
+              actual=list(csv.DictReader(f))
+          index={(int(r["year"]),r["BA"]):float(r["selected_observed_bundled_MWh"]) for r in expected}
+          assert len(actual)==len(index)==16
+          for r in actual:
+              key=int(r["year"]),r["BA"]
+              if not math.isclose(float(r["actual_selected_annual_sales_MWh"]),index[key],rel_tol=1e-11,abs_tol=.001):
+                  raise SystemExit("Source controls disagree: "+str(key))
+              if not math.isclose(float(r["conditional_single_source_MWh"]),float(r["county_lower_bounds_sum_MWh"]),abs_tol=.001):
+                  raise SystemExit("Bounds mismatch: "+str(key))
+          print("VERIFIED ALL 16 BA-year actual sales MWh totals and county lower bound sums")
+          PY
+      - name: Fail closed diagnostics
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "FAIL: No original county MWh weights certified. E2 BLOCKED." > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-conditional-county-MWh-partial-identification-NOT-MODEL
+          path: outputs/c2_e1_county_mwh_partial_bounds/
+          if-no-files-found: warn
