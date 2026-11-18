@@ -37,6 +37,12 @@ These are exact raw-cell-source classifications, **NOT a measured amount of miss
 - **Independent local 810-row exact-cell verification completed**, outputs downloadable as `C2_E1_810_RAW_EIA861_SALES_CELL_LINEAGE_20261117.zip`.
 - Fully fail-closed GitHub code: `src/c2_e1_exact_original_810_null_sales_cell_lineage.py`, workflow `.github/workflows/e1-810-original-sales-cells-verified.yml`. [Run 44217883298](https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44217883298) was **queued at report composition**, so do not claim an independently completed CI result until checked.
 
+## Independent GitHub result verified after original report
+
+The exact pinned-source reconciliation [GitHub Actions run 44217883298](https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44217883298) completed **SUCCESS**, artifact **14388759429**. Downloaded output `C2_E1_810_ORIGINAL_SALES_CELL_LINEAGE.csv` SHA256 **`28069f30f45d9685625e3688146662b7c57d736879c7d4ff2acb363f3ab1a0b2`**. Original confirmed categories were again exactly **468 Other absent raw column**, **342 original Sales cell `.`**, four-year details unchanged.
+
+An independent local merge against the earlier separately built 810-record audit confirmed **810/810** matched unique original row SHA256 values; all **342/342** raw source records with a real sector field matched their original Sales / Revenue / Customers cell values across both independent implementations. The 468 `other` rows differed only in the descriptive missing-column label (`NO_COLUMN` vs `NO_ORIGINAL_COLUMN`), not their original source row signatures or category interpretation.
+
 ## Scope and admission
 
 This closes *training/validation-period null-MWh original raw-cell provenance* at the sector-class field level. It does NOT close completeness of actual retail MWh, utility-to-county allocation, historical BA footprint / meteorological exposure, or the independent load-quality/holdout gate. Keep `GEO_HISTORICAL_BA_FOOTPRINT`, `GEO_LOAD_RELEVANCE`, `LOAD_QUALITY_HOLDOUT_PROTOCOL` BLOCKED; `model_training_permitted=false`. C-1 frozen; no sealed 2024–2025 EIA930 hourly demand used.
