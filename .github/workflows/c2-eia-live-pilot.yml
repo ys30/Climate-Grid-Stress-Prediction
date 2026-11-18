@@ -1,0 +1,71 @@
+name: C2 EIA Live Single-Year Evidence Pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      ba:
+        description: "Balancing authority"
+        type: choice
+        required: true
+        default: CISO
+        options: [CISO, AZPS, BPAT, SRP]
+      year:
+        description: "UTC interval-start target calendar year"
+        type: choice
+        required: true
+        default: '2024'
+        options: ['2020', '2021', '2022', '2023', '2024', '2025']
+
+permissions:
+  contents: read
+
+jobs:
+  source-retrieval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      TARGET_BA: ${{ inputs.ba }}
+      TARGET_YEAR: ${{ inputs.year }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require EIA secret (no DEMO_KEY / no fallback)
+        run: |
+          if [ -z "$EIA_API_KEY" ]; then
+            echo "::error::Repository Actions secret EIA_API_KEY is not configured."
+            exit 1
+          fi
+      - name: Verify offline ingestion contract before contacting official API
+        run: |
+          python -m unittest discover -s tests -p 'test_c2_eia930_raw_api_intake.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_he_to_utc_start.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_year_coverage_gate.py' -v
+      - name: Obtain original EIA-930 demand with SHA-256 and HE label
+        run: |
+          mkdir -p evidence/raw evidence/utc_start evidence/audit
+          python -m scripts.c2_eia930_raw_api_intake \
+            --ba "$TARGET_BA" --year "$TARGET_YEAR" \
+            --output "evidence/raw/eia930_${TARGET_BA}_${TARGET_YEAR}_he.csv"
+      - name: Convert preserved source HE to UTC interval-start
+        run: |
+          python -m scripts.c2_eia930_he_to_utc_start \
+            "evidence/raw/eia930_${TARGET_BA}_${TARGET_YEAR}_he.csv" \
+            "evidence/utc_start/eia930_${TARGET_BA}_${TARGET_YEAR}_start.csv" \
+            --year "$TARGET_YEAR"
+      - name: Produce annual coverage gate report (nonzero on failure)
+        run: |
+          python -m scripts.c2_eia930_year_coverage_gate \
+            "evidence/utc_start/eia930_${TARGET_BA}_${TARGET_YEAR}_start.csv" \
+            --year "$TARGET_YEAR" --ba "$TARGET_BA" \
+            --output "evidence/audit/eia930_${TARGET_BA}_${TARGET_YEAR}_coverage.json"
+      - name: Preserve audit and source artifacts even if a later step fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-eia930-${{ inputs.ba }}-${{ inputs.year }}-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
