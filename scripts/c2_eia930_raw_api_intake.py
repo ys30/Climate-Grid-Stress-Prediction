@@ -122,10 +122,12 @@ def main():
     key = os.environ.get("EIA_API_KEY", "").strip()
     if not key:
         parser.error("EIA_API_KEY environment variable is required; never commit the key")
-    # End-exclusive is NOT assumed; query includes both calendar endpoints,
-    # then check actual returned first/last labels in the manifest.
+    # Official EIA-930 reports hour-ending. To cover all target-year UTC
+    # interval-start hours, fetch through NEXT Jan 1 00:00 inclusive.
+    # Keep Jan 1 00:00 of the target year as audit context; the HE converter
+    # filters output by interval-start year without inventing a final hour.
     start = f"{args.year}-01-01T00"
-    end = f"{args.year}-12-31T23"
+    end = f"{args.year + 1}-01-01T00"
     rows = collect(key, args.ba, start, end)
     print(json.dumps(save(rows, args.output, ba=args.ba, start=start, end=end), indent=2))
 
