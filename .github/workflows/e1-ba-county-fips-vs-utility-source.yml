@@ -1,0 +1,50 @@
+name: C2 E1 verified BA FIPS proxy overlap vs utility county source
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "src/c2_e1_real_BA_county_proxy_vs_utility_links.py"
+      - "tests/test_c2_e1_real_BA_county_proxy_vs_utility_links.py"
+      - ".github/workflows/e1-ba-county-fips-vs-utility-source.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  source-only-crosswalk-risk-audit:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      OUT: outputs/c2_e1_county_proxy_vs_utility
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Strict source-only geography tests
+        run: python -m unittest discover -s tests -p 'test_c2_e1_real_BA_county_proxy_vs_utility_links.py' -v
+      - name: Retrieve verified original county FIPS and utility source artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p inputs "$OUT"
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/14134338768/zip" > inputs/county_proxy_nightly_frozen.zip
+          gh api -H 'Accept: application/vnd.github+json' \
+            "repos/${GITHUB_REPOSITORY}/actions/artifacts/14144934238/zip" > inputs/utility_immutable_bridge.zip
+      - name: Independently reproduce the 2020-2023 real source geography risks
+        run: |
+          python -m src.c2_e1_real_BA_county_proxy_vs_utility_links \
+            --counties inputs/county_proxy_nightly_frozen.zip \
+            --utilities inputs/utility_immutable_bridge.zip --out "$OUT"
+      - name: Failure diagnostics
+        if: failure()
+        run: |
+          mkdir -p "$OUT"
+          echo "FAILED: geography source QA; BA polygon and E2 training remain blocked" > "$OUT/FAILURE_DIAGNOSTIC.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-e1-real-BA-FIPS-proxy-vs-utility-source-NOT-MODEL
+          path: outputs/c2_e1_county_proxy_vs_utility/
+          if-no-files-found: warn
