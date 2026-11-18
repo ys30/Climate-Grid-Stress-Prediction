@@ -1,0 +1,29 @@
+name: C2 EIA Annual Coverage Gate
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_eia930_year_coverage_gate.py'
+      - 'tests/test_c2_eia930_year_coverage_gate.py'
+      - '.github/workflows/c2-eia-year-coverage-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_eia930_year_coverage_gate.py'
+      - 'tests/test_c2_eia930_year_coverage_gate.py'
+      - '.github/workflows/c2-eia-year-coverage-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-year-coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run annual EIA source coverage guard tests
+        run: python -m unittest discover -s tests -p 'test_c2_eia930_year_coverage_gate.py' -v
