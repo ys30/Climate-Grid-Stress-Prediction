@@ -1,0 +1,31 @@
+name: C2 EIA Hour-Ending Clock Conversion Tests
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_eia930_he_to_utc_start.py'
+      - 'scripts/c2_eia930_raw_api_intake.py'
+      - 'tests/test_c2_eia930_he_to_utc_start.py'
+      - '.github/workflows/c2-eia-he-clock-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_eia930_he_to_utc_start.py'
+      - 'scripts/c2_eia930_raw_api_intake.py'
+      - 'tests/test_c2_eia930_he_to_utc_start.py'
+      - '.github/workflows/c2-eia-he-clock-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-he-clock-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test EIA-930 UTC HE to interval start conversion
+        run: python -m unittest discover -s tests -p 'test_c2_eia930_he_to_utc_start.py' -v
