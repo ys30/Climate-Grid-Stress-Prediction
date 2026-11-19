@@ -25,6 +25,8 @@ WAVE_CONFIG = {
     "wave1": (WORKFLOW, EXPECTED),
     "wave2": ("c2-eia-expansion-wave2.yml",
               {(ba, year) for ba in ("AZPS", "BPAT", "SRP") for year in (2020, 2021)}),
+    "wave3": ("c2-eia-expansion-wave3.yml",
+              {(ba, year) for ba in ("AZPS", "BPAT", "SRP") for year in (2022, 2023, 2025)}),
 }
 
 
