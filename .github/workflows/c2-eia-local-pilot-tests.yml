@@ -1,0 +1,29 @@
+name: C2 EIA Local Pilot Security Tests
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_eia_local_pilot.py'
+      - 'tests/test_c2_eia_local_pilot.py'
+      - '.github/workflows/c2-eia-local-pilot-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_eia_local_pilot.py'
+      - 'tests/test_c2_eia_local_pilot.py'
+      - '.github/workflows/c2-eia-local-pilot-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  no-secret-network-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate local runner without real EIA API key
+        run: python -m unittest discover -s tests -p 'test_c2_eia_local_pilot.py' -v
