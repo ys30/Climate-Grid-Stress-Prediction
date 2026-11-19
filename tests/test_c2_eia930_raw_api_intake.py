@@ -4,6 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from urllib.error import HTTPError, URLError
+
+from scripts.c2_eia930_raw_api_intake import fetch_page
 
 from scripts.c2_eia930_raw_api_intake import collect, save
 
@@ -48,6 +51,25 @@ class RawEIAIntakeTests(unittest.TestCase):
         get_page.return_value = result([item("2024-01-01T00", ba="BPAT")])
         with self.assertRaisesRegex(RuntimeError, "Unexpected BA"):
             collect("dummy", "CISO", "2024-01-01T00", "2024-12-31T23")
+
+    @patch("scripts.c2_eia930_raw_api_intake.urlopen")
+    def test_http_error_does_not_expose_key(self, mocked):
+        secret = "FAKE_SECRET_FOR_TEST_ONLY"
+        mocked.side_effect = HTTPError(
+            "https://api.eia.gov/?api_key=" + secret, 403, "Forbidden", {}, None)
+        with self.assertRaises(RuntimeError) as caught:
+            fetch_page(secret, "CISO", "2024-01-01T00", "2024-01-02T00", 0)
+        self.assertNotIn(secret, str(caught.exception))
+        self.assertIn("HTTP status 403", str(caught.exception))
+
+    @patch("scripts.c2_eia930_raw_api_intake.urlopen")
+    def test_transport_error_does_not_expose_key(self, mocked):
+        secret = "FAKE_SECRET_FOR_TEST_ONLY"
+        mocked.side_effect = URLError("request failed: api_key=" + secret)
+        with self.assertRaises(RuntimeError) as caught:
+            fetch_page(secret, "CISO", "2024-01-01T00", "2024-01-02T00", 0)
+        self.assertNotIn(secret, str(caught.exception))
+        self.assertIn("credentials withheld", str(caught.exception))
 
     def test_manifest_sha_and_no_overwrite(self):
         with tempfile.TemporaryDirectory() as folder:
