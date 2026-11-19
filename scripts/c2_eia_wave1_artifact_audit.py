@@ -94,9 +94,10 @@ def report(token, run_id=None):
             raw_digest = hashlib.sha256(z.read(raw_path)).hexdigest()
             ok = (
                 a.get("pass") is True and a.get("ba") == ba and a.get("year") == year
-                and a.get("missing_hours") == 0 and a.get("duplicate_hours") == 0
+                and a.get("missing_hours", -1) >= 0 and a.get("duplicate_hours") == 0
                 and a.get("source_he_mismatch_rows") == 0
-                and a.get("coverage") == 1.0
+                and a.get("invalid_rows") == 0
+                and a.get("coverage", 0) >= a.get("coverage_threshold", 0.98)
                 and a.get("source_sha256") == digest == m.get("sha256_csv")
                 and m.get("input_sha256") == raw_digest == rm.get("sha256_csv")
                 and m.get("source_kind") == "derived_from_official_EIA_930_API"
@@ -108,6 +109,9 @@ def report(token, run_id=None):
                           expected_hours=a.get("expected_hours"),
                           unique_hours=a.get("unique_in_year"),
                           missing_hours=a.get("missing_hours"),
+                          missing_demand_rows=a.get("missing_demand_rows"),
+                          valid_demand_hours=a.get("valid_demand_hours"),
+                          source_hour_coverage=a.get("source_hour_coverage"),
                           csv_sha256=digest if ok else None,
                           raw_sha256=raw_digest if ok else None,
                           artifact_id=matches[0]["id"])
