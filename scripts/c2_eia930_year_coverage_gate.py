@@ -39,6 +39,7 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
     actual = set()
     duplicate = 0
     invalid = 0
+    missing_demand = 0
     out_of_period = 0
     wrong_ba = 0
     source_he_mismatch = 0
@@ -60,12 +61,18 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
             if ts in actual:
                 duplicate += 1
             actual.add(ts)
-            try:
-                value = float(record["demand_mw"])
-                if not math.isfinite(value) or value < 0:
+            original = record["demand_mw"]
+            if original is None or original.strip() == "":
+                # EIA explicitly published this hour with no measured D value.
+                # This is missing coverage, NOT a fabricated zero.
+                missing_demand += 1
+            else:
+                try:
+                    value = float(original)
+                    if not math.isfinite(value) or value < 0:
+                        invalid += 1
+                except (TypeError, ValueError):
                     invalid += 1
-            except (TypeError, ValueError):
-                invalid += 1
             try:
                 from scripts.c2_eia930_he_to_utc_start import he_to_start
                 if he_to_start(record["original_source_he_utc"]) != ts:
@@ -77,10 +84,11 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
     missing = expected - present
     # Source timestamps may exist even where EIA reported a null demand.
     # Do not report all present timestamps as valid measured-demand coverage.
-    valid = max(0, present - invalid)
+    valid = max(0, present - invalid - missing_demand)
     coverage = valid / expected
     source_hour_coverage = present / expected
-    # Even when coverage >= threshold, anomalies and null values fail closed.
+    # Missing official demand lowers coverage but does not create invented data.
+    # Invalid nonblank numeric values, duplicates and bad clock still fail closed.
     passed = (coverage >= min_coverage and missing >= 0 and duplicate == 0
               and invalid == 0 and out_of_period == 0 and wrong_ba == 0
               and source_he_mismatch == 0 and rows == len(actual))
@@ -88,7 +96,7 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
         "status": "EIA_only_coverage_audit_not_ERA5_or_prediction_validation",
         "ba": ba, "year": year, "source_sha256": file_hash,
         "expected_hours": expected, "rows": rows, "unique_in_year": present,
-        "missing_hours": missing, "missing_demand_rows": invalid,
+        "missing_hours": missing, "missing_demand_rows": missing_demand,
         "valid_demand_hours": valid, "source_hour_coverage": round(source_hour_coverage, 8),
         "duplicate_hours": duplicate, "invalid_rows": invalid,
         "out_of_period_rows": out_of_period, "wrong_ba_rows": wrong_ba,
