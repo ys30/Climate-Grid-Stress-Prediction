@@ -71,6 +71,16 @@ class RawEIAIntakeTests(unittest.TestCase):
         self.assertNotIn(secret, str(caught.exception))
         self.assertIn("credentials withheld", str(caught.exception))
 
+    @patch("scripts.c2_eia930_raw_api_intake.fetch_page")
+    def test_true_eia_null_is_preserved_not_imputed(self, get_page):
+        get_page.return_value = result([item("2024-01-01T00", None)])
+        rows = collect("dummy", "CISO", "2024-01-01T00", "2024-01-02T00")
+        self.assertEqual(rows[0]["reported_demand_mw"], "")
+        with tempfile.TemporaryDirectory() as folder:
+            manifest = save(rows, Path(folder) / "raw.csv",
+                            ba="CISO", start="2024-01-01T00", end="2024-01-02T00")
+            self.assertEqual(manifest["source_null_demand_rows"], 1)
+
     def test_manifest_sha_and_no_overwrite(self):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "raw.csv"
