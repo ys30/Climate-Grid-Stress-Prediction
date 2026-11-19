@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'scripts/c2_eia_wave1_artifact_audit.py'
+      - 'tests/test_c2_eia_wave1_artifact_audit.py'
       - '.github/workflows/c2-eia-wave1-evidence-status.yml'
   workflow_run:
     workflows: ['C2 EIA E2 Real-Data Expansion Wave 1']
@@ -40,6 +41,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      - name: Test status freshness before auditing real artifacts
+        run: python -m unittest discover -s tests -p 'test_c2_eia_wave1_artifact_audit.py' -v
       - name: Verify SHA chain and annual gate for each available cohort
         run: |
           mkdir -p evidence/audit
