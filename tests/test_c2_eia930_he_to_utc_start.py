@@ -66,6 +66,14 @@ class ClockConversionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "hash"):
             convert(raw, out)
 
+    def test_null_demand_preserved_across_hour_ending_conversion(self):
+        raw, output = self.make_raw([("2024-01-01T01", "")])
+        manifest = convert(raw, output, target_year=2024)
+        self.assertEqual(manifest["source_null_demand_rows"], 1)
+        with output.open(newline="") as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual(rows[0]["demand_mw"], "")
+
     def test_no_overwrite(self):
         raw, out = self.make_raw([("2024-01-01T01", "4")])
         convert(raw, out)
