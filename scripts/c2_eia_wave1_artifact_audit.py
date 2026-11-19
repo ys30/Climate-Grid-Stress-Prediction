@@ -21,6 +21,11 @@ WORKFLOW = "c2-eia-expansion-wave1.yml"
 EXPECTED = {("CISO", year) for year in (2020, 2021, 2022, 2023, 2025)} | {
     (ba, 2024) for ba in ("AZPS", "BPAT", "SRP")
 }
+WAVE_CONFIG = {
+    "wave1": (WORKFLOW, EXPECTED),
+    "wave2": ("c2-eia-expansion-wave2.yml",
+              {(ba, year) for ba in ("AZPS", "BPAT", "SRP") for year in (2020, 2021)}),
+}
 
 
 class SafeRedirect(urllib.request.HTTPRedirectHandler):
@@ -47,8 +52,9 @@ def request(path, token, *, binary=False):
     return content if binary else json.loads(content)
 
 
-def get_latest_run(token):
-    payload = request(f"/repos/{REPO}/actions/workflows/{WORKFLOW}/runs?per_page=25", token)
+def get_latest_run(token, wave="wave1"):
+    workflow, _ = WAVE_CONFIG[wave]
+    payload = request(f"/repos/{REPO}/actions/workflows/{workflow}/runs?per_page=25", token)
     runs = payload.get("workflow_runs", [])
     if not runs:
         return None
@@ -58,11 +64,12 @@ def get_latest_run(token):
     return runs[0]
 
 
-def report(token, run_id=None):
+def report(token, run_id=None, *, wave="wave1"):
+    _, expected = WAVE_CONFIG[wave]
     if run_id is None:
-        run = get_latest_run(token)
+        run = get_latest_run(token, wave=wave)
         if not run:
-            return {"status": "no_completed_wave1_run", "expected_ba_years": 8}
+            return {"status": "no_completed_" + wave + "_run", "expected_ba_years": len(expected)}
         run_id = run["id"]
     run = request(f"/repos/{REPO}/actions/runs/{run_id}", token)
     if run.get("status") != "completed":
@@ -73,13 +80,13 @@ def report(token, run_id=None):
                 "run_attempt": run.get("run_attempt"),
                 "verified_at_utc": datetime.now(timezone.utc).isoformat(),
                 "verified_ba_years": 0,
-                "expected_ba_years": 8,
+                "expected_ba_years": len(expected),
                 "note": "This run is not complete; zero NEW evidence verified. Prior runs remain separate."}
     jobs = request(f"/repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100", token)
     artifacts = request(f"/repos/{REPO}/actions/runs/{run_id}/artifacts?per_page=100", token)
     results = {}
-    for ba, year in sorted(EXPECTED):
-        label = f"c2-eia-wave1-{ba}-{year}-{run_id}"
+    for ba, year in sorted(expected):
+        label = f"c2-eia-{wave}-{ba}-{year}-{run_id}"
         matches = [a for a in artifacts.get("artifacts", []) if a.get("name") == label and not a.get("expired")]
         record = {"ba": ba, "year": year, "gate_pass": False}
         results[(ba, year)] = record
@@ -127,7 +134,7 @@ def report(token, run_id=None):
                           artifact_id=matches[0]["id"])
     summaries = list(results.values())
     n = sum(x["gate_pass"] for x in summaries)
-    return {"status": "wave1_artifact_verified" if n == 8 else "wave1_partial_or_failed",
+    return {"status": wave + "_artifact_verified" if n == len(expected) else wave + "_partial_or_failed",
             "run_id": run_id,
             "run_url": "https://github.com/" + REPO + f"/actions/runs/{run_id}",
             "run_conclusion": run.get("conclusion"),
@@ -136,7 +143,8 @@ def report(token, run_id=None):
             "run_created_at": run.get("created_at"),
             "run_updated_at": run.get("updated_at"),
             "verified_at_utc": datetime.now(timezone.utc).isoformat(),
-            "expected_ba_years": 8, "verified_ba_years": n,
+            "wave": wave,
+            "expected_ba_years": len(expected), "verified_ba_years": n,
             "jobs_successful": sum(j.get("conclusion") == "success" for j in jobs.get("jobs", [])),
             "jobs_total": len(jobs.get("jobs", [])),
             "cohorts": summaries,
@@ -146,17 +154,18 @@ def report(token, run_id=None):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--run-id", type=int)
+    p.add_argument("--wave", choices=sorted(WAVE_CONFIG), default="wave1")
     p.add_argument("--output", required=True)
     args = p.parse_args()
     token = os.environ.get("GH_TOKEN", "")
     if not token:
         p.error("GH_TOKEN Actions token required")
-    result = report(token, run_id=args.run_id)
+    result = report(token, run_id=args.run_id, wave=args.wave)
     with open(args.output, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=2)
         f.write("\n")
-    print("Wave 1:", result["status"], "verified:", result.get("verified_ba_years", 0),
-          "/8; run:", result.get("run_id", "unavailable"))
+    print(args.wave, result["status"], "verified:", result.get("verified_ba_years", 0),
+          "/", len(WAVE_CONFIG[args.wave][1]), "run:", result.get("run_id", "unavailable"))
 
 
 if __name__ == "__main__":
