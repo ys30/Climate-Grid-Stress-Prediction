@@ -59,6 +59,7 @@ def convert(raw_csv: str | Path, output_csv: str | Path, *, target_year: int | N
     if target_year is not None and not 2019 <= target_year <= 2026:
         raise ValueError("target_year outside preregistered intake year bounds")
     output = []
+    source_null_demand = 0
     unique = set()
     with raw.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
@@ -75,15 +76,21 @@ def convert(raw_csv: str | Path, output_csv: str | Path, *, target_year: int | N
             if key in unique:
                 raise ValueError(f"duplicate BA and UTC interval-start at line {line}")
             unique.add(key)
-            try:
-                demand = float(record["reported_demand_mw"])
-            except (TypeError, ValueError) as exc:
-                raise ValueError(f"invalid demand on line {line}") from exc
-            if not math.isfinite(demand) or demand < 0:
-                raise ValueError(f"non-finite or negative demand on line {line}")
+            original = record["reported_demand_mw"]
+            if original is None or original == "":
+                source_null_demand += 1
+                value = ""
+            else:
+                try:
+                    demand = float(original)
+                except (TypeError, ValueError) as exc:
+                    raise ValueError(f"invalid demand on line {line}") from exc
+                if not math.isfinite(demand) or demand < 0:
+                    raise ValueError(f"non-finite or negative demand on line {line}")
+                value = original
             output.append({"ba": ba,
                            "timestamp_utc": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                           "demand_mw": record["reported_demand_mw"],
+                           "demand_mw": value,
                            "original_source_he_utc": record["source_period_utc"]})
     if not output:
         raise ValueError("No usable source hours after year filter")
@@ -93,7 +100,8 @@ def convert(raw_csv: str | Path, output_csv: str | Path, *, target_year: int | N
                 "input_sha256": digest, "target_year": target_year,
                 "clock_conversion": "UTC_hour_ending_minus_one_hour",
                 "reference": "https://www.eia.gov/electricity/930-content/about.html",
-                "row_count": len(output), "source_provenance": str(source_manifest),
+                "row_count": len(output), "source_null_demand_rows": source_null_demand,
+                "source_provenance": str(source_manifest),
                 "claim_status": "HE_clock_transformed_only_no_joint_weather_or_skill"}
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_suffix(target.suffix + ".partial")
