@@ -1,0 +1,92 @@
+name: C2 EIA E2 Real-Data Expansion Wave 3
+
+# Final nine BA-years; no repeat of source-validated wave1/wave2 cohorts.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-eia-expansion-wave3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-cohorts:
+    name: "${{ matrix.ba }} ${{ matrix.year }} real EIA audit"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - {ba: AZPS, year: 2022}
+          - {ba: AZPS, year: 2023}
+          - {ba: AZPS, year: 2025}
+          - {ba: BPAT, year: 2022}
+          - {ba: BPAT, year: 2023}
+          - {ba: BPAT, year: 2025}
+          - {ba: SRP, year: 2022}
+          - {ba: SRP, year: 2023}
+          - {ba: SRP, year: 2025}
+    env:
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      TARGET_BA: ${{ matrix.ba }}
+      TARGET_YEAR: ${{ matrix.year }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require secured EIA API key
+        run: |
+          if [ -z "$EIA_API_KEY" ]; then
+            echo "::error::EIA_API_KEY Actions secret not configured"
+            exit 1
+          fi
+      - name: Verify hourly source, clock, and missing-value contracts
+        run: |
+          python -m unittest discover -s tests -p 'test_c2_eia930_raw_api_intake.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_he_to_utc_start.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_year_coverage_gate.py' -v
+      - name: Retrieve authentic EIA-930 hourly demand source
+        run: |
+          mkdir -p evidence/raw evidence/utc_start evidence/audit
+          python -m scripts.c2_eia930_raw_api_intake \
+            --ba "$TARGET_BA" --year "$TARGET_YEAR" \
+            --output "evidence/raw/eia930_${TARGET_BA}_${TARGET_YEAR}_he.csv"
+      - name: Preserve source hour-ending labels and transform into UTC-start
+        run: |
+          python -m scripts.c2_eia930_he_to_utc_start \
+            "evidence/raw/eia930_${TARGET_BA}_${TARGET_YEAR}_he.csv" \
+            "evidence/utc_start/eia930_${TARGET_BA}_${TARGET_YEAR}_start.csv" \
+            --year "$TARGET_YEAR"
+      - name: Apply 98 percent real measured-demand coverage gate
+        run: |
+          python -m scripts.c2_eia930_year_coverage_gate \
+            "evidence/utc_start/eia930_${TARGET_BA}_${TARGET_YEAR}_start.csv" \
+            --ba "$TARGET_BA" --year "$TARGET_YEAR" --min-coverage 0.98 \
+            --output "evidence/audit/eia930_${TARGET_BA}_${TARGET_YEAR}_coverage.json"
+      - name: Print safe QC metadata even on failure
+        if: always()
+        run: |
+          python - <<'PY'
+          import glob,json
+          paths=glob.glob("evidence/audit/*_coverage.json")
+          if not paths: print("No completed coverage report: inspect upstream steps")
+          for path in paths:
+              a=json.load(open(path))
+              print("BA",a["ba"],"year",a["year"],"pass",a["pass"],
+                    "valid",a["valid_demand_hours"],"expected",a["expected_hours"],
+                    "missing_timestamp",a["missing_hours"],
+                    "null_demand",a["missing_demand_rows"],"coverage",a["coverage"])
+          PY
+      - name: Retain original observations, SHA manifests and annual audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-eia-wave3-${{ matrix.ba }}-${{ matrix.year }}-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
