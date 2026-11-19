@@ -1,0 +1,92 @@
+name: C2 EIA E2 Real-Data Expansion Wave 2
+
+# Six previously unvalidated BA-years. Intentionally excludes validated CISO.
+# GitHub Actions checks original EIA SHA provenance and measured-demand coverage.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-eia-expansion-wave2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pilot-cohorts:
+    name: "${{ matrix.ba }} ${{ matrix.year }} real EIA audit"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - {ba: AZPS, year: 2020}
+          - {ba: AZPS, year: 2021}
+          - {ba: BPAT, year: 2020}
+          - {ba: BPAT, year: 2021}
+          - {ba: SRP, year: 2020}
+          - {ba: SRP, year: 2021}
+    env:
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+      TARGET_BA: ${{ matrix.ba }}
+      TARGET_YEAR: ${{ matrix.year }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require repository EIA key secret
+        run: |
+          if [ -z "$EIA_API_KEY" ]; then
+            echo "::error::Missing repository Actions secret EIA_API_KEY"
+            exit 1
+          fi
+      - name: Guard source, timezone and null-value behavior
+        run: |
+          python -m unittest discover -s tests -p 'test_c2_eia930_raw_api_intake.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_he_to_utc_start.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_year_coverage_gate.py' -v
+      - name: Download unmodified official EIA source with raw SHA manifest
+        run: |
+          mkdir -p evidence/raw evidence/utc_start evidence/audit
+          python -m scripts.c2_eia930_raw_api_intake \
+            --ba "$TARGET_BA" --year "$TARGET_YEAR" \
+            --output "evidence/raw/eia930_${TARGET_BA}_${TARGET_YEAR}_he.csv"
+      - name: Convert EIA official UTC hour-ending to UTC interval start
+        run: |
+          python -m scripts.c2_eia930_he_to_utc_start \
+            "evidence/raw/eia930_${TARGET_BA}_${TARGET_YEAR}_he.csv" \
+            "evidence/utc_start/eia930_${TARGET_BA}_${TARGET_YEAR}_start.csv" \
+            --year "$TARGET_YEAR"
+      - name: Audit valid source demand coverage without interpolation
+        run: |
+          python -m scripts.c2_eia930_year_coverage_gate \
+            "evidence/utc_start/eia930_${TARGET_BA}_${TARGET_YEAR}_start.csv" \
+            --ba "$TARGET_BA" --year "$TARGET_YEAR" \
+            --min-coverage 0.98 \
+            --output "evidence/audit/eia930_${TARGET_BA}_${TARGET_YEAR}_coverage.json"
+      - name: Summarize source QA even if gate fails
+        if: always()
+        run: |
+          python - <<'PY'
+          import glob,json
+          audits=glob.glob("evidence/audit/*_coverage.json")
+          if not audits: print("No coverage report; see previous failure steps")
+          for path in audits:
+              d=json.load(open(path))
+              print("ba",d["ba"],"year",d["year"],"pass",d["pass"],
+                    "expected",d["expected_hours"],"valid",d["valid_demand_hours"],
+                    "source_missing_timestamp",d["missing_hours"],
+                    "source_null_demand",d["missing_demand_rows"],
+                    "coverage",d["coverage"])
+          PY
+      - name: Preserve authentic evidence irrespective of downstream failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-eia-wave2-${{ matrix.ba }}-${{ matrix.year }}-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
