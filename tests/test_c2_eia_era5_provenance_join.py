@@ -68,6 +68,19 @@ class ProvenanceJoinTests(unittest.TestCase):
         self.assertEqual(outcome["source_null_demand_hours_excluded"], 1)
         self.assertEqual(outcome["shared_hours"], 1)
 
+    def test_reject_duplicate_hour_even_when_first_eia_row_is_null(self):
+        eia, weather = self.inputs()
+        with eia.open("a", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=["ba", "timestamp_utc", "demand_mw", "original_source_he_utc"])
+            w.writerow({"ba": "CISO", "timestamp_utc": "2024-01-01T00:00:00Z",
+                        "demand_mw": "", "original_source_he_utc": "2024-01-01T01"})
+        manifest_path = eia.with_suffix(".manifest.json")
+        m = json.loads(manifest_path.read_text())
+        m["sha256_csv"] = hashlib.sha256(eia.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(m))
+        with self.assertRaisesRegex(ValueError, "duplicate EIA hour"):
+            join(eia, weather, self.root / "joined.csv", ba="CISO", year=2024)
+
     def test_nonoverlap_fails(self):
         eia, weather = self.inputs(weather_hour="2024-01-01T02:00:00Z")
         with self.assertRaisesRegex(ValueError, "No overlapping"):
