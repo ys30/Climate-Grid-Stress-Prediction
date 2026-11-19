@@ -1,0 +1,79 @@
+name: C2 E2 AZPS 2023 Anomaly Diagnostic
+
+# Dedicated one-cohort forensic retrieval. This does NOT auto-approve bad data.
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-eia-azps2023-diagnostic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-official-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fail if source credential missing
+        run: |
+          if [ -z "$EIA_API_KEY" ]; then
+            echo "::error::EIA_API_KEY secret missing"
+            exit 1
+          fi
+      - name: Validate abnormal-value preservation and annual blocking
+        run: |
+          python -m unittest discover -s tests -p 'test_c2_eia930_raw_api_intake.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_he_to_utc_start.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_year_coverage_gate.py' -v
+      - name: Retrieve authentic AZPS 2023 source and pinned SHA
+        run: |
+          mkdir -p evidence/raw evidence/utc_start evidence/audit
+          python -m scripts.c2_eia930_raw_api_intake \
+            --ba AZPS --year 2023 \
+            --output evidence/raw/eia930_AZPS_2023_he.csv
+      - name: Convert to UTC interval-start retaining negative/nonfinite values
+        run: |
+          python -m scripts.c2_eia930_he_to_utc_start \
+            evidence/raw/eia930_AZPS_2023_he.csv \
+            evidence/utc_start/eia930_AZPS_2023_start.csv \
+            --year 2023
+      - name: Run strict QA for evidence; nonzero is expected for true anomalies
+        id: annual_qc
+        continue-on-error: true
+        run: |
+          python -m scripts.c2_eia930_year_coverage_gate \
+            evidence/utc_start/eia930_AZPS_2023_start.csv \
+            --ba AZPS --year 2023 --min-coverage 0.98 \
+            --output evidence/audit/eia930_AZPS_2023_coverage.json
+      - name: Require authentic report and print safe anomaly summary
+        run: |
+          python - <<'PY'
+          import json,pathlib
+          p=pathlib.Path("evidence/audit/eia930_AZPS_2023_coverage.json")
+          if not p.is_file():
+              raise SystemExit("Missing diagnostic annual audit report")
+          d=json.loads(p.read_text())
+          print("STATUS: DIAGNOSTIC ONLY (never a research pass claim)")
+          for k in ("ba","year","expected_hours","unique_in_year","missing_hours",
+                    "missing_demand_rows","invalid_rows","valid_demand_hours",
+                    "coverage","pass"):
+              print(k, d.get(k))
+          for item in d.get("invalid_numeric_examples_max20",[]):
+              print("source anomaly:", item)
+          PY
+      - name: Preserve source and diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-azps2023-source-anomaly-diagnostic-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
