@@ -75,8 +75,12 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
     expected = expected_hours(year)
     present = sum(1 for ts in actual if start <= ts < end)
     missing = expected - present
-    coverage = present / expected
-    # Even when coverage >= threshold, anomalous values or extra rows are not silently admitted.
+    # Source timestamps may exist even where EIA reported a null demand.
+    # Do not report all present timestamps as valid measured-demand coverage.
+    valid = max(0, present - invalid)
+    coverage = valid / expected
+    source_hour_coverage = present / expected
+    # Even when coverage >= threshold, anomalies and null values fail closed.
     passed = (coverage >= min_coverage and missing >= 0 and duplicate == 0
               and invalid == 0 and out_of_period == 0 and wrong_ba == 0
               and source_he_mismatch == 0 and rows == len(actual))
@@ -84,7 +88,9 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
         "status": "EIA_only_coverage_audit_not_ERA5_or_prediction_validation",
         "ba": ba, "year": year, "source_sha256": file_hash,
         "expected_hours": expected, "rows": rows, "unique_in_year": present,
-        "missing_hours": missing, "duplicate_hours": duplicate, "invalid_rows": invalid,
+        "missing_hours": missing, "missing_demand_rows": invalid,
+        "valid_demand_hours": valid, "source_hour_coverage": round(source_hour_coverage, 8),
+        "duplicate_hours": duplicate, "invalid_rows": invalid,
         "out_of_period_rows": out_of_period, "wrong_ba_rows": wrong_ba,
         "source_he_mismatch_rows": source_he_mismatch,
         "coverage": round(coverage, 8), "coverage_threshold": min_coverage,
