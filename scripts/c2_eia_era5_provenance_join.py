@@ -67,6 +67,7 @@ def join(eia_csv, weather_csv, output_csv, *, ba, year):
         raise ValueError("Weather proxy must explicitly reject measured county-load-weight claim")
 
     demand = {}
+    missing_source_demand_hours = 0
     required_eia = {"ba", "timestamp_utc", "demand_mw", "original_source_he_utc"}
     if eia_rows and not required_eia.issubset(eia_rows[0]):
         raise ValueError("EIA file missing required columns")
@@ -79,7 +80,11 @@ def join(eia_csv, weather_csv, output_csv, *, ba, year):
             raise ValueError("Invalid year or duplicate EIA hour")
         if he_to_start(row["original_source_he_utc"]) != t:
             raise ValueError("EIA HE clock mismatch")
-        value = float(row["demand_mw"])
+        original = row["demand_mw"]
+        if original is None or original.strip() == "":
+            missing_source_demand_hours += 1
+            continue  # Never impute an official null-demand source hour.
+        value = float(original)
         if not math.isfinite(value) or value < 0:
             raise ValueError("Invalid EIA demand MW")
         demand[t] = value
@@ -108,6 +113,7 @@ def join(eia_csv, weather_csv, output_csv, *, ba, year):
     report = {"status": "hourly_proxy_join_only_not_predictive_validation",
               "ba": ba, "year": year, "eia_hours": len(demand),
               "weather_hours": len(weather), "shared_hours": len(shared),
+              "source_null_demand_hours_excluded": missing_source_demand_hours,
               "unmatched_eia_hours": len(demand) - len(shared),
               "unmatched_weather_hours": len(weather) - len(shared),
               "eia_sha256": ehash, "weather_sha256": whash,
