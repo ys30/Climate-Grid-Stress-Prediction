@@ -60,6 +60,7 @@ def convert(raw_csv: str | Path, output_csv: str | Path, *, target_year: int | N
         raise ValueError("target_year outside preregistered intake year bounds")
     output = []
     source_null_demand = 0
+    source_invalid_numeric = 0
     unique = set()
     with raw.open(newline="", encoding="utf-8-sig") as handle:
         reader = csv.DictReader(handle)
@@ -86,7 +87,9 @@ def convert(raw_csv: str | Path, output_csv: str | Path, *, target_year: int | N
                 except (TypeError, ValueError) as exc:
                     raise ValueError(f"invalid demand on line {line}") from exc
                 if not math.isfinite(demand) or demand < 0:
-                    raise ValueError(f"non-finite or negative demand on line {line}")
+                    # Retain source anomaly so downstream annual QA can report
+                    # its timestamp and explicitly deny normal eligibility.
+                    source_invalid_numeric += 1
                 value = original
             output.append({"ba": ba,
                            "timestamp_utc": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -101,6 +104,7 @@ def convert(raw_csv: str | Path, output_csv: str | Path, *, target_year: int | N
                 "clock_conversion": "UTC_hour_ending_minus_one_hour",
                 "reference": "https://www.eia.gov/electricity/930-content/about.html",
                 "row_count": len(output), "source_null_demand_rows": source_null_demand,
+                "source_invalid_numeric_rows": source_invalid_numeric,
                 "source_provenance": str(source_manifest),
                 "claim_status": "HE_clock_transformed_only_no_joint_weather_or_skill"}
     target.parent.mkdir(parents=True, exist_ok=True)
