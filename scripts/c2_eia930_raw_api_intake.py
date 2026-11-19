@@ -71,14 +71,21 @@ def collect(api_key: str, ba: str, start: str, end: str) -> list[dict]:
             p = r.get("period")
             if not isinstance(p, str) or not p:
                 raise RuntimeError("Missing original EIA period")
-            try:
-                demand = float(r["value"])
-            except (TypeError, ValueError, KeyError) as exc:
-                raise RuntimeError(f"Invalid EIA demand value for {ba} {p}") from exc
-            if not (demand >= 0 and demand < float("inf")):
-                raise RuntimeError(f"Nonfinite or negative EIA demand: {ba} {p}")
+            # EIA may report a null D value for a published hour. Preserve it
+            # as missing in the raw CSV; never impute or drop its timestamp.
+            value = r.get("value")
+            if value is None or value == "":
+                recorded_value = ""
+            else:
+                try:
+                    demand = float(value)
+                except (TypeError, ValueError) as exc:
+                    raise RuntimeError(f"Invalid EIA demand value for {ba} {p}") from exc
+                if not (demand >= 0 and demand < float("inf")):
+                    raise RuntimeError(f"Nonfinite or negative EIA demand: {ba} {p}")
+                recorded_value = value
             rows.append({"ba": ba, "source_period_utc": p,
-                         "measurement_type": "D", "reported_demand_mw": r["value"],
+                         "measurement_type": "D", "reported_demand_mw": recorded_value,
                          "source": "EIA API electricity/rto/region-data"})
         if len(rows) > total:
             raise RuntimeError("EIA API pagination exceeded response total")
@@ -109,6 +116,7 @@ def save(rows: list[dict], output: Path, *, ba: str, start: str, end: str) -> di
                 "retrieved_at_utc": datetime.now(timezone.utc).isoformat(),
                 "ba": ba, "type": "D", "start_requested": start,
                 "end_requested": end, "row_count": len(rows),
+                "source_null_demand_rows": sum(r["reported_demand_mw"] == "" for r in rows),
                 "first_source_period": rows[0]["source_period_utc"],
                 "last_source_period": rows[-1]["source_period_utc"],
                 "sha256_csv": digest, "clock_status": "source_label_unconverted",
