@@ -1,0 +1,63 @@
+name: C2 Wave 2 Verified Evidence Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-eia-wave2-evidence-status.yml'
+  workflow_run:
+    workflows: ['C2 EIA E2 Real-Data Expansion Wave 2']
+    types: [completed]
+  schedule:
+    - cron: '31 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: c2-wave2-evidence-status
+  cancel-in-progress: false
+
+jobs:
+  verify-wave2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check artifact auditor regression tests
+        run: python -m unittest discover -s tests -p 'test_c2_eia_wave1_artifact_audit.py' -v
+      - name: Verify latest six-cohort Wave 2 source artifacts
+        run: |
+          mkdir -p evidence/audit
+          python -m scripts.c2_eia_wave1_artifact_audit \
+            --wave wave2 \
+            --output evidence/audit/c2_wave2_status.json
+      - name: Publish public metadata only after evidence check
+        run: |
+          mkdir -p docs
+          cp evidence/audit/c2_wave2_status.json docs/E2_WAVE2_VERIFIED_STATUS.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/E2_WAVE2_VERIFIED_STATUS.json
+          if ! git diff --cached --quiet; then
+            git commit -m "C2 E2: publish SHA-verified Wave 2 source status"
+            git pull --rebase
+            git push
+          fi
+      - name: Preserve verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-wave2-verified-status-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
