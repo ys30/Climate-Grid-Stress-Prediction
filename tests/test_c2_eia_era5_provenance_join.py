@@ -53,6 +53,21 @@ class ProvenanceJoinTests(unittest.TestCase):
         self.assertEqual(json.loads(out.with_suffix(".manifest.json").read_text())["source_kind"],
                          "EIA930_ERA5_BA_proxy_joint")
 
+    def test_source_null_demand_is_dropped_not_interpolated(self):
+        eia, weather = self.inputs()
+        with eia.open("a", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=[
+                "ba", "timestamp_utc", "demand_mw", "original_source_he_utc"])
+            writer.writerow({"ba": "CISO", "timestamp_utc": "2024-01-01T01:00:00Z",
+                             "demand_mw": "", "original_source_he_utc": "2024-01-01T02"})
+        manifest_path = eia.with_suffix(".manifest.json")
+        manifest = json.loads(manifest_path.read_text())
+        manifest["sha256_csv"] = hashlib.sha256(eia.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest))
+        outcome = join(eia, weather, self.root / "joined.csv", ba="CISO", year=2024)
+        self.assertEqual(outcome["source_null_demand_hours_excluded"], 1)
+        self.assertEqual(outcome["shared_hours"], 1)
+
     def test_nonoverlap_fails(self):
         eia, weather = self.inputs(weather_hour="2024-01-01T02:00:00Z")
         with self.assertRaisesRegex(ValueError, "No overlapping"):
