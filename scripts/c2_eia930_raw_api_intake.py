@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 ENDPOINT = "https://api.eia.gov/v2/electricity/rto/region-data/data/"
 ALLOWED_BAS = {"CISO", "AZPS", "BPAT", "SRP"}
@@ -31,8 +32,15 @@ def fetch_page(api_key: str, ba: str, start: str, end: str, offset: int) -> dict
         ("offset", str(offset)), ("length", str(PAGE_SIZE)),
     ]
     url = ENDPOINT + "?" + urlencode(params)
-    with urlopen(Request(url, headers={"User-Agent": "Climate-Grid-C2-source-audit/1.0"}), timeout=60) as resp:
-        return json.load(resp)
+    # EIA requires an API key in its query. The request URL must never be
+    # included in exception messages or tracebacks because it contains the key.
+    try:
+        with urlopen(Request(url, headers={"User-Agent": "Climate-Grid-C2-source-audit/1.0"}), timeout=60) as resp:
+            return json.load(resp)
+    except HTTPError as exc:
+        raise RuntimeError(f"EIA API HTTP status {exc.code}; request URL and key withheld") from None
+    except (URLError, TimeoutError, OSError, ValueError) as exc:
+        raise RuntimeError(f"EIA API transport or JSON error ({type(exc).__name__}); credentials withheld") from None
 
 
 def collect(api_key: str, ba: str, start: str, end: str) -> list[dict]:
