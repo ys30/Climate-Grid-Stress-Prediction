@@ -67,6 +67,7 @@ def join(eia_csv, weather_csv, output_csv, *, ba, year):
         raise ValueError("Weather proxy must explicitly reject measured county-load-weight claim")
 
     demand = {}
+    seen_eia_hours = set()
     missing_source_demand_hours = 0
     required_eia = {"ba", "timestamp_utc", "demand_mw", "original_source_he_utc"}
     if eia_rows and not required_eia.issubset(eia_rows[0]):
@@ -76,8 +77,9 @@ def join(eia_csv, weather_csv, output_csv, *, ba, year):
         if row["ba"] != ba:
             raise ValueError("Wrong EIA BA")
         t = utc_hour(row["timestamp_utc"])
-        if t.year != year or t in demand:
+        if t.year != year or t in seen_eia_hours:
             raise ValueError("Invalid year or duplicate EIA hour")
+        seen_eia_hours.add(t)
         if he_to_start(row["original_source_he_utc"]) != t:
             raise ValueError("EIA HE clock mismatch")
         original = row["demand_mw"]
