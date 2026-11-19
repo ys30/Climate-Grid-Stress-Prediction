@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import patch
 
-from scripts.c2_eia_wave1_artifact_audit import get_latest_run, report, REPO, WORKFLOW
+from scripts.c2_eia_wave1_artifact_audit import get_latest_run, report, REPO, WORKFLOW, WAVE_CONFIG
 
 
 class Wave1FreshnessTests(unittest.TestCase):
@@ -30,6 +30,26 @@ class Wave1FreshnessTests(unittest.TestCase):
         self.assertEqual(result["run_id"], 222)
         self.assertEqual(result["head_sha"], "sha_new")
         self.assertEqual(result["verified_ba_years"], 0)
+
+    def test_wave2_matrix_is_six_nonduplicated_cohorts(self):
+        workflow, expected = WAVE_CONFIG["wave2"]
+        self.assertEqual(workflow, "c2-eia-expansion-wave2.yml")
+        self.assertEqual(len(expected), 6)
+        self.assertNotIn(("CISO", 2024), expected)
+        self.assertIn(("SRP", 2021), expected)
+
+    @patch("scripts.c2_eia_wave1_artifact_audit.request")
+    def test_wave2_pending_labels_are_not_wave1(self, request):
+        def fake(path, token, **kwargs):
+            if "/actions/workflows/" in path:
+                return {"workflow_runs": [{"id": 333, "status": "queued"}]}
+            if path.endswith("/actions/runs/333"):
+                return {"id": 333, "status": "queued", "head_sha": "new"}
+            self.fail("Unexpected artifact access on queued Wave 2")
+        request.side_effect = fake
+        result = report("FAKE_TEST_TOKEN", wave="wave2")
+        self.assertEqual(result["status"], "wave2_not_yet_completed")
+        self.assertEqual(result["expected_ba_years"], 6)
 
     @patch("scripts.c2_eia_wave1_artifact_audit.request")
     def test_no_runs_no_invented_progress(self, request):
