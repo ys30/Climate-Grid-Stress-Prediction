@@ -39,6 +39,7 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
     actual = set()
     duplicate = 0
     invalid = 0
+    invalid_examples = []
     missing_demand = 0
     out_of_period = 0
     wrong_ba = 0
@@ -71,8 +72,16 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
                     value = float(original)
                     if not math.isfinite(value) or value < 0:
                         invalid += 1
+                        if len(invalid_examples) < 20:
+                            invalid_examples.append({"timestamp_utc": record["timestamp_utc"],
+                                                     "reported_demand_mw": original,
+                                                     "reason": "negative_or_nonfinite"})
                 except (TypeError, ValueError):
                     invalid += 1
+                    if len(invalid_examples) < 20:
+                        invalid_examples.append({"timestamp_utc": record["timestamp_utc"],
+                                                 "reported_demand_mw": original,
+                                                 "reason": "nonnumeric"})
             try:
                 from scripts.c2_eia930_he_to_utc_start import he_to_start
                 if he_to_start(record["original_source_he_utc"]) != ts:
@@ -99,6 +108,7 @@ def audit_file(path: str | Path, *, year: int, ba: str, min_coverage: float = 0.
         "missing_hours": missing, "missing_demand_rows": missing_demand,
         "valid_demand_hours": valid, "source_hour_coverage": round(source_hour_coverage, 8),
         "duplicate_hours": duplicate, "invalid_rows": invalid,
+        "invalid_numeric_examples_max20": invalid_examples,
         "out_of_period_rows": out_of_period, "wrong_ba_rows": wrong_ba,
         "source_he_mismatch_rows": source_he_mismatch,
         "coverage": round(coverage, 8), "coverage_threshold": min_coverage,
