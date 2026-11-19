@@ -31,6 +31,16 @@ class Wave1FreshnessTests(unittest.TestCase):
         self.assertEqual(result["head_sha"], "sha_new")
         self.assertEqual(result["verified_ba_years"], 0)
 
+    def test_all_three_waves_have_nonoverlapping_cohorts(self):
+        wave1 = WAVE_CONFIG["wave1"][1]
+        wave2 = WAVE_CONFIG["wave2"][1]
+        wave3 = WAVE_CONFIG["wave3"][1]
+        self.assertEqual((len(wave1), len(wave2), len(wave3)), (8, 6, 9))
+        self.assertFalse(wave1 & wave2)
+        self.assertFalse(wave1 & wave3)
+        self.assertFalse(wave2 & wave3)
+        self.assertEqual(len(wave1 | wave2 | wave3 | {("CISO", 2024)}), 24)
+
     def test_wave2_matrix_is_six_nonduplicated_cohorts(self):
         workflow, expected = WAVE_CONFIG["wave2"]
         self.assertEqual(workflow, "c2-eia-expansion-wave2.yml")
