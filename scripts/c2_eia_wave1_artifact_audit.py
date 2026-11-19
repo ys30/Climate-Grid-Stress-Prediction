@@ -52,8 +52,10 @@ def get_latest_run(token):
     runs = payload.get("workflow_runs", [])
     if not runs:
         return None
-    # Latest completed run, not a queued or in-progress run.
-    return next((r for r in runs if r.get("status") == "completed"), None)
+    # IMPORTANT: Never fall back to an older completed run while a newer
+    # correction is queued/running: that would publish a stale "verified" report.
+    # GitHub returns workflow runs newest first.
+    return runs[0]
 
 
 def report(token, run_id=None):
@@ -64,7 +66,15 @@ def report(token, run_id=None):
         run_id = run["id"]
     run = request(f"/repos/{REPO}/actions/runs/{run_id}", token)
     if run.get("status") != "completed":
-        return {"status": "wave1_not_yet_completed", "run_id": run_id}
+        return {"status": "wave1_not_yet_completed", "run_id": run_id,
+                "run_status": run.get("status"),
+                "run_url": run.get("html_url"),
+                "head_sha": run.get("head_sha"),
+                "run_attempt": run.get("run_attempt"),
+                "verified_at_utc": datetime.now(timezone.utc).isoformat(),
+                "verified_ba_years": 0,
+                "expected_ba_years": 8,
+                "note": "This run is not complete; zero NEW evidence verified. Prior runs remain separate."}
     jobs = request(f"/repos/{REPO}/actions/runs/{run_id}/jobs?per_page=100", token)
     artifacts = request(f"/repos/{REPO}/actions/runs/{run_id}/artifacts?per_page=100", token)
     results = {}
@@ -121,6 +131,10 @@ def report(token, run_id=None):
             "run_id": run_id,
             "run_url": "https://github.com/" + REPO + f"/actions/runs/{run_id}",
             "run_conclusion": run.get("conclusion"),
+            "head_sha": run.get("head_sha"),
+            "run_attempt": run.get("run_attempt"),
+            "run_created_at": run.get("created_at"),
+            "run_updated_at": run.get("updated_at"),
             "verified_at_utc": datetime.now(timezone.utc).isoformat(),
             "expected_ba_years": 8, "verified_ba_years": n,
             "jobs_successful": sum(j.get("conclusion") == "success" for j in jobs.get("jobs", [])),
