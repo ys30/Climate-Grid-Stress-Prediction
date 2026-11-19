@@ -11,6 +11,9 @@ on:
       - 'scripts/c2_eia930_raw_api_intake.py'
       - 'scripts/c2_eia930_he_to_utc_start.py'
       - 'scripts/c2_eia930_year_coverage_gate.py'
+      - 'tests/test_c2_eia930_raw_api_intake.py'
+      - 'tests/test_c2_eia930_he_to_utc_start.py'
+      - 'tests/test_c2_eia930_year_coverage_gate.py'
   workflow_dispatch:
 
 permissions:
@@ -49,7 +52,7 @@ jobs:
             echo "::error::EIA_API_KEY Actions secret missing"
             exit 1
           fi
-      - name: Run source and clock contract tests
+      - name: Run source, clock and recorded-null contract tests
         run: |
           python -m unittest discover -s tests -p 'test_c2_eia930_raw_api_intake.py' -v
           python -m unittest discover -s tests -p 'test_c2_eia930_he_to_utc_start.py' -v
