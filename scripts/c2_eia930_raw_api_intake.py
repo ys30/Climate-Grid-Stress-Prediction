@@ -11,6 +11,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import os
 from datetime import datetime, timezone
 from pathlib import Path
@@ -81,8 +82,9 @@ def collect(api_key: str, ba: str, start: str, end: str) -> list[dict]:
                     demand = float(value)
                 except (TypeError, ValueError) as exc:
                     raise RuntimeError(f"Invalid EIA demand value for {ba} {p}") from exc
-                if not (demand >= 0 and demand < float("inf")):
-                    raise RuntimeError(f"Nonfinite or negative EIA demand: {ba} {p}")
+                # Keep the original representation even when numeric value is
+                # negative or non-finite. The annual QA must explicitly detect
+                # and fail these cases; intake must not erase their evidence.
                 recorded_value = value
             rows.append({"ba": ba, "source_period_utc": p,
                          "measurement_type": "D", "reported_demand_mw": recorded_value,
@@ -117,6 +119,11 @@ def save(rows: list[dict], output: Path, *, ba: str, start: str, end: str) -> di
                 "ba": ba, "type": "D", "start_requested": start,
                 "end_requested": end, "row_count": len(rows),
                 "source_null_demand_rows": sum(r["reported_demand_mw"] == "" for r in rows),
+                "source_invalid_numeric_rows": sum(
+                    r["reported_demand_mw"] != "" and
+                    (not math.isfinite(float(r["reported_demand_mw"]))
+                     or float(r["reported_demand_mw"]) < 0)
+                    for r in rows),
                 "first_source_period": rows[0]["source_period_utc"],
                 "last_source_period": rows[-1]["source_period_utc"],
                 "sha256_csv": digest, "clock_status": "source_label_unconverted",
