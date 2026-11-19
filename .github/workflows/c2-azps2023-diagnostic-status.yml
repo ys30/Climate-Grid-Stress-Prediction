@@ -1,0 +1,62 @@
+name: C2 AZPS 2023 Diagnostic Evidence Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c2_azps2023_diagnostic_evidence.py'
+      - 'tests/test_c2_azps2023_diagnostic_evidence.py'
+      - '.github/workflows/c2-azps2023-diagnostic-status.yml'
+  workflow_run:
+    workflows: ['C2 E2 AZPS 2023 Anomaly Diagnostic']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: c2-azps2023-evidence-publish
+  cancel-in-progress: false
+
+jobs:
+  verify-diagnostic-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run offline fail-closed evidence tests
+        run: python -m unittest discover -s tests -p 'test_c2_azps2023_diagnostic_evidence.py' -v
+      - name: Authenticate AZPS 2023 diagnostic source and QA
+        run: |
+          mkdir -p evidence/audit
+          python -m scripts.c2_azps2023_diagnostic_evidence \
+            --output evidence/audit/c2_azps2023_diagnostic_status.json
+      - name: Publish only verified public metadata, never API key
+        run: |
+          mkdir -p docs
+          cp evidence/audit/c2_azps2023_diagnostic_status.json docs/E2_AZPS2023_DIAGNOSTIC_STATUS.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/E2_AZPS2023_DIAGNOSTIC_STATUS.json
+          if ! git diff --cached --quiet; then
+            git commit -m "C2 E2: record source-authenticated AZPS 2023 anomaly diagnosis"
+            git pull --rebase
+            git push
+          fi
+      - name: Retain diagnosis report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-azps2023-diagnostic-verified-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
