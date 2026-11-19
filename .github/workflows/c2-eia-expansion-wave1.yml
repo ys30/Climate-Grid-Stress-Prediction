@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/c2-eia-expansion-wave1.yml'
+      - 'scripts/c2_eia930_raw_api_intake.py'
+      - 'scripts/c2_eia930_he_to_utc_start.py'
+      - 'scripts/c2_eia930_year_coverage_gate.py'
   workflow_dispatch:
 
 permissions:
@@ -83,7 +86,9 @@ jobs:
                     "source_coverage:",data["coverage"],
                     "expected:",data["expected_hours"],
                     "present:",data["unique_in_year"],
-                    "missing:",data["missing_hours"],
+                    "missing_timestamp_hours:",data["missing_hours"],
+                    "missing_demand_rows:",data.get("missing_demand_rows",0),
+                    "valid_demand_hours:",data.get("valid_demand_hours"),
                     "gate_pass:",data["pass"])
           PY
       - name: Retain raw, processed, SHA manifests and QA report
