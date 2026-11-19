@@ -74,6 +74,14 @@ class ClockConversionTests(unittest.TestCase):
             rows = list(csv.DictReader(f))
         self.assertEqual(rows[0]["demand_mw"], "")
 
+    def test_negative_source_value_is_preserved_for_failing_downstream_audit(self):
+        raw, output = self.make_raw([("2024-01-01T01", "-50")])
+        manifest = convert(raw, output, target_year=2024)
+        self.assertEqual(manifest["source_invalid_numeric_rows"], 1)
+        with output.open(newline="") as f:
+            rows = list(csv.DictReader(f))
+        self.assertEqual(rows[0]["demand_mw"], "-50")
+
     def test_no_overwrite(self):
         raw, out = self.make_raw([("2024-01-01T01", "4")])
         convert(raw, out)
