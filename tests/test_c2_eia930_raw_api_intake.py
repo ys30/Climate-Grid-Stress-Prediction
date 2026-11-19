@@ -35,10 +35,15 @@ class RawEIAIntakeTests(unittest.TestCase):
             collect("dummy", "CISO", "2024-01-01T00", "2024-12-31T23")
 
     @patch("scripts.c2_eia930_raw_api_intake.fetch_page")
-    def test_invalid_value_fails_closed(self, get_page):
-        get_page.return_value = result([item("2024-01-01T00", "NaN")])
-        with self.assertRaisesRegex(RuntimeError, "Nonfinite"):
-            collect("dummy", "CISO", "2024-01-01T00", "2024-12-31T23")
+    def test_nonfinite_and_negative_source_values_are_preserved_for_audit(self, get_page):
+        get_page.return_value = result([item("2024-01-01T00", "NaN"),
+                                       item("2024-01-01T01", "-12")])
+        rows = collect("dummy", "CISO", "2024-01-01T00", "2024-12-31T23")
+        self.assertEqual([r["reported_demand_mw"] for r in rows], ["NaN", "-12"])
+        with tempfile.TemporaryDirectory() as d:
+            m = save(rows, Path(d) / "raw.csv", ba="CISO",
+                     start="2024-01-01T00", end="2024-12-31T23")
+            self.assertEqual(m["source_invalid_numeric_rows"], 2)
 
     @patch("scripts.c2_eia930_raw_api_intake.fetch_page")
     def test_missing_pagination_rows_fails_closed(self, get_page):
