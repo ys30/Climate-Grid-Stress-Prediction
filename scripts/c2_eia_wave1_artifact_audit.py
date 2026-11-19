@@ -73,7 +73,7 @@ def report(token, run_id=None, *, wave="wave1"):
         run_id = run["id"]
     run = request(f"/repos/{REPO}/actions/runs/{run_id}", token)
     if run.get("status") != "completed":
-        return {"status": "wave1_not_yet_completed", "run_id": run_id,
+        return {"status": wave + "_not_yet_completed", "run_id": run_id,
                 "run_status": run.get("status"),
                 "run_url": run.get("html_url"),
                 "head_sha": run.get("head_sha"),
