@@ -12,6 +12,7 @@ import json
 import os
 import urllib.error
 import urllib.request
+import urllib.parse
 import zipfile
 from datetime import datetime, timezone
 
@@ -22,6 +23,15 @@ EXPECTED = {("CISO", year) for year in (2020, 2021, 2022, 2023, 2025)} | {
 }
 
 
+class SafeRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is not None and urllib.parse.urlsplit(req.full_url).netloc != urllib.parse.urlsplit(newurl).netloc:
+            redirected.remove_header("Authorization")
+            redirected.remove_header("X-GitHub-Api-Version")
+        return redirected
+
+
 def request(path, token, *, binary=False):
     url = "https://api.github.com" + path
     headers = {"Accept": "application/vnd.github+json",
@@ -29,7 +39,7 @@ def request(path, token, *, binary=False):
                "Authorization": "Bearer " + token,
                "X-GitHub-Api-Version": "2022-11-28"}
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=90) as r:
+        with urllib.request.build_opener(SafeRedirect()).open(urllib.request.Request(url, headers=headers), timeout=90) as r:
             content = r.read()
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         # Never expose the OAuth credential, response body, or redirected URL.
