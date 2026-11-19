@@ -86,6 +86,25 @@ class YearCoverageTests(unittest.TestCase):
         self.assertEqual(report["source_hour_coverage"], 1.0)
         self.assertLess(report["coverage"], 1.0)
 
+    def test_one_negative_hour_blocks_gate_even_above_98pct_coverage(self):
+        path = self.fixture(year=2024)
+        with path.open(newline="") as f:
+            rows = list(csv.DictReader(f))
+        rows[0]["demand_mw"] = "-1"
+        with path.open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+        mpath = path.with_suffix(".manifest.json")
+        manifest = json.loads(mpath.read_text())
+        manifest["sha256_csv"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        mpath.write_text(json.dumps(manifest))
+        audit = audit_file(path, year=2024, ba="CISO")
+        self.assertEqual(audit["invalid_rows"], 1)
+        self.assertEqual(audit["valid_demand_hours"], 8783)
+        self.assertFalse(audit["pass"])
+        self.assertEqual(audit["invalid_numeric_examples_max20"][0]["reported_demand_mw"], "-1")
+
     def test_ordinary_year_8760(self):
         report = audit_file(self.fixture(year=2023), year=2023, ba="CISO")
         self.assertEqual(report["expected_hours"], 8760)
