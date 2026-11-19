@@ -1,0 +1,32 @@
+{
+  "run_id": 44463391069,
+  "run_url": "https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44463391069",
+  "head_sha": "baceee6e14193f9337b5a11bc8456c4d2a692314",
+  "checked_at_utc": "2026-11-19T12:38:03.083969+00:00",
+  "source_gate_pass": false,
+  "status": "diagnostic_artifact_authenticated",
+  "artifact_id": 14503830832,
+  "raw_sha256": "3f56ed359e8eea0298e611f85f00f3b0b20f6b104d0a43064db8ebfc9a80a6eb",
+  "utc_start_sha256": "fdbb0f8692dc201e0e2f36ee72c7a831255fa86d01800ba639adb61e6dd0054f",
+  "expected_hours": 8760,
+  "source_hours": 8760,
+  "missing_timestamp_hours": 0,
+  "missing_demand_rows": 0,
+  "invalid_numeric_rows": 2,
+  "valid_demand_hours": 8758,
+  "valid_coverage": 0.99977169,
+  "annual_audit_pass": false,
+  "anomalies_max20": [
+    {
+      "timestamp_utc": "2023-12-19T20:00:00Z",
+      "reported_demand_mw": "-21897",
+      "reason": "negative_or_nonfinite"
+    },
+    {
+      "timestamp_utc": "2023-12-28T21:00:00Z",
+      "reported_demand_mw": "-10944",
+      "reason": "negative_or_nonfinite"
+    }
+  ],
+  "limitation": "A completed diagnostic workflow does not waive the strict invalid-row EIA source gate."
+}
