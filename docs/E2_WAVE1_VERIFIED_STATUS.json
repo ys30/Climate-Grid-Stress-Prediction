@@ -1,0 +1,83 @@
+{
+  "status": "wave1_partial_or_failed",
+  "run_id": 44433236896,
+  "run_url": "https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44433236896",
+  "run_conclusion": "failure",
+  "verified_at_utc": "2026-11-19T03:07:11.521314+00:00",
+  "expected_ba_years": 8,
+  "verified_ba_years": 3,
+  "jobs_successful": 3,
+  "jobs_total": 8,
+  "cohorts": [
+    {
+      "ba": "AZPS",
+      "year": 2024,
+      "gate_pass": true,
+      "status": "artifact_hash_and_annual_gate_pass",
+      "coverage": 1.0,
+      "expected_hours": 8784,
+      "unique_hours": 8784,
+      "missing_hours": 0,
+      "csv_sha256": "cc8d98afb7e6b955e89184f357343fe0ef7563460bfeb039f3675af7ffb2a954",
+      "raw_sha256": "fb40d5449cfdcb198291bc96c89578253e51b1c9a6b6b146d310f223dff69e31",
+      "artifact_id": 14487905179
+    },
+    {
+      "ba": "BPAT",
+      "year": 2024,
+      "gate_pass": true,
+      "status": "artifact_hash_and_annual_gate_pass",
+      "coverage": 1.0,
+      "expected_hours": 8784,
+      "unique_hours": 8784,
+      "missing_hours": 0,
+      "csv_sha256": "0ad50a220163671d93c825082cdbd320a752b35db8e65c993fb1a002b6daedb2",
+      "raw_sha256": "7a5d694ccaeaa6a21d83bf8c987346f32fc94d4888bad4827b7e1775a0b46fb4",
+      "artifact_id": 14486814979
+    },
+    {
+      "ba": "CISO",
+      "year": 2020,
+      "gate_pass": false,
+      "status": "artifact_absent_or_expired"
+    },
+    {
+      "ba": "CISO",
+      "year": 2021,
+      "gate_pass": false,
+      "status": "artifact_absent_or_expired"
+    },
+    {
+      "ba": "CISO",
+      "year": 2022,
+      "gate_pass": false,
+      "status": "artifact_absent_or_expired"
+    },
+    {
+      "ba": "CISO",
+      "year": 2023,
+      "gate_pass": false,
+      "status": "artifact_absent_or_expired"
+    },
+    {
+      "ba": "CISO",
+      "year": 2025,
+      "gate_pass": true,
+      "status": "artifact_hash_and_annual_gate_pass",
+      "coverage": 1.0,
+      "expected_hours": 8760,
+      "unique_hours": 8760,
+      "missing_hours": 0,
+      "csv_sha256": "85ad6b398f9beffe29235d947f431b3c27ceea0ae9a16ac531fd382d1201e7ec",
+      "raw_sha256": "67d2a612b503d88907621610fda466a1dca5a5e947acb85aa0100fd1fc95a816",
+      "artifact_id": 14488070057
+    },
+    {
+      "ba": "SRP",
+      "year": 2024,
+      "gate_pass": false,
+      "status": "artifact_absent_or_expired"
+    }
+  ],
+  "limitations": "EIA source-only verification; no ERA5 joint coverage or model validation"
+}
