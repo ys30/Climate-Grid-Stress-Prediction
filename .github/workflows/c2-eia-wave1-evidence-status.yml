@@ -1,0 +1,73 @@
+name: C2 Wave 1 Verified Evidence Status
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c2_eia_wave1_artifact_audit.py'
+      - '.github/workflows/c2-eia-wave1-evidence-status.yml'
+  workflow_run:
+    workflows: ['C2 EIA E2 Real-Data Expansion Wave 1']
+    types: [completed]
+  schedule:
+    - cron: '13 6 * * *'
+  workflow_dispatch:
+    inputs:
+      wave1_run_id:
+        description: 'Optional explicit Wave 1 run ID, otherwise latest completed'
+        type: string
+        required: false
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: c2-wave1-evidence-status
+  cancel-in-progress: false
+
+jobs:
+  verify-source-artifacts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      WAVE1_RUN_ID: ${{ inputs.wave1_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify SHA chain and annual gate for each available cohort
+        run: |
+          mkdir -p evidence/audit
+          if [ -n "$WAVE1_RUN_ID" ]; then
+            case "$WAVE1_RUN_ID" in *[!0-9]* ) echo 'Invalid run ID'; exit 1 ;; esac
+            python -m scripts.c2_eia_wave1_artifact_audit \
+              --run-id "$WAVE1_RUN_ID" \
+              --output evidence/audit/c2_wave1_status.json
+          else
+            python -m scripts.c2_eia_wave1_artifact_audit \
+              --output evidence/audit/c2_wave1_status.json
+          fi
+      - name: Publish small source-only metadata record (no raw EIA or credentials)
+        run: |
+          mkdir -p docs
+          cp evidence/audit/c2_wave1_status.json docs/E2_WAVE1_VERIFIED_STATUS.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/E2_WAVE1_VERIFIED_STATUS.json
+          if ! git diff --cached --quiet; then
+            git commit -m "C2 E2: update independently checked Wave 1 BA-year evidence status"
+            git push
+          fi
+      - name: Preserve auditable cohort report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-wave1-verified-status-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
