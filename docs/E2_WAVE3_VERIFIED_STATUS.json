@@ -1,0 +1,12 @@
+{
+  "status": "wave3_not_yet_completed",
+  "run_id": 44459004863,
+  "run_status": "queued",
+  "run_url": "https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44459004863",
+  "head_sha": "088d9f18016cda48907adf06cc82d5644b4b1c43",
+  "run_attempt": 1,
+  "verified_at_utc": "2026-11-19T04:32:50.528048+00:00",
+  "verified_ba_years": 0,
+  "expected_ba_years": 9,
+  "note": "This run is not complete; zero NEW evidence verified. Prior runs remain separate."
+}
