@@ -1,0 +1,29 @@
+name: C2 E2 Real Demand Lag Reference Tests
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_e2_real_demand_lag_baselines.py'
+      - 'tests/test_c2_e2_real_demand_lag_baselines.py'
+      - '.github/workflows/c2-e2-lag-baselines.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_e2_real_demand_lag_baselines.py'
+      - 'tests/test_c2_e2_real_demand_lag_baselines.py'
+      - '.github/workflows/c2-e2-lag-baselines.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lag-references:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test fixed lag reference metrics and provenance gate
+        run: python -m unittest discover -s tests -p 'test_c2_e2_real_demand_lag_baselines.py' -v
