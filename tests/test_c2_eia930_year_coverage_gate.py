@@ -66,6 +66,25 @@ class YearCoverageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "SHA-256"):
             audit_file(p, year=2024, ba="CISO")
 
+    def test_null_demand_is_not_counted_as_valid_coverage(self):
+        path = self.fixture(year=2024)
+        rows = list(csv.DictReader(path.open(newline="")))
+        rows[0]["demand_mw"] = ""
+        with path.open("w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=list(rows[0]))
+            writer.writeheader()
+            writer.writerows(rows)
+        manifest_path = path.with_suffix(".manifest.json")
+        manifest = json.loads(manifest_path.read_text())
+        manifest["sha256_csv"] = hashlib.sha256(path.read_bytes()).hexdigest()
+        manifest_path.write_text(json.dumps(manifest))
+        report = audit_file(path, year=2024, ba="CISO")
+        self.assertFalse(report["pass"])
+        self.assertEqual(report["missing_demand_rows"], 1)
+        self.assertEqual(report["valid_demand_hours"], 8783)
+        self.assertEqual(report["source_hour_coverage"], 1.0)
+        self.assertLess(report["coverage"], 1.0)
+
     def test_ordinary_year_8760(self):
         report = audit_file(self.fixture(year=2023), year=2023, ba="CISO")
         self.assertEqual(report["expected_hours"], 8760)
