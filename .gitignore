@@ -1,0 +1,16 @@
+# Never commit local credentials or downloaded source datasets.
+.env
+.env.*
+!.env.example
+API.txt
+**/API.txt
+*.key
+*.pem
+secrets/
+data/
+evidence/
+*.partial
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
