@@ -1,0 +1,60 @@
+name: C2 AZPS 2023 Noncanonical Sensitivity Evidence
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-azps2023-sensitivity.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  pinned-sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exclusion method with offline synthetic tests
+        run: python -m unittest discover -s tests -p 'test_c2_azps2023_negative_sensitivity.py' -v
+      - name: Fetch SHA-pinned real diagnostic artifact
+        run: |
+          mkdir -p evidence/original evidence/sensitivity
+          gh run download 44463391069 \
+            --repo ys30/Climate-Grid-Stress-Prediction \
+            --name c2-azps2023-source-anomaly-diagnostic-44463391069 \
+            --dir evidence/original
+      - name: Derive separately labeled real observation sensitivity CSV
+        run: |
+          python -m scripts.c2_azps2023_negative_sensitivity \
+            evidence/original/utc_start/eia930_AZPS_2023_start.csv \
+            docs/E2_AZPS2023_DIAGNOSTIC_STATUS.json \
+            evidence/sensitivity/azps_2023_EXCLUDE_2_NEGATIVE_NONCANONICAL.csv
+      - name: Assert derived file never represents canonical EIA source gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path("evidence/sensitivity/azps_2023_EXCLUDE_2_NEGATIVE_NONCANONICAL.manifest.json")
+          d=json.loads(p.read_text())
+          assert d["canonical_source_gate_pass"] is False
+          assert d["retained_real_hourly_rows"] == 8758
+          assert len(d["excluded_real_hourly_rows"]) == 2
+          print("Sensitivity-only: 8758 unchanged measured hours retained; original two negative values excluded.")
+          print("Canonical EIA source gate remains FAIL; no synthetic values introduced.")
+          PY
+      - name: Upload explicit noncanonical sensitivity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-azps2023-noncanonical-sensitivity-${{ github.run_id }}
+          path: evidence/sensitivity/
+          if-no-files-found: warn
+          retention-days: 30
