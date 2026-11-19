@@ -1,0 +1,63 @@
+name: C2 ERA5 Official CDS One-Month Source Pilot
+
+# Manual only: no unsuccessful pushes when CDS credentials/licence are absent.
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: 'ERA5 pilot year'
+        type: choice
+        options: ['2024', '2023', '2025', '2022', '2021', '2020']
+        default: '2024'
+      month:
+        description: 'ERA5 pilot month'
+        type: choice
+        options: ['02', '07', '01', '03', '04', '05', '06', '08', '09', '10', '11', '12']
+        default: '02'
+
+permissions:
+  contents: read
+
+jobs:
+  authentic-era5-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      CDSAPI_KEY: ${{ secrets.CDSAPI_KEY }}
+      TARGET_YEAR: ${{ inputs.year }}
+      TARGET_MONTH: ${{ inputs.month }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Require official CDS credentials without logging them
+        run: |
+          if [ -z "$CDSAPI_KEY" ]; then
+            echo "::error::CDSAPI_KEY repository Actions secret missing; EIA_API_KEY is not valid here."
+            exit 1
+          fi
+      - name: Install official CDS API and ERA5 NetCDF processing libraries
+        run: python -m pip install cdsapi numpy xarray h5netcdf scipy
+      - name: Validate extraction and request contracts before network
+        run: python -m unittest discover -s tests -p 'test_c2_era5_official_pilot.py' -v
+      - name: Retrieve real ERA5 single-level hourly t2m via official CDS
+        run: |
+          mkdir -p evidence/era5_source evidence/era5_grid
+          python -m scripts.c2_era5_cds_source_retrieve \
+            --year "$TARGET_YEAR" --month "$TARGET_MONTH" \
+            --output "evidence/era5_source/era5_${TARGET_YEAR}_${TARGET_MONTH}_t2m.nc"
+      - name: Convert original ERA5 UTC validity time without EIA HE shift
+        run: |
+          python -m scripts.c2_era5_single_gridcell_extract \
+            "evidence/era5_source/era5_${TARGET_YEAR}_${TARGET_MONTH}_t2m.nc" \
+            "evidence/era5_grid/era5_grid_${TARGET_YEAR}_${TARGET_MONTH}_utc.csv" \
+            --year "$TARGET_YEAR" --month "$((10#$TARGET_MONTH))"
+      - name: Preserve genuine source and conversion provenance
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-era5-cds-gridcell-${{ inputs.year }}-${{ inputs.month }}-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 30
