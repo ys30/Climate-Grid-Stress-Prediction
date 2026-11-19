@@ -38,3 +38,40 @@ The **EIA-only 2024 annual source gate passes** for CISO. This does **not** qual
 2. Independently validate ERA5 BA weather geometry, UTC interval-start, and no claims of measured county load weighting.
 3. Match sources hour by hour; use joint coverage gate before any held-out experiment.
 4. Fit preregistered calendar and weather baselines; evaluate 2024–2025 only when full split eligibility is demonstrated.
+
+## Independent artifact-byte verification and demand-only EDA
+
+The downloaded GitHub artifact ZIP was reopened and both enclosed CSVs were
+SHA-256 checked against their own manifests (both **match**). The original
+and converted hour counts are 8785 and 8784, respectively. All 366 UTC
+calendar days contain exactly 24 observations.
+
+| 2024 UTC month | Mean demand (MW) | Peak demand (MW) |
+|---|---:|---:|
+| Jan | 23,501.4 | 28,795 |
+| Feb | 22,891.6 | 28,462 |
+| Mar | 21,655.7 | 26,950 |
+| Apr | 21,511.9 | 26,625 |
+| May | 22,823.2 | 30,332 |
+| Jun | 26,887.1 | 38,678 |
+| Jul | 32,014.5 | 44,727 |
+| Aug | 30,779.4 | 43,106 |
+| Sep | 28,822.8 | 47,571 |
+| Oct | 26,419.9 | 41,205 |
+| Nov | 24,005.7 | 28,425 |
+| Dec | 24,545.1 | 29,961 |
+
+Maximum single hourly demand: **47,571 MW**, UTC interval start
+`2024-09-06T01:00:00Z` (original HE `2024-09-06T02`). Minimum:
+**14,794 MW**, start `2024-05-05T23:00:00Z`. These are demand-only
+seasonal descriptions; no ERA5 weather response or climate causality has
+been estimated.
+
+## Expansion wave submitted
+
+The bounded eight-BA-year follow-up workflow is committed at
+`.github/workflows/c2-eia-expansion-wave1.yml` (commit `7820e74510cc968a68cf0935d7a5754a2b381cb0`).
+It covers the five missing CISO years (2020–23, 2025) plus AZPS/BPAT/SRP
+for 2024. **Do not count these as validated** until each real artifact
+and standalone annual audit are verified. The remaining 15 BA-years
+will require their own evidence runs.
