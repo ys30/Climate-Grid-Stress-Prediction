@@ -1,0 +1,32 @@
+name: C2 ERA5 Official Pilot Offline Contract Tests
+
+on:
+  push:
+    paths:
+      - 'scripts/c2_era5_official_pilot_request.py'
+      - 'scripts/c2_era5_single_gridcell_extract.py'
+      - 'tests/test_c2_era5_official_pilot.py'
+      - '.github/workflows/c2-era5-pilot-contract-tests.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_era5_official_pilot_request.py'
+      - 'scripts/c2_era5_single_gridcell_extract.py'
+      - 'tests/test_c2_era5_official_pilot.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  era5-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install xarray test backend (no CDS credentials)
+        run: python -m pip install numpy xarray scipy
+      - name: Validate request, true UTC timestamps and SHA-pinned NetCDF conversion
+        run: python -m unittest discover -s tests -p 'test_c2_era5_official_pilot.py' -v
