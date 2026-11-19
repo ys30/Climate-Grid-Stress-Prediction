@@ -1,0 +1,10 @@
+{
+  "run_id": 44569966767,
+  "run_url": "https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44569966767",
+  "head_sha": "5173197c38ddf87ff91e53530d4d58dd25808c52",
+  "canonical_source_gate_pass": false,
+  "sensitivity_verified": true,
+  "status": "sensitivity_artifact_verified",
+  "derived_sha256": "5c5d7fd5a462729dd168b9c762bdec2c9a5f2c819d6771732349249c1b77004b",
+  "artifact_id": 14554331790
+}
