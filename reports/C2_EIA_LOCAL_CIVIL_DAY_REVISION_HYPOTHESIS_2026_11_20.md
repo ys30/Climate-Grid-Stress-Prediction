@@ -76,3 +76,46 @@ submission or EIA correction**.
    chosen on the held-out 2024–2025 period.
 4. Preserve unresolved revised hours as a documented quality-sensitivity
    risk, not as model-admitted correct observations.
+
+## 2026-11-20 DST-aware audit refinement and EIA authority check
+
+The earlier 24-hour/constant-UTC-offset classifier is replaced by **exact
+IANA local-midnight-to-next-midnight UTC interval equality**. This is
+necessary because a reporting local calendar day can contain 23 or 25
+real hours on US DST transition dates. The source-independent regression
+tests now exercise Pacific 2025-03-09 (23 hours), Pacific 2025-11-02
+(25 hours), and Phoenix's year-round 24-hour civil days.
+
+The SHA-pinned original 23 BA-year changed-row CSV was independently
+re-audited after this correction: **219 changed hours**, **15 contiguous
+episodes**, and the same **three complete local-civil-day fingerprints**
+under the respective selected candidate zones. The result is unchanged
+by explicit DST handling; the distinction is methodological robustness.
+
+Authoritative references:
+
+- EIA official Form 930 data guide:
+  https://www.eia.gov/electricity/930-content/about.html .
+  It explicitly says BA reports are **hour-ending**, individual BAs
+  select their report-local time zones, and spring/fall DST days can
+  have **23/25 hourly records**. EIA receives hourly values and a later
+  daily resubmission; differences are possible.
+- EIA current AZPS BA display:
+  https://www.eia.gov/electricity/gridmonitor/dashboard/electric_overview/balancing_authority/AZPS
+  — uses **Arizona Time** on its current display.
+- EIA Northwest regional dashboard:
+  https://www.eia.gov/electricity/gridmonitor/dashboard/daily_generation_mix/regional/REG-NW
+  — shows BPAT daily generation using **Pacific Time** on the current
+  dashboard. This evidence describes contemporary dashboard labels;
+  it does NOT prove original BPAT submission-zone configuration for
+  2021/2023 or give access to archived respondent-level revisions.
+
+New source-only outputs:
+`C2_EIA_DST_AWARE_REVISION_EPISODES_2026-11-20.csv` and
+`C2_EIA_DST_AWARE_REVISION_QA_2026-11-20.zip` contain the independently
+recomputed 15-episode table and explicit negative causal/admission flags.
+The revised script is `scripts/c2_eia_local_calendar_revision_probe.py`;
+test `tests/test_c2_eia_local_calendar_revision_probe.py`.
+
+No respondent revision ledger has been obtained, no archived BA-specific
+reporting-timezone proof is claimed, and **model_training_permitted=false**.
