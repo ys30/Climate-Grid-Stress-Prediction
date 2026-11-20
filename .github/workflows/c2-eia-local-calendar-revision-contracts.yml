@@ -1,0 +1,39 @@
+name: C2 EIA Calendar-Day Revision Hypothesis Contracts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c2_eia_local_calendar_revision_probe.py'
+      - 'tests/test_c2_eia_local_calendar_revision_probe.py'
+      - '.github/workflows/c2-eia-local-calendar-revision-contracts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c2-eia-local-calendar-revision-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-clock-hypothesis-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Synthetic UTC/local-civil-day and provenance regression checks
+        run: python -m unittest discover -s tests -p 'test_c2_eia_local_calendar_revision_probe.py' -v
+      - name: Assert source-only interpretation in committed report
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          s=Path('reports/C2_EIA_LOCAL_CIVIL_DAY_REVISION_HYPOTHESIS_2026_11_20.md').read_text()
+          assert 'model_training_permitted=false' in s
+          assert 'has not been independently authenticated' in s
+          assert 'not confirm' in s
+          print('Calendar-day hypothesis remains explicitly unverified for causal claims')
+          PY
