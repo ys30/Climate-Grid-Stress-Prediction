@@ -1,0 +1,58 @@
+name: C2 E2 February ARCO Real Source Verification
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-era5-public-february-evidence.yml'
+  workflow_run:
+    workflows: ['C2 E2 Real Public ARCO ERA5 February 2024 Source Pilot']
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: c2-arco-february-evidence-status
+  cancel-in-progress: false
+
+jobs:
+  verify-real-archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Authenticate latest real observed 696-hour Zarr sample artifact
+        run: |
+          mkdir -p evidence/audit
+          python -m scripts.c2_era5_public_monthly_evidence \
+            --output evidence/audit/arco_february_2024_verified_status.json
+      - name: Publish only source metadata
+        run: |
+          mkdir -p docs
+          cp evidence/audit/arco_february_2024_verified_status.json docs/E2_ARCO_FEB2024_VERIFIED_STATUS.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/E2_ARCO_FEB2024_VERIFIED_STATUS.json
+          if ! git diff --cached --quiet; then
+            git commit -m "C2 E2: independently verify real public ARCO February source evidence"
+            git pull --rebase
+            git push
+          fi
+      - name: Retain verification report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-arco-february-source-status-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
