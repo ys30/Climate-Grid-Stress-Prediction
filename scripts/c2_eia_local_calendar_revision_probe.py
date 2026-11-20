@@ -6,7 +6,7 @@ unmodified and model eligibility remains false.
 """
 from __future__ import annotations
 import argparse,csv,hashlib,json
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,timezone,time
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from collections import Counter
@@ -14,6 +14,26 @@ from collections import Counter
 EXPECTED_SHA="6c85c48789e55c51a7ad37e8eecbffe7f4b9cef0a7a8b354012e27d423bdd480"
 ZONE_HYPOTHESES={"AZPS":"America/Phoenix","BPAT":"America/Los_Angeles"}
 TARGET={("AZPS","2025"),("BPAT","2021"),("BPAT","2023")}
+
+def civil_day_utc_bounds(local_date, zone):
+    """Return UTC interval for a whole local civil date, including DST 23/25h."""
+    start_local=datetime.combine(local_date,time.min,tzinfo=zone)
+    end_local=datetime.combine(local_date+timedelta(days=1),time.min,tzinfo=zone)
+    start=start_local.astimezone(timezone.utc)
+    end=end_local.astimezone(timezone.utc)
+    length=int((end-start)/timedelta(hours=1))
+    if length not in (23,24,25):
+        raise ValueError("Unexpected local civil day length")
+    return start,end,length
+
+
+def classify_civil_day(first,last,n,zone):
+    """Exact UTC interval equality, not wall-clock hour-count inference."""
+    local=first.astimezone(zone)
+    start,end,expected=civil_day_utc_bounds(local.date(),zone)
+    return (n==expected and first==start and
+            last+timedelta(hours=1)==end),expected
+
 
 def audit(source:Path,expected_sha=EXPECTED_SHA):
     if hashlib.sha256(source.read_bytes()).hexdigest()!=expected_sha:
@@ -34,10 +54,8 @@ def audit(source:Path,expected_sha=EXPECTED_SHA):
         for seq in spans:
             first,last=seq[0][0],seq[-1][0]
             lf,ll=first.astimezone(zone),last.astimezone(zone)
-            single=lf.date()==ll.date()
             midnight=lf.hour==0 and lf.minute==0
-            full=(len(seq)==24 and single and midnight and ll.hour==23 and
-                  ll.minute==0 and lf.utcoffset()==ll.utcoffset())
+            full,expected_local_hours=classify_civil_day(first,last,len(seq),zone)
             episodes.append({"ba":ba,"year":int(year),
                 "start_utc":first.isoformat().replace("+00:00","Z"),
                 "end_utc":last.isoformat().replace("+00:00","Z"),
@@ -47,6 +65,8 @@ def audit(source:Path,expected_sha=EXPECTED_SHA):
                 "hypothetical_local_end":ll.isoformat(),
                 "hypothetical_local_calendar_midnight_start":midnight,
                 "hypothetical_one_full_civil_day":full,
+                "hypothetical_civil_day_expected_hours":expected_local_hours,
+                "DST_23_25_hour_calendar_explicitly_supported":True,
                 "actual_BA_reporting_timezone_verified":False,
                 "daily_resubmission_causality_established":False})
     return {"source":"Original SHA-verified 23-BA-year old/new changed rows",
