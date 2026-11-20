@@ -1,0 +1,11 @@
+{
+  "run_id": 44762425007,
+  "url": "https://github.com/ys30/Climate-Grid-Stress-Prediction/actions/runs/44762425007",
+  "head_sha": "1a655f254692800f469820271e4962befd7ce893",
+  "monthly_verified": true,
+  "status": "source_month_authenticated",
+  "artifact_id": 14642865563,
+  "csv_sha256": "b572cfd5c2c5df6025f6e4f54b4e4ec97ab261c8c0d53dae1ec18e37b98c9a75",
+  "observed_hours": 696,
+  "weather_scope": "Single public ERA5 gridcell, not CISO BA-wide"
+}
