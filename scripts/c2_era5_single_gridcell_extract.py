@@ -24,7 +24,11 @@ def extract(src:Path,dst:Path,*,year:int,month:int,latitude:float=38.5,longitude
     if not source_manifest_path.is_file():
         raise ValueError("Original CDS NetCDF manifest is required; test fixtures must declare fixture provenance")
     original_manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
-    digest=hashlib.sha256(src.read_bytes()).hexdigest()
+    hasher = hashlib.sha256()
+    with src.open("rb") as source:
+        for block in iter(lambda: source.read(1024 * 1024), b""):
+            hasher.update(block)
+    digest = hasher.hexdigest()
     if original_manifest.get("sha256_netcdf") != digest:
         raise ValueError("ERA5 original NetCDF SHA-256 does not match source manifest")
     if original_manifest.get("year") != year or original_manifest.get("month") != month:
@@ -34,6 +38,10 @@ def extract(src:Path,dst:Path,*,year:int,month:int,latitude:float=38.5,longitude
     provenance = original_manifest.get("source_kind")
     if provenance not in ("original_Copernicus_CDS_ERA5_NetCDF", "SYNTHETIC_TEST_NETCDF_ONLY"):
         raise ValueError("ERA5 source provenance is not authenticated")
+    if provenance == "original_Copernicus_CDS_ERA5_NetCDF":
+        from scripts.c2_era5_official_pilot_request import request
+        if original_manifest.get("request") != request(year, month):
+            raise ValueError("Original CDS request differs from registered ERA5 month/area/t2m")
     with xr.open_dataset(src) as ds:
         if "t2m" not in ds:
             raise ValueError("Official ERA5 t2m variable absent")
@@ -53,6 +61,10 @@ def extract(src:Path,dst:Path,*,year:int,month:int,latitude:float=38.5,longitude
         if selected_lon>180: selected_lon-=360
         if abs(selected_lat-latitude)>0.251 or abs(selected_lon-longitude)>0.251:
             raise ValueError("ERA5 source grid too far from registered pilot site")
+        if provenance == "original_Copernicus_CDS_ERA5_NetCDF":
+            north, west, south, east = original_manifest["request"]["area"]
+            if not (south <= selected_lat <= north and west <= selected_lon <= east):
+                raise ValueError("Selected ERA5 grid point outside declared CDS extraction box")
         remaining=set(chosen.dims)-{time_name}
         if remaining:
             raise ValueError("Unexpected additional ERA5 dimensions")
@@ -77,6 +89,10 @@ def extract(src:Path,dst:Path,*,year:int,month:int,latitude:float=38.5,longitude
     expected=calendar.monthrange(year,month)[1]*24
     if len(output)!=expected:
         raise ValueError(f"ERA5 pilot has {len(output)}/{expected} hours: no fill permitted")
+    from datetime import timedelta
+    first = datetime(year, month, 1, tzinfo=timezone.utc)
+    if seen != {first + timedelta(hours=i) for i in range(expected)}:
+        raise ValueError("ERA5 UTC timestamps do not form a complete contiguous calendar month")
     output.sort(key=lambda r:r["timestamp_utc"])
     dst.parent.mkdir(parents=True,exist_ok=True)
     tmp=dst.with_suffix(dst.suffix+".partial")
