@@ -82,6 +82,23 @@ corrects this denominator ambiguity.
 - Output ZIP SHA256:
   `a9cfb041cdb8235903f0b4662619ca9398a9dc2aca43e83f1734bc9b631a20e5`.
 
+## High-impact source-review queue (not a modeling filter)
+
+Among the **231** genuine old/new numeric revisions, **38** have
+absolute change **>= 1,000 MW**: **36 in AZPS 2025**,
+one in **AZPS 2021** and one in **BPAT 2021**.
+Of the AZPS 2025 revisions, **169** are numeric changes and **one**
+changes from old positive demand to new **0 MW** (2025-07-31T19Z).
+These are investigative source-review flags, NOT automatic source
+error classifications or an approved clipping/imputation rule.
+
+The new source-only priority program
+`scripts/c2_eia_revision_priority_review.py` requires the SHA-pinned
+changed-row CSV and separates "large revision" and "new 0 demand"
+review status from `model_training_permitted=false`. Synthetic
+regression tests: `tests/test_c2_eia_revision_priority_review.py`.
+No 2024–2025 model fitting or test metric was computed.
+
 ## Scientific decision
 
 1. This is a **source-vintage QA comparison**, not an error-correction
