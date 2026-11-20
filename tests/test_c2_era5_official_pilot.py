@@ -27,6 +27,52 @@ class ERA5RequestTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 request(year,1)
 
+    def test_official_manifest_must_match_registered_request(self):
+        # Synthetic NetCDF fixture with a deliberately spoofed official label:
+        # the extractor must still refuse a mismatching CDS request.
+        import numpy as np
+        import xarray as xr
+        from scripts.c2_era5_single_gridcell_extract import extract
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            n = 29 * 24
+            times = np.datetime64("2024-02-01T00") + np.arange(n).astype("timedelta64[h]")
+            dataset = xr.Dataset(
+                {"t2m": (("time", "latitude", "longitude"), np.full((n, 1, 1), 280.0))},
+                coords={"time": times, "latitude": [38.5], "longitude": [-121.5]})
+            nc = root / "fake_official.nc"
+            dataset.to_netcdf(nc)
+            req = request(2024, 2)
+            req["area"] = [39.0, -121.75, 38.75, -121.25]
+            nc.with_suffix(".manifest.json").write_text(json.dumps({
+                "source_kind": "original_Copernicus_CDS_ERA5_NetCDF",
+                "dataset": DATASET, "year": 2024, "month": 2,
+                "request": req,
+                "sha256_netcdf": hashlib.sha256(nc.read_bytes()).hexdigest()}))
+            with self.assertRaisesRegex(ValueError, "request differs"):
+                extract(nc, root / "rejected.csv", year=2024, month=2)
+
+    def test_complete_hourly_count_does_not_allow_out_of_month_timestamp(self):
+        import numpy as np
+        import xarray as xr
+        from scripts.c2_era5_single_gridcell_extract import extract
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            n = 29 * 24
+            times = np.datetime64("2024-02-01T00") + np.arange(n).astype("timedelta64[h]")
+            times[-1] = np.datetime64("2024-03-01T00")
+            dataset = xr.Dataset(
+                {"t2m": (("time", "latitude", "longitude"), np.full((n, 1, 1), 280.0))},
+                coords={"time": times, "latitude": [38.5], "longitude": [-121.5]})
+            nc = root / "test.nc"
+            dataset.to_netcdf(nc)
+            nc.with_suffix(".manifest.json").write_text(json.dumps({
+                "source_kind": "SYNTHETIC_TEST_NETCDF_ONLY",
+                "dataset": DATASET, "year": 2024, "month": 2,
+                "sha256_netcdf": hashlib.sha256(nc.read_bytes()).hexdigest()}))
+            with self.assertRaisesRegex(ValueError, "Unexpected ERA5 hourly UTC validity"):
+                extract(nc, root / "out.csv", year=2024, month=2)
+
     def test_era5_hourly_netCDF_extract_fixture(self):
         try:
             import numpy as np
