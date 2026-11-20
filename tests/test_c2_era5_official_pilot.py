@@ -1,5 +1,6 @@
 """Offline ERA5 pilot request/NetCDF conversion contracts. Test data are synthetic."""
 import calendar
+import hashlib
 import json
 import tempfile
 import unittest
@@ -39,14 +40,29 @@ class ERA5RequestTests(unittest.TestCase):
                           coords={"time":times,"latitude":[38.5],"longitude":[-121.5]})
             nc=root/"test.nc"
             ds.to_netcdf(nc)
+            nc.with_suffix(".manifest.json").write_text(json.dumps({
+                "source_kind":"SYNTHETIC_TEST_NETCDF_ONLY",
+                "dataset":"reanalysis-era5-single-levels",
+                "year":2024,"month":2,
+                "sha256_netcdf":hashlib.sha256(nc.read_bytes()).hexdigest()
+            }))
             out=root/"output.csv"
             m=extract(nc,out,year=2024,month=2)
             self.assertEqual(m["n_valid_hours"],696)
             self.assertEqual(m["source_kind"],"ERA5_SINGLE_GRIDCELL_DEMONSTRATOR_NOT_BA_PROXY")
             self.assertFalse(m["is_qualified_CISO_geographic_proxy"])
+            self.assertFalse(m["source_credential_authenticated"])
+            self.assertEqual(m["claim_status"],"SYNTHETIC_OFFLINE_FIXTURE_NOT_REAL_ERA5")
             self.assertTrue(out.exists())
             with self.assertRaises(FileExistsError):
                 extract(nc,out,year=2024,month=2)
+            tampered=root/"tampered.csv"
+            nc.write_bytes(nc.read_bytes()+b"tampering")
+            with self.assertRaisesRegex(ValueError,"SHA-256"):
+                extract(nc,tampered,year=2024,month=2)
+            nc.with_suffix(".manifest.json").unlink()
+            with self.assertRaisesRegex(ValueError,"manifest"):
+                extract(nc,root/"missing_source_provenance.csv",year=2024,month=2)
 
 
 if __name__=="__main__":
