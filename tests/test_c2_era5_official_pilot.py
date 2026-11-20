@@ -17,6 +17,9 @@ class ERA5RequestTests(unittest.TestCase):
         self.assertEqual(len(r["time"]),24)
         self.assertEqual(r["area"],PILOT_AREA)
         self.assertEqual(r["data_format"],"netcdf")
+        self.assertEqual(len(r["day"]),29)
+        self.assertEqual(request(2023,2)["day"][-1],"28")
+        self.assertEqual(request(2024,4)["day"][-1],"30")
         self.assertEqual(DATASET,"reanalysis-era5-single-levels")
 
     def test_reject_year_outside_cohort(self):
