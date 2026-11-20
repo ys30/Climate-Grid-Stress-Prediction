@@ -21,7 +21,7 @@ class LocalPilotTests(unittest.TestCase):
                 self.assertEqual(env.get("EIA_API_KEY"), "FAKE_TEST_TOKEN_ONLY")
                 self.assertNotIn("FAKE_TEST_TOKEN_ONLY", " ".join(command))
                 calls.append(command)
-                if "c2_eia930_year_coverage_gate" in command:
+                if any("c2_eia930_year_coverage_gate" in arg for arg in command):
                     report = output / "audit" / "eia930_CISO_2024_coverage.json"
                     report.write_text(json.dumps({"pass": True, "coverage": 1.0}))
             with patch("scripts.c2_eia_local_pilot.subprocess.run", side_effect=fake_call):
