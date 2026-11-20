@@ -1,0 +1,77 @@
+name: C2 E2 Real CISO EIA and ARCO February 696h Match
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-eia-arco-february-join.yml'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  exact-source-month:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Retrieve original published EIA 2024 real demand artifact
+        run: |
+          mkdir -p evidence/source
+          gh run download 44427373589 --repo ys30/Climate-Grid-Stress-Prediction \
+            --name c2-eia930-CISO-2024-44427373589 --dir evidence/source/eia
+          python - <<'PY'
+          import zipfile, pathlib
+          root=pathlib.Path('evidence/source/eia')
+          files=list(root.rglob('*'))
+          print('EIA extracted files',len(files))
+          with zipfile.ZipFile('evidence/source/eia.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in files:
+                  if p.is_file():z.write(p,p.relative_to(root))
+          PY
+      - name: Retrieve genuine February ARCO 2024 public-weather artifact
+        run: |
+          gh run download 44762425007 --repo ys30/Climate-Grid-Stress-Prediction \
+            --name c2-real-arco-era5-february-2024-44762425007 \
+            --dir evidence/source/arco
+          python - <<'PY'
+          import zipfile,pathlib
+          root=pathlib.Path('evidence/source/arco')
+          with zipfile.ZipFile('evidence/source/arco.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for p in root.rglob('*'):
+                  if p.is_file():z.write(p,p.relative_to(root))
+          PY
+      - name: Strict source-SHA and exact UTC 696h join, diagnostic only
+        run: |
+          mkdir -p evidence/paired
+          python -m scripts.c2_eia_arco_real_feb2024_pair \
+            evidence/source/eia.zip evidence/source/arco.zip \
+            evidence/paired/CISO_ARCO_Feb2024_696h_DIAGNOSTIC.csv
+      - name: Verify no BA-wide weather or model claim
+        run: |
+          python - <<'PY'
+          import csv,hashlib,json,pathlib
+          p=pathlib.Path('evidence/paired/CISO_ARCO_Feb2024_696h_DIAGNOSTIC.csv')
+          m=json.loads(p.with_suffix('.manifest.json').read_text())
+          with p.open(newline='') as f: records=list(csv.DictReader(f))
+          assert len(records)==696==m['matched_hours']
+          assert m['joined_sha256']==hashlib.sha256(p.read_bytes()).hexdigest()
+          assert m['ciso_ba_weather_proxy_qualified'] is False
+          assert m['model_validation_performed'] is False
+          print('Genuine EIA×ERA5 sources: 696 exact UTC rows, diagnostic only')
+          PY
+      - name: Preserve joined real-data evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-eia-arco-feb2024-real-696h-${{ github.run_id }}
+          path: evidence/paired/
+          if-no-files-found: warn
+          retention-days: 30
