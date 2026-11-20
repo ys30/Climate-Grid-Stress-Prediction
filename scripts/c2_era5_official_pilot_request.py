@@ -7,6 +7,7 @@ geographic / load-weighted proxy for the whole CISO balancing authority.
 """
 from __future__ import annotations
 import argparse
+import calendar
 import json
 from pathlib import Path
 
@@ -22,7 +23,7 @@ def request(year: int, month: int) -> dict:
         "variable": ["2m_temperature"],
         "year": [str(year)],
         "month": [f"{month:02d}"],
-        "day": [f"{d:02d}" for d in range(1, 32)],
+        "day": [f"{d:02d}" for d in range(1, calendar.monthrange(year, month)[1] + 1)],
         "time": [f"{h:02d}:00" for h in range(24)],
         "data_format": "netcdf",
         "download_format": "unarchived",
