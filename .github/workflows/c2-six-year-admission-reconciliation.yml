@@ -1,0 +1,56 @@
+name: C2 Six-Year Source Versus Model Admission Reconciliation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c2_six_year_evidence_reconciliation.py'
+      - 'tests/test_c2_six_year_evidence_reconciliation.py'
+      - '.github/workflows/c2-six-year-admission-reconciliation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c2-six-year-admission-reconciliation
+  cancel-in-progress: true
+
+jobs:
+  verify-denominators:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test archived 210432 hours versus new strict 23/24 source gate
+        run: |
+          python -m unittest discover -s tests \
+            -p 'test_c2_six_year_evidence_reconciliation.py' -v
+      - name: Generate fail-closed source and model admission status
+        run: |
+          mkdir -p evidence/audit
+          python -m scripts.c2_six_year_evidence_reconciliation \
+            --output evidence/audit/C2_SIX_YEAR_SOURCE_VS_MODEL_ADMISSION.json
+      - name: Assert no inferred BA geography approval or fitted model claims
+        run: |
+          python - <<'PY'
+          import json
+          p='evidence/audit/C2_SIX_YEAR_SOURCE_VS_MODEL_ADMISSION.json'
+          d=json.load(open(p))
+          assert d['frozen_source_scope']['era5_eia930_BA_hour_records']==210432
+          assert d['newer_EIA_strict_source_gate']['passed_BA_year_groups']==23
+          assert d['scientific_admission']['model_training_permitted'] is False
+          assert d['scientific_admission']['historical_BA_geography_approved'] is False
+          print('Six-year real source present; strict annual QA 23/24; science admission closed')
+          PY
+      - name: Retain auditable admission manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-six-year-source-vs-model-admission-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
