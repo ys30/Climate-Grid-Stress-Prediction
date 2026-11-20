@@ -1,8 +1,23 @@
 name: C2 phase-1 contracts
 on:
   push:
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/phase1-ci.yml'
   pull_request:
+    paths:
+      - 'src/**'
+      - 'scripts/**'
+      - 'tests/**'
+      - '.github/workflows/phase1-ci.yml'
   workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: c2-phase1-contracts-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   contracts:
     runs-on: ubuntu-latest
