@@ -1,0 +1,56 @@
+name: C2 EIA Original vs Newer Source Vintage Gap Reconciliation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c2_eia_cross_vintage_missing_accounting.py'
+      - 'tests/test_c2_eia_cross_vintage_missing_accounting.py'
+      - '.github/workflows/c2-eia-cross-vintage-gaps.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c2-eia-cross-vintage-gaps
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test source-denominator and AZPS anomalous-value distinctions
+        run: python -m unittest discover -s tests -p 'test_c2_eia_cross_vintage_missing_accounting.py' -v
+      - name: Audit older source and newer strict EIA source coverage without model admission
+        run: |
+          mkdir -p evidence/audit
+          python -m scripts.c2_eia_cross_vintage_missing_accounting \
+            --output evidence/audit/C2_EIA_CROSS_VINTAGE_MISSING_ACCOUNTING.json
+      - name: Assert incompatible-vintage totals are not labeled corrected hours
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('evidence/audit/C2_EIA_CROSS_VINTAGE_MISSING_ACCOUNTING.json')
+          d=json.loads(p.read_text())
+          assert d['frozen_six_year_archive']['missing_hours']==260
+          assert d['newer_independent_year_gates']['missing_in_23_passing_BA_years']==210
+          assert d['comparability']['same_BA_year_sample'] is False
+          assert d['comparability']['record_level_revision_audit_needed'] is True
+          assert d['comparability']['source_model_training_permitted'] is False
+          print('Archived and new EIA counts are different vintages; no 50-hour repair claim')
+          PY
+      - name: Retain accounting status without modifying frozen original archive
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-eia-cross-vintage-gaps-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
