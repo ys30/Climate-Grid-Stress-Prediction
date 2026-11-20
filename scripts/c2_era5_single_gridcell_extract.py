@@ -20,7 +20,20 @@ def extract(src:Path,dst:Path,*,year:int,month:int,latitude:float=38.5,longitude
         raise FileExistsError("Refuse to overwrite ERA5 pilot")
     if src.resolve()==dst.resolve():
         raise ValueError("Inputs and outputs must differ")
+    source_manifest_path = src.with_suffix(".manifest.json")
+    if not source_manifest_path.is_file():
+        raise ValueError("Original CDS NetCDF manifest is required; test fixtures must declare fixture provenance")
+    original_manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
     digest=hashlib.sha256(src.read_bytes()).hexdigest()
+    if original_manifest.get("sha256_netcdf") != digest:
+        raise ValueError("ERA5 original NetCDF SHA-256 does not match source manifest")
+    if original_manifest.get("year") != year or original_manifest.get("month") != month:
+        raise ValueError("ERA5 original request year/month mismatch")
+    if original_manifest.get("dataset") != "reanalysis-era5-single-levels":
+        raise ValueError("Wrong ERA5 source dataset")
+    provenance = original_manifest.get("source_kind")
+    if provenance not in ("original_Copernicus_CDS_ERA5_NetCDF", "SYNTHETIC_TEST_NETCDF_ONLY"):
+        raise ValueError("ERA5 source provenance is not authenticated")
     with xr.open_dataset(src) as ds:
         if "t2m" not in ds:
             raise ValueError("Official ERA5 t2m variable absent")
@@ -80,6 +93,8 @@ def extract(src:Path,dst:Path,*,year:int,month:int,latitude:float=38.5,longitude
     m={"source_kind":"ERA5_SINGLE_GRIDCELL_DEMONSTRATOR_NOT_BA_PROXY",
        "dataset":"reanalysis-era5-single-levels","variable":"2m_temperature",
        "source_netcdf_sha256":digest,"sha256_csv":sha,"year":year,"month":month,
+       "original_source_kind":provenance,
+       "source_credential_authenticated":provenance == "original_Copernicus_CDS_ERA5_NetCDF",
        "time_reference":"UTC_instantaneous_validity_time",
        "clock_conversion":"none",
        "sample_location":"near Sacramento CA, illustrative only",
@@ -88,7 +103,9 @@ def extract(src:Path,dst:Path,*,year:int,month:int,latitude:float=38.5,longitude
        "n_valid_hours":len(output),
        "is_measured_county_load_weighted":False,
        "is_qualified_CISO_geographic_proxy":False,
-       "claim_status":"no BA spatial aggregation, no joint EIA model eligibility"}
+       "claim_status":"no BA spatial aggregation, no joint EIA model eligibility"
+                      if provenance == "original_Copernicus_CDS_ERA5_NetCDF"
+                      else "SYNTHETIC_OFFLINE_FIXTURE_NOT_REAL_ERA5"}
     dst.with_suffix(".manifest.json").write_text(json.dumps(m,indent=2)+"\n")
     return m
 
