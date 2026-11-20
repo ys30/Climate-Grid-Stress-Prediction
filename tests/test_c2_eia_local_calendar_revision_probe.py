@@ -1,8 +1,9 @@
 """Local calendar-boundary tests: synthetic input, never EIA source evidence."""
 import csv,hashlib,tempfile,unittest
-from datetime import datetime,timedelta,timezone
+from datetime import datetime,timedelta,timezone,date
+from zoneinfo import ZoneInfo
 from pathlib import Path
-from scripts.c2_eia_local_calendar_revision_probe import audit
+from scripts.c2_eia_local_calendar_revision_probe import audit,civil_day_utc_bounds,classify_civil_day
 
 class CalendarBoundaryTests(unittest.TestCase):
     def setUp(self):
@@ -39,6 +40,25 @@ class CalendarBoundaryTests(unittest.TestCase):
                "classification":"numeric_changed"} for i in range(23)]
         d=audit(self.path,expected_sha=self.make(rows))
         self.assertEqual(d["complete_hypothetical_local_days"],0)
+
+    def test_spring_and_fall_DST_local_day_have_23_or_25_hours(self):
+        zone=ZoneInfo("America/Los_Angeles")
+        for day,expected in ((date(2025,3,9),23),(date(2025,11,2),25)):
+            start,end,hours=civil_day_utc_bounds(day,zone)
+            self.assertEqual(hours,expected)
+            self.assertEqual(int((end-start)/timedelta(hours=1)),hours)
+            ok,eligible=classify_civil_day(start,end-timedelta(hours=1),hours,zone)
+            self.assertTrue(ok)
+            self.assertEqual(eligible,hours)
+            not_full,_=classify_civil_day(start,end-timedelta(hours=2),hours-1,zone)
+            self.assertFalse(not_full)
+
+    def test_AZPS_Phoenix_has_24h_even_on_US_DST_transition(self):
+        zone=ZoneInfo("America/Phoenix")
+        for day in (date(2025,3,9),date(2025,11,2)):
+            start,end,hours=civil_day_utc_bounds(day,zone)
+            self.assertEqual(hours,24)
+            self.assertTrue(classify_civil_day(start,end-timedelta(hours=1),24,zone)[0])
 
     def test_source_sha_or_duplicate_utc_rejected(self):
         t="2025-07-26T07:00:00Z"
