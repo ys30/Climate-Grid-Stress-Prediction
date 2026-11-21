@@ -52,11 +52,16 @@ jobs:
           import json
           x=json.load(open('evidence/audit/C2_PUBLIC_2020Q1_REAL_UTILITY_ZIP_DATA_SOURCE_QA.json'))
           assert x['utility_count']==3
-          assert all(v['real_original_source_downloaded'] for v in x['utility_files'].values())
+          assert x['verified_original_utility_count']>=2
+          assert x['utility_files']['SCE']['original_source_verified']
+          assert x['utility_files']['SDGE']['original_source_verified']
+          assert x['utility_files']['PGE']['original_source_verified'] is False
+          assert x['all_three_original_utility_files_verified'] is False
+          assert 'source_format_error' in x['utility_files']['PGE']
           assert x['model_training_permitted'] is False
           assert x['ZIP_to_county_mapping_applied'] is False
           assert x['privacy_merged_ZIP_handling_verified'] is False
-          print('Three source formats validated; 2020Q1 zip county allocation NOT YET verified')
+          print('SCE/SDGE verified; PG&E non-ZIP endpoint remains blocked; ZIP county allocation NOT verified')
           PY
       - name: Retain source inventory only (not original publisher records)
         if: always()
