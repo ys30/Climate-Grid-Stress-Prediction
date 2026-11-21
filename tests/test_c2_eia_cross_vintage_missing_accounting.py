@@ -24,6 +24,9 @@ class MissingByVintageTests(unittest.TestCase):
         self.assertFalse(d["comparability"]["same_BA_year_sample"])
         self.assertFalse(d["comparability"]["per_hour_disagreements_verified"])
         self.assertFalse(d["comparability"]["source_model_training_permitted"])
+        ciso21=[r for r in d["per_year_new_audit"] if r["ba"]=="CISO" and r["year"]==2021]
+        self.assertEqual(len(ciso21),1)
+        self.assertEqual(ciso21[0]["new_missing_demand_rows"],5)
 
     def test_azps2023_negative_rows_must_not_be_mislabeled_missing(self):
         with tempfile.TemporaryDirectory() as root:
@@ -34,6 +37,21 @@ class MissingByVintageTests(unittest.TestCase):
             path.write_text(json.dumps(doc))
             with self.assertRaisesRegex(ValueError,"AZPS2023"):
                 compare(self.paths(),path)
+
+    def test_missing_timestamp_is_distinct_from_blank_source_demand(self):
+        with tempfile.TemporaryDirectory() as root:
+            files={}
+            for name,path in self.paths().items():
+                data=json.loads(path.read_text())
+                if name=="wave1":
+                    for entry in data["cohorts"]:
+                        if entry["ba"]=="CISO" and entry["year"]==2021:
+                            entry["missing_hours"]=0
+                output=Path(root)/f"{name}.json"
+                output.write_text(json.dumps(data))
+                files[name]=output
+            with self.assertRaisesRegex(ValueError,"Yearly source missing count"):
+                compare(files,Path("docs/E2_AZPS2023_DIAGNOSTIC_STATUS.json"))
 
     def test_annual_duplicate_records_fail(self):
         with tempfile.TemporaryDirectory() as root:
