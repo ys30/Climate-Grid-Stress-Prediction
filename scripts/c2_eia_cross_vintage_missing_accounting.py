@@ -35,8 +35,14 @@ def compare(waves,diagnostic):
                 n=entry.get("missing_demand_rows")
                 h=entry.get("expected_hours")
                 v=entry.get("valid_demand_hours")
-                if type(n) is not int or type(h) is not int or type(v) is not int or n<0 or h-v!=n:
+                absent=entry.get("missing_hours")
+                valid_keys=entry.get("unique_hours")
+                if (any(type(x) is not int for x in (n,h,v,absent,valid_keys))
+                    or min(n,h,v,absent,valid_keys)<0
+                    or h-valid_keys!=absent or valid_keys-v!=n):
                     raise ValueError("Yearly source missing count does not reconcile")
+                # Explicit demand blanks and missing UTC timestamp keys are
+                # disjoint failure classes, even when annual source gate passes.
                 missing_by_ba[ba]+=n
                 included_by_ba[ba].append(year)
             rows.append({"ba":ba,"year":year,"strict_canonical_pass":ok,
