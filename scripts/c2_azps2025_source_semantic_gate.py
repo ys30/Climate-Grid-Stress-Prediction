@@ -16,6 +16,16 @@ SOURCE_SHA="f889acd93499bf9336b0447b0e7de650361f4730ae64c5cce7e023650da02110"
 RAW_SHA="a4c1b381ff9ab3efe573fbc5a19643329ea572ab4c045eb1441f047dc659ee16"
 LOW_REVIEW_MW=1000  # exploratory review queue only; not authoritative cutoff
 
+def source_value_flags(v):
+    if not math.isfinite(v) or v<0:
+        raise ValueError('Negative or nonfinite original demand requires distinct source QA')
+    if v==0:
+        return ['eia_zero_demand_anomaly']
+    if v<LOW_REVIEW_MW:
+        return ['exploratory_low_positive_review_only']
+    return []
+
+
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
@@ -57,11 +67,7 @@ def audit(archive_path):
             or orig.get(source_he)!=row["demand_mw"]):
             raise ValueError("Raw EIA source and converted hourly demand differ")
         v=float(row["demand_mw"])
-        if not math.isfinite(v) or v<0:
-            raise ValueError("AZPS 2025 current original numeric assumption failed")
-        kinds=[]
-        if v==0:kinds.append("eia_zero_demand_anomaly")
-        elif 0<v<LOW_REVIEW_MW:kinds.append("exploratory_low_positive_review_only")
+        kinds=source_value_flags(v)
         if kinds:
             prev=float(rows[idx-1]["demand_mw"]) if idx>0 else None
             nextval=float(rows[idx+1]["demand_mw"]) if idx+1<len(rows) else None
@@ -72,11 +78,10 @@ def audit(archive_path):
                             "flags":kinds})
     zero=sum("eia_zero_demand_anomaly" in r["flags"] for r in flagged)
     low=sum("exploratory_low_positive_review_only" in r["flags"] for r in flagged)
-    if zero!=1:
-        raise ValueError("Known zero-demand original source discrepancy changed")
+    if zero!=1 or low!=2:
+        raise ValueError("Known source zero/low-positive observations changed: require independent re-audit")
     return {
         "project":"C2","status":"EIA_SOURCE_COVERAGE_PASS_SEMANTIC_QA_FAIL",
-        "source_run_id":0, # source artifact identity pinned separately below
         "source_artifact_id":14497859928,
         "source_csv_sha256":SOURCE_SHA,
         "raw_csv_sha256":RAW_SHA,
