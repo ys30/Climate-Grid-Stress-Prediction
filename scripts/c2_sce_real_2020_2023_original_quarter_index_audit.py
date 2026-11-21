@@ -24,7 +24,14 @@ def source_links(html,base=INDEX):
         href=urllib.parse.urljoin(base,a["href"])
         decoded=urllib.parse.unquote(urllib.parse.urlsplit(href).path)
         m=FILE_RE.search(decoded)
-        if not m:continue
+        if not m:
+            # Official 2022 Q2 link is mislabeled SCE_2002_Q2 (publisher typo).
+            if "SCE_2002_Q2_ElectricUsageByZip.xlsx" in decoded:
+                key=(2022,2)
+                if key in links and links[key]!=href:
+                    raise ValueError("Conflicting official SCE 2022Q2 links")
+                links[key]=href
+            continue
         key=(int(m[1]),int(m[2]))
         if key in links and links[key]!=href:
             raise ValueError(f"Ambiguous official SCE quarterly href {key}")
@@ -47,7 +54,23 @@ def source_workbook_info(raw,year,quarter):
         if "Zip Code" in vals and "TotalkWh" in vals:
             hdrs.append({"row":idx,"columns":vals})
     if len(hdrs)!=1:raise ValueError(f"{year}Q{quarter} lacks unique recognizable source header")
+    # Confirm the year IN the downloaded workbook, independently of its typo URL.
+    header_idx=hdrs[0]["row"]
+    columns=hdrs[0]["columns"]
+    year_index=next((i for i,h in enumerate(columns) if h.strip().lower()=="year"),None)
+    if year_index is None:raise ValueError("No original internal reporting year field")
+    sample=[]
+    for original_row in sheet.iter_rows(min_row=header_idx+1,max_row=header_idx+45,values_only=True):
+        if len(original_row)>year_index and original_row[year_index] is not None:
+            v=str(original_row[year_index]).strip()
+            if v.endswith(".0"):v=v[:-2]
+            sample.append(v)
+    if not sample or any(v!=str(year) for v in sample):
+        raise ValueError(f"Source workbook internal year differs from {year}Q{quarter}: {sample[:10]}")
     return {"source_header":hdrs[0],"sheet_name":sheet.title,
+            "internal_year_sample_count":len(sample),
+            "internal_year_sample_confirmed":True,
+            "official_filename_2002_Q2_typo":(year,quarter)==(2022,2),
             "claimed_rows":sheet.max_row,"claimed_columns":sheet.max_column,
             "actual_zip_level_kwh_sum_reproduced":False}
 
