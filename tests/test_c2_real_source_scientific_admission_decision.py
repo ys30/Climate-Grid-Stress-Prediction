@@ -39,6 +39,17 @@ class RealSourceAdmissionTests(unittest.TestCase):
         self.assertEqual(len(d["mandatory_scientific_gates"]),3)
         self.assertTrue(all(not v["cleared"] for v in d["mandatory_scientific_gates"]))
         self.assertEqual(d["verified_observed_source"]["source_canonical_years_pass"],23)
+        geo=d["independent_geography_and_load_relevance"]
+        self.assertTrue(geo["actual_2020_2023_sales_MWh_source_available"])
+        self.assertEqual(geo["actual_2020_2023_selected_retail_sales_mwh"],924201242)
+        self.assertEqual(geo["actual_2020_2023_multicounty_not_uniquely_allocated_mwh"],757691947)
+        self.assertEqual(geo["actual_2020_2023_no_source_county_mwh"],20217011)
+        self.assertEqual(geo["actual_2020_2023_one_county_support_conditional_mwh"],146292284)
+        self.assertEqual(sum((geo["actual_2020_2023_multicounty_not_uniquely_allocated_mwh"],
+                              geo["actual_2020_2023_no_source_county_mwh"],
+                              geo["actual_2020_2023_one_county_support_conditional_mwh"])),924201242)
+        self.assertFalse(geo["actual_MWh_per_county_observed"])
+        self.assertFalse(geo["actual_hourly_BA_load_grid_weights_observed"])
 
     def test_tampered_pinned_source_rejected(self):
         p,checksum,_=self.setup_artifact()
