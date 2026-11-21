@@ -32,7 +32,7 @@ def inspect_one(path,sidecar,year,quarter):
         rows=list(rdr)
     if not rows:raise ValueError(f"{year}Q{quarter}: no original rows")
     expected={str(x) for x in range((quarter-1)*3+1,quarter*3+1)}
-    months=Counter();combined=Counter();states=Counter();classes=Counter()
+    months=Counter();combined=Counter();states=Counter();classes=Counter();negative_groups=Counter()
     keys=set();duplicate_keys=0
     for r in rows:
         if r["Year"]!=str(year) or r["Month"] not in expected:
@@ -54,7 +54,7 @@ def inspect_one(path,sidecar,year,quarter):
             except ValueError:states["non_numeric"]+=1
             else:
                 if not math.isfinite(x):states["nonfinite"]+=1
-                elif x<0:states["negative"]+=1
+                elif x<0:\n                    states["negative"]+=1\n                    negative_groups[(m,r["CustomerClass"],c)]+=1
                 elif x==0:states["literal_zero"]+=1
                 else:states["positive"]+=1
     if set(months)!=expected:raise ValueError(f"{year}Q{quarter}: missing original month")
@@ -62,7 +62,7 @@ def inspect_one(path,sidecar,year,quarter):
        "original_publisher_SHA512":digest,"publisher_hash_matched":True,
        "source_rows":len(rows),"month_row_counts":dict(sorted(months.items())),
        "privacy_Combined_counts":dict(combined),"customer_class_row_counts":dict(classes),
-       "kwh_value_states":dict(states),
+       "kwh_value_states":dict(states),\n       "negative_kwh_original_class_combined_month":[{"month":int(key[0]),"customer_class":key[1],"combined":key[2],"rows":count} for key,count in sorted(negative_groups.items())],
        "duplicate_ZIP_month_class_extra_rows":duplicate_keys,
        "reporting_ZIP_aggregate_is_observed_county_load":False}
 
@@ -78,15 +78,15 @@ def run(directory):
     known=next(r for r in quarterly if r["year"]==2020 and r["quarter"]==1)
     if known["source_rows"]!=1719 or known["privacy_Combined_counts"]!={"Y":1421,"N":298}:
         raise ValueError("2020Q1 previously independently pinned original quarter differs")
-    combined=Counter();kwh=Counter()
+    combined=Counter();kwh=Counter();negative_by_class_combined=Counter()
     for r in quarterly:
         combined.update(r["privacy_Combined_counts"])
-        kwh.update(r["kwh_value_states"])
-    return {"status":"REAL_SDGE_16_QUARTER_ORIGINAL_PUBLISHER_HASH_VERIFIED",
+        kwh.update(r["kwh_value_states"])\n        for group in r["negative_kwh_original_class_combined_month"]:\n            negative_by_class_combined[(group["customer_class"],group["combined"])]+=group["rows"]
+    if kwh["negative"]!=50 or sum(negative_by_class_combined.values())!=50:\n        raise ValueError("Original 50 negative kWh rows changed or classification incomplete")\n    return {"status":"REAL_SDGE_16_QUARTER_ORIGINAL_PUBLISHER_HASH_VERIFIED",
         "quarters":16,"years":[2020,2021,2022,2023],
         "raw_source_records":sum(r["source_rows"] for r in quarterly),
         "combined_flags":dict(combined),
-        "kwh_value_states":dict(kwh),"quarterly_original_provenance":quarterly,
+        "kwh_value_states":dict(kwh),\n        "negative_source_class_combined_groups":[{"customer_class":k[0],"combined":k[1],"rows":count} for k,count in sorted(negative_by_class_combined.items())],\n        "negative_kwh_as_meter_errors_proven":False,\n        "quarterly_original_provenance":quarterly,
         "publisher_SHA512_all_quarters_valid":True,
         "privacy_Combined_mapped_to_original_physical_ZIP":False,
         "ZIP_to_county_allocation_performed":False,
