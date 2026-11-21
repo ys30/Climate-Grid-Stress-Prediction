@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 from openpyxl import load_workbook
 
 INDEX="https://www.sce.com/regulatory/regulatory-information/energy-data-reports-compliances"
-FILE_RE=re.compile(r"SCE_(202[0-3])_Q([1-4])_ElectricUsageByZip\\.xlsx",re.I)
+FILE_RE=re.compile(r"SCE_(202[0-3])_Q([1-4])_ElectricUsageByZip\.xlsx",re.I)
 EXPECTED={(y,q) for y in range(2020,2024) for q in range(1,5)}
 FIRST_SHA="0d814db6abdb342171899eb57201cb3d3c62767b48cb2ce89aec537e2342431b"
 
