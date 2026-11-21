@@ -1,0 +1,75 @@
+name: C2 EIA Authentic AZPS2025 Semantic Source QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-azps2025-semantic-source-qa.yml'
+      - 'scripts/c2_azps2025_source_semantic_gate.py'
+      - 'tests/test_c2_azps2025_source_semantic_gate.py'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: c2-azps2025-semantic-qa
+  cancel-in-progress: true
+
+jobs:
+  real-AZPS-source-content:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Synthetic tests of source-only anomaly interpretation
+        run: python -m unittest discover -s tests -p 'test_c2_azps2025_source_semantic_gate.py' -v
+      - name: Retrieve pinned actual source ZIP from previous published GitHub Actions
+        run: |
+          mkdir -p evidence/source evidence/audit
+          curl --fail --location --silent --show-error --retry 3 \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/ys30/Climate-Grid-Stress-Prediction/actions/artifacts/14497859928/zip" \
+            -o evidence/source/eia930_AZPS_2025_published.zip
+          python - <<'PY'
+          import zipfile
+          p='evidence/source/eia930_AZPS_2025_published.zip'
+          with zipfile.ZipFile(p) as z:
+              assert 'raw/eia930_AZPS_2025_he.csv' in z.namelist()
+              assert 'utc_start/eia930_AZPS_2025_start.csv' in z.namelist()
+          print('Original EIA Actions source ZIP acquired')
+          PY
+      - name: Independently verify raw EIA provenance and semantic zero-hour anomaly
+        run: |
+          python -m scripts.c2_azps2025_source_semantic_gate \
+            evidence/source/eia930_AZPS_2025_published.zip \
+            --output evidence/audit/C2_AZPS2025_SOURCE_SEMANTIC_QA.json
+      - name: Assert non-model admission despite source coverage passing
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/audit/C2_AZPS2025_SOURCE_SEMANTIC_QA.json'))
+          assert d['source_year_coverage_pass'] is True
+          assert d['eia_zero_demand_hours']==1
+          assert d['low_positive_review_hours']==2
+          assert d['content_based_model_eligibility_pass'] is False
+          assert d['model_training_permitted'] is False
+          assert d['source_data_modified'] is False
+          print('Real source complete; semantic zero anomaly flagged; E2 blocked')
+          PY
+      - name: Retain source-only semantic audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-azps2025-real-eia-semantic-source-QA-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
