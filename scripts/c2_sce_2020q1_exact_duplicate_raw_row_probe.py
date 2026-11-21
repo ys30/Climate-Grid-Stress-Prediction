@@ -5,7 +5,7 @@ Never select one record silently, assume Combined reports represent
 metered physical zero, or infer ZIP/county load weights.
 """
 from __future__ import annotations
-import argparse,hashlib,json,math
+import argparse,hashlib,json,math,re
 from collections import defaultdict,Counter
 from pathlib import Path
 from openpyxl import load_workbook
@@ -41,7 +41,8 @@ def probe(path):
     sh=wb.worksheets[0]
     header=tuple(str(x).replace(chr(10)," ").strip() if x is not None else "" for x in
                  next(sh.iter_rows(min_row=3,max_row=3,values_only=True))[:8])
-    if header!=EXPECTED_HEADER:raise ValueError("Original SCE column layout changed")
+    if tuple(re.sub(r"\\s+","",x).lower() for x in header)!=tuple(re.sub(r"\\s+","",x).lower() for x in EXPECTED_HEADER):
+        raise ValueError(f"Original SCE column layout changed: {header!r}")
     keyed=defaultdict(list);all_rows=0
     for row_index,row in enumerate(sh.iter_rows(min_row=4,values_only=True),start=4):
         if not row or row[0] is None:continue
