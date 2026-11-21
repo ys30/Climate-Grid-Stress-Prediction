@@ -1,0 +1,82 @@
+name: C2 EIA 23 Canonical BA-Years Real Semantic QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-eia-23-year-semantic-source-qa.yml'
+      - 'scripts/c2_eia_23_year_semantic_source_audit.py'
+      - 'tests/test_c2_eia_23_year_semantic_source_audit.py'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: c2-eia-23-year-semantic-source-audit
+  cancel-in-progress: true
+
+jobs:
+  actual-public-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run fail-closed source-scope regression tests
+        run: python -m unittest discover -s tests -p 'test_c2_eia_23_year_semantic_source_audit.py' -v
+      - name: Download 23 actual original EIA source ZIP artifacts
+        run: |
+          python - <<'PY'
+          import json,os,subprocess
+          from pathlib import Path
+          from scripts.c2_eia_23_year_semantic_source_audit import approved_cohorts
+          directory=Path('evidence/source/annual')
+          directory.mkdir(parents=True,exist_ok=True)
+          for (ba,year),item in sorted(approved_cohorts(Path('docs')).items()):
+              artifact=14486655626 if (ba,year)==('CISO',2024) else item['artifact_id']
+              path=directory/f'{ba}_{year}.zip'
+              with path.open('wb') as out:
+                  subprocess.run([
+                      'gh','api',f'/repos/ys30/Climate-Grid-Stress-Prediction/actions/artifacts/{artifact}/zip',
+                      '-H','Accept: application/vnd.github+json'
+                  ],stdout=out,check=True)
+              if path.stat().st_size<512:
+                  raise ValueError(f'{ba}_{year} returned empty/nonarchive data')
+              print('Retrieved original Actions artifact',ba,year,artifact,path.stat().st_size)
+          PY
+      - name: SHA-verify raw source HE, UTC times, full-year gaps and physical zero
+        run: |
+          mkdir -p evidence/audit
+          python -m scripts.c2_eia_23_year_semantic_source_audit \
+            --archives evidence/source/annual --ledger docs \
+            --output evidence/audit/C2_EIA_23_YEAR_REAL_SOURCE_SEMANTIC_QA.json
+      - name: Check model admission remains blocked
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/audit/C2_EIA_23_YEAR_REAL_SOURCE_SEMANTIC_QA.json'))
+          assert d['BA_years']==23
+          assert d['expected_hours']==201672
+          assert d['absent_time_keys']==1
+          assert d['null_demand_rows']==210
+          assert d['zero_demand_hours']==1
+          assert d['exploratory_low_positive_hours']==2
+          assert d['only_known_zero_low_cohort']=='AZPS_2025'
+          assert d['model_training_permitted'] is False
+          assert d['historical_BA_geography_approved'] is False
+          print('All 23 original EIA BA-years authentic and source-scanned; semantic gate stays closed')
+          PY
+      - name: Preserve only source QA metadata, not original source datasets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-eia-23-year-real-semantic-qa-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
