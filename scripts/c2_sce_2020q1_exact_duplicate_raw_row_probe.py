@@ -39,7 +39,7 @@ def probe(path):
     wb=load_workbook(path,read_only=True,data_only=True)
     if len(wb.worksheets)!=1:raise ValueError("Unexpected SCE sheet count")
     sh=wb.worksheets[0]
-    header=tuple(str(x).strip() if x is not None else "" for x in
+    header=tuple(str(x).replace(chr(10)," ").strip() if x is not None else "" for x in
                  next(sh.iter_rows(min_row=3,max_row=3,values_only=True))[:8])
     if header!=EXPECTED_HEADER:raise ValueError("Original SCE column layout changed")
     keyed=defaultdict(list);all_rows=0
