@@ -5,7 +5,7 @@ validation. A genuine source record requires public downloaded original bytes,
 not a source-page link or a completed synthetic unit test.
 """
 from __future__ import annotations
-import argparse,csv,hashlib,io,json,zipfile
+import argparse,csv,hashlib,io,json,re,zipfile,xml.etree.ElementTree as ET
 from collections import Counter
 from pathlib import Path
 from datetime import datetime,timezone
@@ -40,9 +40,31 @@ def inspect_excel(blob):
     with zipfile.ZipFile(io.BytesIO(blob)) as z:
         if "xl/workbook.xml" not in z.namelist():
             raise ValueError("SCE XLSX missing workbook.xml")
+        xmlns="{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+        shared=[]
+        if "xl/sharedStrings.xml" in z.namelist():
+            x=ET.fromstring(z.read("xl/sharedStrings.xml"))
+            for entry in x.findall(xmlns+"si"):
+                shared.append("".join(t.text or "" for t in entry.iter(xmlns+"t")))
+        sheet_paths=sorted(x for x in z.namelist() if
+                           re.fullmatch(r"xl/worksheets/sheet\\d+\\.xml",x))
+        sheet_previews=[]
+        for sheet_path in sheet_paths[:6]:
+            root=ET.fromstring(z.read(sheet_path))
+            found=[]
+            for row in root.findall(".//"+xmlns+"sheetData/"+xmlns+"row")[:18]:
+                values=[]
+                for cell in row.findall(xmlns+"c")[:18]:
+                    v=cell.find(xmlns+"v")
+                    if v is not None and v.text is not None:
+                        value=shared[int(v.text)] if cell.attrib.get("t")=="s" else v.text
+                        values.append({"cell":cell.attrib.get("r"),"value":str(value)[:100]})
+                if values:found.append({"row":row.attrib.get("r"),"values":values})
+            sheet_previews.append({"sheet_member":sheet_path,"preview":found})
         return {"format":"XLSX","workbook_members":len(z.namelist()),
                 "contains_shared_strings":"xl/sharedStrings.xml" in z.namelist(),
-                "source_column_values_not_yet_semantically_verified":True,
+                "source_sheet_previews":sheet_previews,
+                "source_numeric_interpretation_not_yet_approved":True,
                 "joint_ZIP_county_observed":False,"total_use_inferred_mwh":None}
 
 def inspect_pge(blob):
@@ -78,7 +100,13 @@ def audit(files):
     if len(h)<8:raise ValueError("SDGE source hash text missing")
     result["SDGE"]["publisher_hash_file_original_sha256"]=hash_bytes(h)
     result["SDGE"]["publisher_hash_file_preview"]=h.decode("utf-8",errors="replace")[:1000]
-    result["SDGE"]["publisher_hash_algorithm_and_digest_matched"]=False # require separate explicit source contract
+    digest_match=re.search(r"\\b([0-9A-Fa-f]{128})\\b",h.decode("utf-8",errors="replace"))
+    if not digest_match:raise ValueError("Missing publisher SHA512 in original SDGE hash file")
+    actual_sha512=hashlib.sha512(Path(files["SDGE"]).read_bytes()).hexdigest()
+    if actual_sha512.lower()!=digest_match.group(1).lower():
+        raise ValueError("SDGE original CSV bytes do not match published SHA512")
+    result["SDGE"]["original_csv_sha512"]=actual_sha512
+    result["SDGE"]["publisher_hash_algorithm_and_digest_matched"]=True
     verified=sum(bool(v["original_source_verified"]) for v in result.values())
     if verified<2:
         raise ValueError("Fewer than two independently valid original utility source formats")
