@@ -21,7 +21,10 @@ class SixteenQuarterSourceContracts(unittest.TestCase):
         self.assertEqual(r["kwh_value_states"],{"literal_zero":1,"positive":2})
         self.assertFalse(r["reporting_ZIP_aggregate_is_observed_county_load"])
     def test_bad_publisher_digest_rejected(self):
-        data=b"ZipCode,Month,Year,CustomerClass,Combined,TotalCustomers,TotalkWh,AveragekWh\n"
+        data=(b"ZipCode,Month,Year,CustomerClass,Combined,TotalCustomers,TotalkWh,AveragekWh\n"
+              b"92101,1,2020,R,N,100,100000,1000\n"
+              b"92102,2,2020,R,Y,0,0,0\n"
+              b"92103,3,2020,C,Y,4,220,55\n")
         csv,s=self.make(data,valid_hash=False)
         with self.assertRaisesRegex(ValueError,"SHA512"):
             inspect_one(csv,s,2020,1)
