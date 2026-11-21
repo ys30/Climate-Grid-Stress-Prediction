@@ -31,8 +31,20 @@ def inspect_csv(blob):
         try:preview.append(next(rd)[:40])
         except StopIteration:break
     if not preview:raise ValueError("Empty CSV source")
-    rows=blob.count(b"\n")
-    return {"format":"CSV","approx_line_count":rows,"first_eight_rows":preview,
+    rows=list(csv.DictReader(io.StringIO(blob.decode("utf-8-sig",errors="replace")),dialect=dialect))
+    if not rows:raise ValueError("SDGE source CSV has no records")
+    header=list(rows[0].keys())
+    required={"ZipCode","Month","Year","CustomerClass","Combined","TotalCustomers","TotalkWh","AveragekWh"}
+    if not required.issubset(header):raise ValueError("SDGE original columns differ")
+    if any(r["Year"]!="2020" or r["Month"] not in ("1","2","3") for r in rows):
+        raise ValueError("SDGE original 2020Q1 period mismatch")
+    return {"format":"CSV","actual_data_rows":len(rows),"first_eight_rows":preview,
+            "header_fields":header,
+            "period_month_rows":dict(Counter(r["Month"] for r in rows)),
+            "customer_class_source_rows":dict(Counter(r["CustomerClass"] for r in rows)),
+            "combined_privacy_source_rows":dict(Counter(r["Combined"] for r in rows)),
+            "positive_reported_kwh_rows":sum(float(r["TotalkWh"])>0 for r in rows),
+            "ZIP_merged_to_other_ZIP_source_rows_not_resolved":True,
             "joint_ZIP_county_observed":False,"total_use_inferred_mwh":None}
 
 def inspect_excel(blob):
@@ -47,7 +59,7 @@ def inspect_excel(blob):
             for entry in x.findall(xmlns+"si"):
                 shared.append("".join(t.text or "" for t in entry.iter(xmlns+"t")))
         sheet_paths=sorted(x for x in z.namelist() if
-                           re.fullmatch(r"xl/worksheets/sheet\\d+\\.xml",x))
+                           re.fullmatch(r"xl/worksheets/sheet\d+\.xml",x))
         sheet_previews=[]
         for sheet_path in sheet_paths[:6]:
             root=ET.fromstring(z.read(sheet_path))
@@ -100,7 +112,7 @@ def audit(files):
     if len(h)<8:raise ValueError("SDGE source hash text missing")
     result["SDGE"]["publisher_hash_file_original_sha256"]=hash_bytes(h)
     result["SDGE"]["publisher_hash_file_preview"]=h.decode("utf-8",errors="replace")[:1000]
-    digest_match=re.search(r"\\b([0-9A-Fa-f]{128})\\b",h.decode("utf-8",errors="replace"))
+    digest_match=re.search(r"\b([0-9A-Fa-f]{128})\b",h.decode("utf-8",errors="replace"))
     if not digest_match:raise ValueError("Missing publisher SHA512 in original SDGE hash file")
     actual_sha512=hashlib.sha512(Path(files["SDGE"]).read_bytes()).hexdigest()
     if actual_sha512.lower()!=digest_match.group(1).lower():
