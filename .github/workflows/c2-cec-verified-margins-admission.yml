@@ -1,0 +1,58 @@
+name: C2 Verified CEC Annual Margins Cannot Identify County Agency
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-cec-verified-margins-admission.yml'
+      - 'scripts/c2_cec_verified_marginal_only_admission.py'
+      - 'tests/test_c2_cec_verified_marginal_only_admission.py'
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: c2-cec-verified-marginal-data
+  cancel-in-progress: true
+jobs:
+  grounded-external-geo-admission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Regression tests for independent original-source margins
+        run: python -m unittest discover -s tests -p 'test_c2_cec_verified_marginal_only_admission.py' -v
+      - name: Retrieve exact prior successful CEC source schema artifact
+        run: |
+          mkdir -p evidence/source evidence/audit
+          gh api /repos/ys30/Climate-Grid-Stress-Prediction/actions/artifacts/14695445486/zip \
+            -H 'Accept: application/vnd.github+json' \
+            > evidence/source/CEC_official_schema_pinned.zip
+      - name: Confirm source workbook hashes and nonidentified county agency joint
+        run: |
+          python -m scripts.c2_cec_verified_marginal_only_admission \
+            --artifact evidence/source/CEC_official_schema_pinned.zip \
+            --output evidence/audit/C2_CEC_OFFICIAL_TWO_MARGINS_NOT_JOINT.json
+      - name: Verify mandatory geographical and C1 C2 research locks
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/audit/C2_CEC_OFFICIAL_TWO_MARGINS_NOT_JOINT.json'))
+          assert not d['joint_county_agency_columns_present_in_either_file']
+          assert not d['GEO_LOAD_RELEVANCE_cleared']
+          assert not d['GEO_HISTORICAL_BA_FOOTPRINT_cleared']
+          assert not d['model_training_permitted']
+          assert d['C1_frozen_untouched']
+          print('Original official CEC annual county/agency marginal data: source verified, spatial join not identified')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-cec-marginals-geo-blocker-${{ github.run_id }}
+          path: evidence/audit/
+          retention-days: 30
+          if-no-files-found: warn
