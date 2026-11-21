@@ -1,0 +1,64 @@
+name: C2 SDGE 16 Quarters Authentic 2020-2023 ZIP Electricity Source
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-sdge-16-quarter-source.yml'
+      - 'scripts/c2_sdge_real_2020_2023_sixteen_quarter_source_audit.py'
+      - 'tests/test_c2_sdge_real_2020_2023_sixteen_quarter_source_audit.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: c2-sdge-16-quarter-authentic-source
+  cancel-in-progress: true
+jobs:
+  official-publisher-real-CSV:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Independently regression-check public source integrity contracts
+        run: python -m unittest discover -s tests -p 'test_c2_sdge_real_2020_2023_sixteen_quarter_source_audit.py' -v
+      - name: Download SDGE original 16 quarter publisher CSV and SHA512
+        run: |
+          mkdir -p evidence/source evidence/audit
+          for year in 2020 2021 2022 2023; do
+            for quarter in 1 2 3 4; do
+              base="SDGE-ELEC-${year}-Q${quarter}"
+              curl -fLsS --retry 2 --max-time 90 \
+                "https://energydata.sdge.com/downloadEnergyUsageFile?name=${base}.csv" \
+                -o "evidence/source/${base}.csv"
+              curl -fLsS --retry 2 --max-time 90 \
+                "https://energydata.sdge.com/downloadEnergyUsageFile?name=${base}-HASH.txt" \
+                -o "evidence/source/${base}-HASH.txt"
+            done
+          done
+      - name: SHA512 verify all 16 publisher original sources and classify Combined records
+        run: |
+          python -m scripts.c2_sdge_real_2020_2023_sixteen_quarter_source_audit \
+            --directory evidence/source \
+            --output evidence/audit/C2_SDGE_REAL_2020_2023_16_QUARTER_PROVENANCE.json
+      - name: Preserve 2024-2025 holdout and geographic admission safety
+        run: |
+          python - <<'PY'
+          import json
+          r=json.load(open('evidence/audit/C2_SDGE_REAL_2020_2023_16_QUARTER_PROVENANCE.json'))
+          assert r['quarters']==16
+          assert r['publisher_SHA512_all_quarters_valid']
+          assert r['years']==[2020,2021,2022,2023]
+          assert r['ZIP_to_county_allocation_performed'] is False
+          assert r['historical_CISO_BA_geography_authorized'] is False
+          assert r['model_training_permitted'] is False
+          print('Verified all 16 true quarterly CSVs and publisher hashes; spatial model remains blocked')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-sdge-16-quarter-authentic-source-QA-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
