@@ -1,0 +1,66 @@
+name: C2 Authentic SCE SDGE 2020Q1 Combined Privacy Zero Source Audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-sce-sdge-2020q1-combined-privacy.yml'
+      - 'scripts/c2_sce_sdge_2020q1_combined_privacy_audit.py'
+      - 'tests/test_c2_sce_sdge_2020q1_combined_privacy_audit.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: c2-sce-sdge-2020q1-combined-privacy
+  cancel-in-progress: true
+jobs:
+  authentic-original-utility-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install source XLSX parser
+        run: python -m pip install openpyxl==3.1.5
+      - name: Test privacy provenance distinctions
+        run: python -m unittest discover -s tests -p 'test_c2_sce_sdge_2020q1_combined_privacy_audit.py' -v
+      - name: Retrieve original publisher records and publisher hash
+        run: |
+          mkdir -p evidence/source evidence/audit
+          curl -fLsS --retry 2 --max-time 90 \
+            'https://www.sce.com/sites/default/files/inline-files/SCE_2020_Q1_ElectricUsageByZip.xlsx' \
+            -o evidence/source/SCE_2020_Q1_original.xlsx
+          curl -fLsS --retry 2 --max-time 90 \
+            'https://energydata.sdge.com/downloadEnergyUsageFile?name=SDGE-ELEC-2020-Q1.csv' \
+            -o evidence/source/SDGE_2020_Q1_original.csv
+          curl -fLsS --retry 2 --max-time 90 \
+            'https://energydata.sdge.com/downloadEnergyUsageFile?name=SDGE-ELEC-2020-Q1-HASH.txt' \
+            -o evidence/source/SDGE_2020_Q1_PUBLISHER_SHA512.txt
+      - name: Hash pinned true observed source and count Combined zero and nonnumeric
+        run: |
+          python -m scripts.c2_sce_sdge_2020q1_combined_privacy_audit \
+            --sce evidence/source/SCE_2020_Q1_original.xlsx \
+            --sdge evidence/source/SDGE_2020_Q1_original.csv \
+            --sdge-hash evidence/source/SDGE_2020_Q1_PUBLISHER_SHA512.txt \
+            --output evidence/audit/C2_SCE_SDGE_2020Q1_REAL_COMBINED_PRIVACY_QA.json
+      - name: Fail closed on inferred ZIP county allocation
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/audit/C2_SCE_SDGE_2020Q1_REAL_COMBINED_PRIVACY_QA.json'))
+          assert d['SDGE_publisher_SHA512_verified']
+          assert d['utilities'][1]['rows']==1719
+          assert d['utilities'][1]['combined_Y_rows']==1421
+          assert d['combined_Y_is_not_proof_of_consumption_zero']
+          assert d['model_training_permitted'] is False
+          assert d['county_specific_MWh_observed'] is False
+          print('Privacy/source counts independently observed, zero not physical demand')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-sce-sdge-2020q1-real-privacy-audit-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
