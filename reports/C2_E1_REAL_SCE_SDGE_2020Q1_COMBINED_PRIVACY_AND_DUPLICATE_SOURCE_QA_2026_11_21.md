@@ -53,3 +53,30 @@ Scientific gate statuses remain
 `LOAD_QUALITY_HOLDOUT_PROTOCOL=BLOCKED`,
 `model_training_permitted=false`.
 No C-1 materials changed.
+
+## Verified PG&E access mechanism and official privacy behavior
+
+The official PG&E listing link for 2020 Q1 leads to
+https://pge-energydatarequest.com/public_datasets/nojs?file=PGE_2020_Q1_ElectricUsageByZip.zip&type=electric
+which presents an **Organization Information** form requiring Organization,
+Name and Email Address, plus a data use agreement confirmation.
+The earlier direct `/public_datasets/download` request returned HTML
+because a form-mediated dataset access step was missing; this was NOT a
+valid ZIP response. No identity fields have been fabricated or form
+agreement accepted. The original PG&E source remains unavailable in
+the reproducibility environment until the researcher completes the
+publisher's access requirements and valid original file bytes can be
+independently SHA-pinned.
+
+Official PG&E documentation also states ZIP results are combined with
+neighboring ZIP codes when required aggregation is not met, and that
+some net-metered customers' usage is reported as monthly net values.
+The published CSV may therefore differ from gross hourly BA demand.
+
+Official SDG&E data portal independently states ZIPs failing CPUC
+privacy thresholds are combined with bordering ZIPs:
+https://energydata.sdge.com/homePage
+
+**New priority:** verify source codebooks and explicit Combined donor/
+recipient semantics before ZIP→county calculations; do not infer that
+positive Combined=Y kWh physically belongs to the displayed ZIP.
