@@ -1,0 +1,94 @@
+"""Auditable source-only 2020Q1 ZIP electricity demand sample inventory.
+
+Three separate electric utilities; no county-level allocations or BA demand
+validation. A genuine source record requires public downloaded original bytes,
+not a source-page link or a completed synthetic unit test.
+"""
+from __future__ import annotations
+import argparse,csv,hashlib,io,json,zipfile
+from collections import Counter
+from pathlib import Path
+from datetime import datetime,timezone
+
+SOURCE_URLS={
+ "SDGE":"https://energydata.sdge.com/downloadEnergyUsageFile?name=SDGE-ELEC-2020-Q1.csv",
+ "SDGE_HASH":"https://energydata.sdge.com/downloadEnergyUsageFile?name=SDGE-ELEC-2020-Q1-HASH.txt",
+ "SCE":"https://www.sce.com/sites/default/files/inline-files/SCE_2020_Q1_ElectricUsageByZip.xlsx",
+ "PGE":"https://pge-energydatarequest.com/public_datasets/download?file=PGE_2020_Q1_ElectricUsageByZip.zip&type=electric"
+}
+def hash_bytes(b):return hashlib.sha256(b).hexdigest()
+
+def inspect_csv(blob):
+    sample=blob[:100000].decode("utf-8-sig",errors="replace")
+    if "<html" in sample[:1000].lower() or "<!doctype" in sample[:1000].lower():
+        raise ValueError("Source returned HTML rather than electricity CSV")
+    try:dialect=csv.Sniffer().sniff(sample[:5000],delimiters=",;\t|")
+    except csv.Error:dialect=csv.excel
+    stream=io.StringIO(blob.decode("utf-8-sig",errors="replace"))
+    rd=csv.reader(stream,dialect)
+    preview=[]
+    for _ in range(8):
+        try:preview.append(next(rd)[:40])
+        except StopIteration:break
+    if not preview:raise ValueError("Empty CSV source")
+    rows=blob.count(b"\n")
+    return {"format":"CSV","approx_line_count":rows,"first_eight_rows":preview,
+            "joint_ZIP_county_observed":False,"total_use_inferred_mwh":None}
+
+def inspect_excel(blob):
+    if not zipfile.is_zipfile(io.BytesIO(blob)):raise ValueError("SCE file not a real XLSX ZIP")
+    with zipfile.ZipFile(io.BytesIO(blob)) as z:
+        if "xl/workbook.xml" not in z.namelist():
+            raise ValueError("SCE XLSX missing workbook.xml")
+        return {"format":"XLSX","workbook_members":len(z.namelist()),
+                "contains_shared_strings":"xl/sharedStrings.xml" in z.namelist(),
+                "source_column_values_not_yet_semantically_verified":True,
+                "joint_ZIP_county_observed":False,"total_use_inferred_mwh":None}
+
+def inspect_pge(blob):
+    if not zipfile.is_zipfile(io.BytesIO(blob)):raise ValueError("PGE public response is not ZIP")
+    with zipfile.ZipFile(io.BytesIO(blob)) as z:
+        names=z.namelist()
+        if not names:raise ValueError("PGE ZIP has no members")
+        return {"format":"ZIP","archive_members":names[:50],
+                "source_column_values_not_yet_semantically_verified":True,
+                "joint_ZIP_county_observed":False,"total_use_inferred_mwh":None}
+
+def audit(files):
+    result={}
+    for util in ("PGE","SCE","SDGE"):
+        path=Path(files[util])
+        blob=path.read_bytes()
+        if len(blob)<128:raise ValueError(util+" original file too small/missing")
+        check={"PGE":inspect_pge,"SCE":inspect_excel,"SDGE":inspect_csv}[util](blob)
+        result[util]={"source_url":SOURCE_URLS[util],"original_sha256":hash_bytes(blob),
+                      "source_bytes":len(blob),**check,
+                      "real_original_source_downloaded":True,
+                      "full_2020_2023_CEC_or_CISO_linkage_approved":False}
+    hashfile=Path(files["SDGE_HASH"])
+    h=hashfile.read_bytes()
+    if len(h)<8:raise ValueError("SDGE source hash text missing")
+    result["SDGE"]["publisher_hash_file_original_sha256"]=hash_bytes(h)
+    result["SDGE"]["publisher_hash_file_preview"]=h.decode("utf-8",errors="replace")[:1000]
+    result["SDGE"]["publisher_hash_algorithm_and_digest_matched"]=False # require separate explicit source contract
+    return {"status":"REAL_ORIGINAL_2020Q1_UTILITY_ZIP_SOURCE_SCHEMA_NOT_SPATIAL_ALLOCATION",
+            "period":"2020 Q1","utility_count":3,"source_only":True,
+            "county_metered_MWh_verified":False,"ZIP_to_county_mapping_applied":False,
+            "privacy_merged_ZIP_handling_verified":False,"historical_CISO_membership_verified":False,
+            "model_training_permitted":False,"C1_modified":False,
+            "utility_files":result}
+
+def main():
+    ap=argparse.ArgumentParser(description=__doc__)
+    for key in ("PGE","SCE","SDGE","SDGE_HASH"):
+        ap.add_argument("--"+key.lower().replace("_","-"),type=Path,required=True)
+    ap.add_argument("--output",type=Path,required=True)
+    args=ap.parse_args()
+    if args.output.exists():raise FileExistsError("No overwrite of original source audit")
+    data=audit({k:getattr(args,k.lower()) for k in ("PGE","SCE","SDGE","SDGE_HASH")})
+    args.output.parent.mkdir(parents=True,exist_ok=True)
+    args.output.write_text(json.dumps(data,indent=2)+"\n")
+    print(json.dumps({"status":data["status"],"utilities":list(data["utility_files"]),
+                      "model_training_permitted":False}))
+
+if __name__=="__main__":main()
