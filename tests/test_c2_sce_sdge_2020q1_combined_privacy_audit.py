@@ -21,8 +21,10 @@ class CombinedPrivacySourceTests(unittest.TestCase):
         self.assertFalse(result["strata"][0]["combined_record_zip_allocation_approved"])
     def test_duplicate_zip_month_class_rejected(self):
         r={"zip":"92101","month":"2","year":"2020","class":"C","combined":"N","accounts":"5","kwh":"10"}
-        with self.assertRaisesRegex(ValueError,"duplicate"):
-            summarize_records("SDGE",[r,r])
+        d=summarize_records("SDGE",[r,r])
+        self.assertEqual(d["extra_duplicate_ZIP_month_class_rows"],1)
+        self.assertFalse(d["ZIP_month_class_unique_source_grain_verified"])
+        self.assertFalse(d["aggregation_at_assumed_ZIP_month_class_grain_permitted"])
     def test_bad_combined_flag_rejected(self):
         r={"zip":"92101","month":"2","year":"2020","class":"C","combined":"UNKNOWN","accounts":"5","kwh":"10"}
         with self.assertRaisesRegex(ValueError,"Combined"):
