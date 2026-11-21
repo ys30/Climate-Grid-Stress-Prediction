@@ -1,0 +1,65 @@
+name: C2 Real EIA Source and Scientific Model Admission Decision
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-real-source-scientific-admission.yml'
+      - 'scripts/c2_real_source_scientific_admission_decision.py'
+      - 'tests/test_c2_real_source_scientific_admission_decision.py'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: c2-real-source-scientific-admission
+  cancel-in-progress: true
+
+jobs:
+  verified-source-and-blockers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test source provenance and fail-closed scientific gate
+        run: python -m unittest discover -s tests -p 'test_c2_real_source_scientific_admission_decision.py' -v
+      - name: Retrieve exact independently successful 23-year EIA QA artifact
+        run: |
+          mkdir -p evidence/source evidence/admission
+          gh api /repos/ys30/Climate-Grid-Stress-Prediction/actions/artifacts/14692623744/zip \
+            -H 'Accept: application/vnd.github+json' \
+            > evidence/source/real_EIA_23_BAYEAR_semantic_CI_44861789787.zip
+      - name: Joint original SHA, real EIA records, geography and holdout gate
+        run: |
+          python -m scripts.c2_real_source_scientific_admission_decision \
+            evidence/source/real_EIA_23_BAYEAR_semantic_CI_44861789787.zip \
+            --repo-root . --output evidence/admission/C2_REAL_SOURCE_SCIENTIFIC_GATE.json
+      - name: Assert all three independent blockers and model lock
+        run: |
+          python - <<'PY'
+          import json
+          p='evidence/admission/C2_REAL_SOURCE_SCIENTIFIC_GATE.json'
+          d=json.load(open(p))
+          assert d['verified_observed_source']['expected_hours']==201672
+          assert d['verified_observed_source']['zero_demand_hours']==1
+          assert len(d['mandatory_scientific_gates'])==3
+          assert not any(x['cleared'] for x in d['mandatory_scientific_gates'])
+          assert not d['model_training_permitted']
+          assert not d['future_SSP_PyPSA_stress_claims_permitted']
+          print('C2 actual EIA source verified; formal model admission BLOCKED')
+          PY
+      - name: Preserve source-only scientific decision manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-real-scientific-admission-${{ github.run_id }}
+          path: evidence/admission/
+          if-no-files-found: warn
+          retention-days: 30
