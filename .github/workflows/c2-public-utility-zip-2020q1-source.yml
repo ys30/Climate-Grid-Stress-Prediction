@@ -1,0 +1,68 @@
+name: C2 Genuine 2020Q1 PGE SCE SDGE ZIP Electric Usage Source Audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-public-utility-zip-2020q1-source.yml'
+      - 'scripts/c2_public_utility_zip_2020q1_source_probe.py'
+      - 'tests/test_c2_public_utility_zip_2020q1_source_probe.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: c2-public-utility-zip-2020q1-source
+  cancel-in-progress: true
+jobs:
+  original-public-records:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Fail-closed synthetic source format and provenance tests
+        run: python -m unittest discover -s tests -p 'test_c2_public_utility_zip_2020q1_source_probe.py' -v
+      - name: Download three actual publisher originals and SDGE source digest
+        run: |
+          mkdir -p evidence/source evidence/audit
+          curl -fLsS --retry 2 --max-time 90 \
+            'https://energydata.sdge.com/downloadEnergyUsageFile?name=SDGE-ELEC-2020-Q1.csv' \
+            -o evidence/source/SDGE_2020_Q1.csv
+          curl -fLsS --retry 2 --max-time 90 \
+            'https://energydata.sdge.com/downloadEnergyUsageFile?name=SDGE-ELEC-2020-Q1-HASH.txt' \
+            -o evidence/source/SDGE_2020_Q1_hash.txt
+          curl -fLsS --retry 2 --max-time 90 \
+            'https://www.sce.com/sites/default/files/inline-files/SCE_2020_Q1_ElectricUsageByZip.xlsx' \
+            -o evidence/source/SCE_2020_Q1.xlsx
+          curl -fLsS --retry 2 --max-time 90 \
+            'https://pge-energydatarequest.com/public_datasets/download?file=PGE_2020_Q1_ElectricUsageByZip.zip&type=electric' \
+            -o evidence/source/PGE_2020_Q1.zip
+      - name: SHA-verify original formats and preserve separate source metadata
+        run: |
+          python -m scripts.c2_public_utility_zip_2020q1_source_probe \
+            --pge evidence/source/PGE_2020_Q1.zip \
+            --sce evidence/source/SCE_2020_Q1.xlsx \
+            --sdge evidence/source/SDGE_2020_Q1.csv \
+            --sdge-hash evidence/source/SDGE_2020_Q1_hash.txt \
+            --output evidence/audit/C2_PUBLIC_2020Q1_REAL_UTILITY_ZIP_DATA_SOURCE_QA.json
+      - name: Block model admission and unstated ZIP county weights
+        run: |
+          python - <<'PY'
+          import json
+          x=json.load(open('evidence/audit/C2_PUBLIC_2020Q1_REAL_UTILITY_ZIP_DATA_SOURCE_QA.json'))
+          assert x['utility_count']==3
+          assert all(v['real_original_source_downloaded'] for v in x['utility_files'].values())
+          assert x['model_training_permitted'] is False
+          assert x['ZIP_to_county_mapping_applied'] is False
+          assert x['privacy_merged_ZIP_handling_verified'] is False
+          print('Three source formats validated; 2020Q1 zip county allocation NOT YET verified')
+          PY
+      - name: Retain source inventory only (not original publisher records)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-public-electric-utility-2020q1-source-QA-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
