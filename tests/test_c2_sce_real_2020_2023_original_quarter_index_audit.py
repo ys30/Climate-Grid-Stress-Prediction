@@ -7,13 +7,16 @@ class SCEHistoricalPublisherIndexTests(unittest.TestCase):
         self.parts=[]
         for year,q in sorted(EXPECTED):
             directory="inline-files" if year==2020 else "custom-files/PDF_Files"
-            self.parts.append(f'<a href="/sites/default/files/{directory}/SCE_{year}_Q{q}_ElectricUsageByZip.xlsx">Q{q}</a>')
+            filename=f"SCE_{year}_Q{q}_ElectricUsageByZip.xlsx"
+            if (year,q)==(2022,2):filename="SCE_2002_Q2_ElectricUsageByZip.xlsx"
+            self.parts.append(f'<a href="/sites/default/files/{directory}/{filename}">Q{q}</a>')
         self.html="<html><body>"+ "".join(self.parts)+"</body></html>"
 
     def test_16_distinct_official_hrefs(self):
         x=source_links(self.html)
         self.assertEqual(len(x),16)
         self.assertTrue(x[(2023,4)].endswith("SCE_2023_Q4_ElectricUsageByZip.xlsx"))
+        self.assertTrue(x[(2022,2)].endswith("SCE_2002_Q2_ElectricUsageByZip.xlsx"))
 
     def test_missing_quarter_fails_closed(self):
         with self.assertRaisesRegex(ValueError,"index incomplete"):
