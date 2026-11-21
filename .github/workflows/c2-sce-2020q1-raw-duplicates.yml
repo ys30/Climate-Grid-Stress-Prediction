@@ -1,0 +1,57 @@
+name: C2 Authentic SCE 2020Q1 Exact Duplicate Raw Row Audit
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-sce-2020q1-raw-duplicates.yml'
+      - 'scripts/c2_sce_2020q1_exact_duplicate_raw_row_probe.py'
+      - 'tests/test_c2_sce_2020q1_exact_duplicate_raw_row_probe.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: c2-sce-2020q1-raw-duplicates
+  cancel-in-progress: true
+jobs:
+  actual-SCE-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned workbook parser
+        run: python -m pip install openpyxl==3.1.5
+      - name: Run zero-vs-blank and ZIP identity tests
+        run: python -m unittest discover -s tests -p 'test_c2_sce_2020q1_exact_duplicate_raw_row_probe.py' -v
+      - name: Download original SCE aggregated public workbook
+        run: |
+          mkdir -p evidence/source evidence/audit
+          curl -fLsS --retry 3 --max-time 90 \
+            'https://www.sce.com/sites/default/files/inline-files/SCE_2020_Q1_ElectricUsageByZip.xlsx' \
+            -o evidence/source/SCE_2020_Q1_publisher.xlsx
+      - name: Audit exact Excel row numbers and repeated payloads with SHA pin
+        run: |
+          python -m scripts.c2_sce_2020q1_exact_duplicate_raw_row_probe \
+            --sce evidence/source/SCE_2020_Q1_publisher.xlsx \
+            --output evidence/audit/C2_SCE_2020Q1_ACTUAL_EXACT_DUPLICATE_SOURCE_ROWS.json
+      - name: Reject physical ZIP-by-county allocation and model training
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/audit/C2_SCE_2020Q1_ACTUAL_EXACT_DUPLICATE_SOURCE_ROWS.json'))
+          assert d['observed_rows']==9324
+          assert d['extra_duplicate_rows']==15
+          assert not d['source_aggregation_permitted']
+          assert not d['physical_consumer_county_allocation_approved']
+          assert not d['model_training_permitted']
+          print('Verified 15 original extra SCE rows; physical ZIP/county allocations blocked')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-sce-2020q1-exact-duplicate-audit-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
