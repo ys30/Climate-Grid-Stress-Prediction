@@ -60,19 +60,33 @@ def audit(files):
         path=Path(files[util])
         blob=path.read_bytes()
         if len(blob)<128:raise ValueError(util+" original file too small/missing")
-        check={"PGE":inspect_pge,"SCE":inspect_excel,"SDGE":inspect_csv}[util](blob)
-        result[util]={"source_url":SOURCE_URLS[util],"original_sha256":hash_bytes(blob),
-                      "source_bytes":len(blob),**check,
-                      "real_original_source_downloaded":True,
+        result[util]={"source_url":SOURCE_URLS[util],
+                      "response_sha256":hash_bytes(blob),"response_bytes":len(blob),
+                      "original_source_verified":False,
                       "full_2020_2023_CEC_or_CISO_linkage_approved":False}
+        try:
+            check={"PGE":inspect_pge,"SCE":inspect_excel,"SDGE":inspect_csv}[util](blob)
+        except ValueError as exc:
+            result[util]["source_format_error"]=str(exc)
+            result[util]["response_head_preview"]=blob[:240].decode("utf-8",errors="replace")
+            result[util]["source_download_unverified"]=True
+        else:
+            result[util].update(check)
+            result[util]["original_source_verified"]=True
     hashfile=Path(files["SDGE_HASH"])
     h=hashfile.read_bytes()
     if len(h)<8:raise ValueError("SDGE source hash text missing")
     result["SDGE"]["publisher_hash_file_original_sha256"]=hash_bytes(h)
     result["SDGE"]["publisher_hash_file_preview"]=h.decode("utf-8",errors="replace")[:1000]
     result["SDGE"]["publisher_hash_algorithm_and_digest_matched"]=False # require separate explicit source contract
-    return {"status":"REAL_ORIGINAL_2020Q1_UTILITY_ZIP_SOURCE_SCHEMA_NOT_SPATIAL_ALLOCATION",
-            "period":"2020 Q1","utility_count":3,"source_only":True,
+    verified=sum(bool(v["original_source_verified"]) for v in result.values())
+    if verified<2:
+        raise ValueError("Fewer than two independently valid original utility source formats")
+    return {"status":"PARTIAL_GENUINE_2020Q1_SOURCE_VERIFICATION_NO_COUNTY_MODEL_ADMISSION",
+            "period":"2020 Q1","utility_count":3,
+            "verified_original_utility_count":verified,
+            "all_three_original_utility_files_verified":verified==3,
+            "source_only":True,
             "county_metered_MWh_verified":False,"ZIP_to_county_mapping_applied":False,
             "privacy_merged_ZIP_handling_verified":False,"historical_CISO_membership_verified":False,
             "model_training_permitted":False,"C1_modified":False,
@@ -88,7 +102,7 @@ def main():
     data=audit({k:getattr(args,k.lower()) for k in ("PGE","SCE","SDGE","SDGE_HASH")})
     args.output.parent.mkdir(parents=True,exist_ok=True)
     args.output.write_text(json.dumps(data,indent=2)+"\n")
-    print(json.dumps({"status":data["status"],"utilities":list(data["utility_files"]),
+    print(json.dumps({"status":data["status"],"utilities":list(data["utility_files"]), "verified":data["verified_original_utility_count"],
                       "model_training_permitted":False}))
 
 if __name__=="__main__":main()
