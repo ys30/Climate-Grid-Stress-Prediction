@@ -34,7 +34,7 @@ def asnum(value):
 def summarize_records(utility,items):
     strata=defaultdict(lambda:{"rows":0,"zip_codes":set(),"kwh_state":Counter(),
                                "accounts_state":Counter(),"duplicate_zip_month_class":0})
-    keys=set();total=0;invalid_period=0
+    keys=set();duplicate_keys=Counter();duplicate_samples=[];total=0;invalid_period=0
     for r in items:
         total+=1
         zip_code=str(r["zip"]).strip()
@@ -46,7 +46,13 @@ def summarize_records(utility,items):
         if year!="2020" or month not in {"1","2","3"}:invalid_period+=1
         if combined not in {"Y","N"}:raise ValueError(f"{utility} unknown Combined code: {combined!r}")
         key=(zip_code,month,clazz)
-        if key in keys:raise ValueError(f"{utility} duplicate ZIP-month-class")
+        if key in keys:
+            duplicate_keys[key]+=1
+            if len(duplicate_samples)<8:
+                duplicate_samples.append({"zip":zip_code,"month":month,"class":clazz,
+                                          "combined":combined,
+                                          "kwh_state":asnum(r["kwh"]),
+                                          "accounts_state":asnum(r["accounts"])})
         keys.add(key)
         bucket=strata[(month,clazz,combined)]
         bucket["rows"]+=1
@@ -62,7 +68,11 @@ def summarize_records(utility,items):
             "kwh_state_counts":dict(v["kwh_state"]),"accounts_state_counts":dict(v["accounts_state"]),
             "reported_zero_kwh_is_true_zero_verified":False,
             "combined_record_zip_allocation_approved":False})
-    return {"utility":utility,"rows":total,"distinct_record_keys":len(keys),
+    return {"utility":utility,"rows":total,"distinct_ZIP_month_class_keys":len(keys),
+            "extra_duplicate_ZIP_month_class_rows":sum(duplicate_keys.values()),
+            "duplicate_ZIP_month_class_samples":duplicate_samples,
+            "ZIP_month_class_unique_source_grain_verified":len(duplicate_keys)==0,
+            "aggregation_at_assumed_ZIP_month_class_grain_permitted":False,
             "strata":out,"combined_Y_rows":sum(x["records"] for x in out if x["combined"]=="Y"),
             "combined_N_rows":sum(x["records"] for x in out if x["combined"]=="N")}
 
