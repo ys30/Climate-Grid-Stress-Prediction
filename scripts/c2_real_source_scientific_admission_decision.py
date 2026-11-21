@@ -18,6 +18,15 @@ REQUIRED_GEO_EVIDENCE={
     "reports/C2_E1_VERIFIED_BA_UTILITY_GEO_JOIN_COVERAGE_AND_EIA861_SALES_NEXT_GATE_2026_11_15.md":
         ("1,418","979","GEO_LOAD_RELEVANCE=BLOCKED"),
 }
+REQUIRED_SALES_EVIDENCE={
+    "reports/C2_E1_VERIFIED_REAL_EIA861_SALES_GEO_COVERAGE_TWO_SUCCESSFUL_ACTIONS_RUNS_2026_11_17.md":
+        ("996d6ac640ab664272187711a45b5944cf3116cab882ca05749f93d4a74ae9fe",
+         "44037370237","2,224","24/24"),
+    "reports/C2_E1_ACTUAL_924M_MWH_COUNTY_PARTIAL_IDENTIFICATION_BOUNDS_2026_11_17.md":
+        ("924,201,242","146,292,284","757,691,947","20,217,011","14400293606"),
+    "reports/C2_E1_EXACT_810_ORIGINAL_EIA861_MWH_NULL_SECTOR_CELL_LINEAGE_2026_11_17.md":
+        ("810","468","342","44217883298"),
+}
 REQUIRED_SOURCE_EVIDENCE={
     "reports/E1_FULL_2020_2025_REAL_ERA5_EIA930_SOURCE_DATA_FROZEN_QA.md":
         ("210,432","210,172","260","70","43629200989")
@@ -53,7 +62,7 @@ def summarize(semantic_artifact,repository_root):
         ("2025-07-31T21:00:00Z",273.0),
         ("2025-07-31T22:00:00Z",485.0)]:
         raise ValueError("Source-zero/low-positive research review values changed")
-    for source,terms in {**REQUIRED_GEO_EVIDENCE,**REQUIRED_SOURCE_EVIDENCE}.items():
+    for source,terms in {**REQUIRED_GEO_EVIDENCE,**REQUIRED_SOURCE_EVIDENCE,**REQUIRED_SALES_EVIDENCE}.items():
         report=(root/source).read_text(encoding="utf-8")
         if any(term not in report for term in terms):
             raise ValueError(f"Frozen evidence report requires independent refresh: {source}")
@@ -61,7 +70,7 @@ def summarize(semantic_artifact,repository_root):
         {"id":"GEO_HISTORICAL_BA_FOOTPRINT","cleared":False,
          "evidence":"2018 HIFLD candidates do not establish 2020–2025 BA operating area; CISO make_valid sensitivity ~7.08%, AZPS/SRP candidate area overlap ~96.66% of SRP"},
         {"id":"GEO_LOAD_RELEVANCE","cleared":False,
-         "evidence":"1,418 utility-state association rows, 979 county matches; association count is not observed BA load/customer geography"},
+         "evidence":"Authentic 2020–2023 observed annual retail sales total 924,201,242 MWh, of which 757,691,947 MWh has multi-county support and is not uniquely assignable to a county, and 20,217,011 MWh lacks county-source support; actual 2020–2025 hourly BA load locations remain unobserved"},
         {"id":"LOAD_QUALITY_HOLDOUT_PROTOCOL","cleared":False,
          "evidence":"23/24 annual canonical source pass, AZPS2023 two original negatives; newest AZPS2025 genuine original 0 MW and two 273/485 MW exploratory review records"},
     ]
@@ -80,6 +89,15 @@ def summarize(semantic_artifact,repository_root):
             "AZPS_SRP_candidate_polygon_SRP_area_overlap_pct_approx":96.66,
             "utility_BA_state_association_rows":1418,
             "county_matched_association_rows":979,
+            "verified_PUDL_fixed_release":"v2026.10.0",
+            "actual_2020_2023_selected_retail_sales_mwh":924201242,
+            "actual_2020_2023_one_county_support_conditional_mwh":146292284,
+            "actual_2020_2023_multicounty_not_uniquely_allocated_mwh":757691947,
+            "actual_2020_2023_no_source_county_mwh":20217011,
+            "actual_2020_2023_sales_MWh_source_available":True,
+            "actual_MWh_per_county_observed":False,
+            "actual_hourly_BA_load_grid_weights_observed":False,
+            "observed_2020_2023_original_null_sales_cells_lineage":810,
             "measured_customer_or_load_location_weights_available":False},
         "mandatory_scientific_gates":blockers,
         "all_mandatory_gates_cleared":False,
