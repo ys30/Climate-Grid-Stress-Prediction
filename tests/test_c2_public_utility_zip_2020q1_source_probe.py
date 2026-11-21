@@ -4,8 +4,11 @@ from scripts.c2_public_utility_zip_2020q1_source_probe import inspect_csv,inspec
 
 class UtilityZipSourceProbeTests(unittest.TestCase):
     def test_csv_real_source_format_and_html_rejected(self):
-        d=inspect_csv(b"zip,month,kwh\n92101,2020-01,123\n")
+        d=inspect_csv(b"ZipCode,Month,Year,CustomerClass,Combined,TotalCustomers,TotalkWh,AveragekWh\n92101,1,2020,R,N,5,123,24.6\n")
         self.assertEqual(d["format"],"CSV")
+        self.assertEqual(d["actual_data_rows"],1)
+        self.assertEqual(d["period_month_rows"],{"1":1})
+        self.assertEqual(d["combined_privacy_source_rows"],{"N":1})
         self.assertFalse(d["joint_ZIP_county_observed"])
         with self.assertRaisesRegex(ValueError,"HTML"):
             inspect_csv(b"<!DOCTYPE html><html>error</html>")
