@@ -1,0 +1,62 @@
+name: C2 External CEC QFER County versus Utility Schema Probe
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-cec-qfer-external-schema.yml'
+      - 'scripts/c2_cec_qfer_external_county_utility_schema_probe.py'
+      - 'tests/test_c2_cec_qfer_external_county_utility_schema_probe.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c2-cec-qfer-external-schema
+  cancel-in-progress: true
+
+jobs:
+  source-inventory-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test conservative external workbook schema inspection
+        run: python -m unittest discover -s tests -p 'test_c2_cec_qfer_external_county_utility_schema_probe.py' -v
+      - name: Retrieve original official annual county and utility workbooks
+        run: |
+          mkdir -p evidence/source evidence/qa
+          curl -fLsS --retry 3 --max-time 80 \
+            'https://www.energy.ca.gov/filebrowser/download/8144?fid=8144' \
+            -o evidence/source/CEC_QFER_county_annual_original.xlsx
+          curl -fLsS --retry 3 --max-time 80 \
+            'https://www.energy.ca.gov/filebrowser/download/8168?fid=8168' \
+            -o evidence/source/CEC_QFER_utility_annual_original.xlsx
+      - name: Read original metadata and year/field labels without estimating county MWh
+        run: |
+          python -m scripts.c2_cec_qfer_external_county_utility_schema_probe \
+            --county-annual evidence/source/CEC_QFER_county_annual_original.xlsx \
+            --utility-annual evidence/source/CEC_QFER_utility_annual_original.xlsx \
+            --output evidence/qa/C2_CEC_QFER_OFFICIAL_ANNUAL_WORKBOOK_SCHEMA.json
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/qa/C2_CEC_QFER_OFFICIAL_ANNUAL_WORKBOOK_SCHEMA.json'))
+          assert len(d['county_annual']['sheets'])>0
+          assert len(d['utility_annual']['sheets'])>0
+          assert d['file_level_joint_county_utility_allocation_established'] is False
+          assert d['actual_meter_county_allocation_established'] is False
+          assert d['model_training_permitted'] is False
+          print('Real CEC workbooks inspected without promoting source totals to CISO BA model geography')
+          PY
+      - name: Preserve hashes and schema preview only (no full CEC data redistribution)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-cec-qfer-source-schema-${{ github.run_id }}
+          path: evidence/qa/
+          if-no-files-found: warn
+          retention-days: 30
