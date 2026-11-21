@@ -95,7 +95,7 @@ def main():
     html=fetch(INDEX).decode("utf-8",errors="replace")
     result=collect(html,fetch)
     a.output.parent.mkdir(parents=True,exist_ok=True)
-    a.output.write_text(json.dumps(result,indent=2)+"\\n")
+    a.output.write_text(json.dumps(result,indent=2)+chr(10))
     print(json.dumps({"quarters_verified":result["quarter_count_verified"],
                       "model_training_permitted":False}))
     if not result["all_2020_2023_original_sources_verified"]:
