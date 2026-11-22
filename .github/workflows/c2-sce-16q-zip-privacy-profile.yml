@@ -1,0 +1,70 @@
+name: C2 SCE 16Q Authentic ZIP Privacy Source Profile
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/c2-sce-16q-zip-privacy-profile.yml'
+      - 'scripts/c2_sce_16q_real_zip_privacy_source_profile.py'
+      - 'tests/test_c2_sce_16q_real_zip_privacy_source_profile.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: c2-sce-16q-zip-privacy-profile
+  cancel-in-progress: true
+jobs:
+  original-publisher-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install exact source reader
+        run: python -m pip install openpyxl==3.1.5 requests==2.32.3
+      - name: Test source merged privacy and strict original reporting year
+        run: python -m unittest discover -s tests -p 'test_c2_sce_16q_real_zip_privacy_source_profile.py' -v
+      - name: Download original SHA-pinned SCE 16-quarter source manifest
+        run: |
+          mkdir -p evidence/manifest evidence/audit
+          gh api /repos/ys30/Climate-Grid-Stress-Prediction/actions/artifacts/14762472124/zip > evidence/manifest/verified_SCE16Q.zip
+          python - <<'PY'
+          import zipfile,pathlib,json,hashlib
+          src=pathlib.Path('evidence/manifest/verified_SCE16Q.zip')
+          with zipfile.ZipFile(src) as z:
+              names=z.namelist()
+              assert names==['C2_SCE_2020_2023_REAL_16_QUARTER_ORIGINAL_XLSX_SHA.json']
+              raw=z.read(names[0])
+          assert hashlib.sha256(raw).hexdigest()=='90611f178db3b7c96a39dc76c7e9ef721ce349d12391dd24da3e3ebe8b9e598b'
+          d=json.loads(raw)
+          assert d['all_2020_2023_original_sources_verified']
+          pathlib.Path('evidence/manifest/SCE_16Q_PUBLISHER_PINNED.json').write_bytes(raw)
+          PY
+      - name: Re-fetch 16 exact original source files and audit every ZIP-class row
+        run: |
+          python -m scripts.c2_sce_16q_real_zip_privacy_source_profile \
+            --pinned-manifest evidence/manifest/SCE_16Q_PUBLISHER_PINNED.json \
+            --output evidence/audit/C2_SCE_16Q_ORIGINAL_ZIP_PRIVACY_SOURCE_QA.json
+      - name: Guard research gating
+        run: |
+          python - <<'PY'
+          import json
+          d=json.load(open('evidence/audit/C2_SCE_16Q_ORIGINAL_ZIP_PRIVACY_SOURCE_QA.json'))
+          assert d['verified_2020_2023_quarters']==16
+          assert d['original_publisher_source_sha256_all_16_confirmed']
+          assert d['source_rows']>0
+          assert d['model_training_permitted'] is False
+          assert d['ZIP_privacy_merged_geography_identified'] is False
+          assert d['county_MWh_estimates_calculated'] is False
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: c2-sce-16q-original-ZIP-privacy-source-${{ github.run_id }}
+          path: evidence/audit/
+          if-no-files-found: warn
+          retention-days: 30
