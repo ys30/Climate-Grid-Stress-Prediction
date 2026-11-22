@@ -11,6 +11,8 @@ on:
       - 'docs/E2_WAVE3_VERIFIED_STATUS.json'
       - 'docs/E2_CISO2024_STANDALONE_SOURCE_STATUS.json'
       - 'docs/E2_AZPS2023_DIAGNOSTIC_STATUS.json'
+      - 'docs/E2_CISO_ARCO_FEB2024_PAIRED_VERIFIED_STATUS_2026_11_22.json'
+      - 'tests/test_c2_real_feb2024_paired_evidence_status.py'
       - '.github/workflows/c2-ba0-coverage-contracts.yml'
   pull_request:
     paths:
@@ -23,6 +25,8 @@ on:
       - 'docs/E2_WAVE3_VERIFIED_STATUS.json'
       - 'docs/E2_CISO2024_STANDALONE_SOURCE_STATUS.json'
       - 'docs/E2_AZPS2023_DIAGNOSTIC_STATUS.json'
+      - 'docs/E2_CISO_ARCO_FEB2024_PAIRED_VERIFIED_STATUS_2026_11_22.json'
+      - 'tests/test_c2_real_feb2024_paired_evidence_status.py'
       - '.github/workflows/c2-ba0-coverage-contracts.yml'
   workflow_dispatch:
 permissions:
@@ -44,5 +48,7 @@ jobs:
         run: |
           python scripts/c2_eia930_wave_status_matrix.py docs/E2_WAVE1_VERIFIED_STATUS.json docs/E2_WAVE2_VERIFIED_STATUS.json docs/E2_WAVE3_VERIFIED_STATUS.json --standalone docs/E2_CISO2024_STANDALONE_SOURCE_STATUS.json --diagnostic docs/E2_AZPS2023_DIAGNOSTIC_STATUS.json --output /tmp/c2_ba_year_eia_source_inventory.csv
           python -c "import csv; r=list(csv.DictReader(open('/tmp/c2_ba_year_eia_source_inventory.csv'))); assert len(r)==24 and sum(x['source_verified']=='True' for x in r)==23; assert sum(x['source_status']=='authenticated_negative_demand_strict_gate_failed' for x in r)==1; assert all(x['model_training_permitted']=='False' for x in r)"
+      - name: Guard real 696-hour paired evidence and no-model claims
+        run: python -m unittest discover -s tests -p 'test_c2_real_feb2024_paired_evidence_status.py' -v
       - name: Compile data audit tool
         run: python -m py_compile scripts/c2_ba_hourly_join_audit.py
