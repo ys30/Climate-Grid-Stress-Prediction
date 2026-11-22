@@ -1,0 +1,15 @@
+{
+  "ba": "CISO",
+  "year": 2024,
+  "source_gate_pass": true,
+  "status": "standalone_artifact_hash_and_annual_gate_pass",
+  "evidence_document": "docs/E2_CISO_2024_EMPIRICAL_SOURCE_GATE_2026-11-18.md",
+  "run_id": 44427373589,
+  "job_id": 135244337622,
+  "artifact_id": 14486655626,
+  "expected_hours": 8784,
+  "valid_demand_hours": 8784,
+  "raw_sha256": "04b927f1b890e0eb91df89b0db77f59010e0e37c4a63509b2ad34e61e0a8293d",
+  "csv_sha256": "375403e3fd278280bf8eb4140661f6dc7ab9102fa7111f2489a05c44f3051d9c",
+  "limitations": "Independent source-only CISO 2024 provenance; no ERA5 joint validation or model eligibility"
+}
