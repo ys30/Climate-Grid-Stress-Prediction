@@ -1,0 +1,34 @@
+{
+  "status": "source_clock_match_verified",
+  "verification_date_utc": "2026-11-22",
+  "scope": "CISO EIA930 demand vs near-Sacramento single-cell ARCO ERA5 t2m, February 2024",
+  "year": 2024,
+  "month": 2,
+  "expected_hours": 696,
+  "paired_hours": 696,
+  "eia": {
+    "run_id": 44427373589,
+    "artifact_id": 14486655626,
+    "source_csv_sha256": "375403e3fd278280bf8eb4140661f6dc7ab9102fa7111f2489a05c44f3051d9c"
+  },
+  "weather": {
+    "run_id": 44762425007,
+    "artifact_id": 14642865563,
+    "source_csv_sha256": "b572cfd5c2c5df6025f6e4f54b4e4ec97ab261c8c0d53dae1ec18e37b98c9a75",
+    "point_latitude": 38.5,
+    "point_longitude": -121.5,
+    "weather_proxy_qualified": false
+  },
+  "paired": {
+    "run_id": 44764274383,
+    "job_id": 136384610168,
+    "job_conclusion": "success",
+    "artifact_id": 14661785105,
+    "artifact_expires_at": "2026-12-20T19:16:38Z",
+    "independently_checked_join_csv_sha256": "f8eb3f2e9fa08b6223c6b2bb0b5c5e87da5b15e891eb688452695ac1bec8e0b0"
+  },
+  "model_training_permitted": false,
+  "causal_attribution_permitted": false,
+  "future_projection_permitted": false,
+  "provenance_notes": "Run jobs and artifact existence checked on 2026-11-22; joined CSV SHA is from prior independently documented byte audit, not rehashed in this session."
+}
