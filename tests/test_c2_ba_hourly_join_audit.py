@@ -44,5 +44,25 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(res['ba_years'][0]['duplicate_rows'],1)
         self.assertEqual(res['ba_years'][0]['paired_valid_hours'],0)
 
+
+    def test_three_duplicate_rows_remain_invalid(self):
+        row = ['CISO','2021-01-01T00:00:00Z','5']
+        d = self.write('d.csv', 'demand_mw', [row, row, row])
+        w = self.write('w.csv', 'weather_value', [row])
+        result = audit(d, w, ['CISO'], 2021, 2021, 0.00001)
+        entry = result['ba_years'][0]
+        self.assertEqual(entry['duplicate_rows'], 2)
+        self.assertEqual(entry['paired_valid_hours'], 0)
+        self.assertFalse(entry['coverage_pass'])
+
+    def test_malformed_utc_rejected_even_with_valid_hour(self):
+        valid = ['CISO', '2021-01-01T00:00:00Z', '5']
+        bad = ['CISO', '2021-01-01T01:00:00-07:00', '5']
+        d = self.write('d.csv', 'demand_mw', [valid, bad])
+        w = self.write('w.csv', 'weather_value', [valid])
+        result = audit(d, w, ['CISO'], 2021, 2021, 0.00001)
+        self.assertEqual(result['utc_input_errors']['demand_count'], 1)
+        self.assertFalse(result['ba_years'][0]['coverage_pass'])
+
 if __name__ == '__main__':
     unittest.main()
