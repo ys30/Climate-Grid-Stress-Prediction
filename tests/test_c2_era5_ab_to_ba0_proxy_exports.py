@@ -35,6 +35,10 @@ class TestFourMonthBridge(unittest.TestCase):
             with f.open("w",newline="") as handle:
                 w=csv.DictWriter(handle,fieldnames=list(rows[0]))
                 w.writeheader();w.writerows(rows)
+            rows[0]["timestamp_utc_start"]=rows[0]["timestamp_utc_start"].replace("Z","+00:00")
+            with f.open("w",newline="") as handle:
+                w=csv.DictWriter(handle,fieldnames=list(rows[0]))
+                w.writeheader();w.writerows(rows)
             out=validate(f,self.evidence())
             self.assertEqual(len(out["A_HIFLD_2018"]),11904)
             self.assertEqual(len(out["B_TIGER_2024"]),11904)
