@@ -1,0 +1,61 @@
+name: C2 BA-0 Restore real four-month ERA5 proxy exports (manual only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  source-pinned-four-month-proxy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Obtain four original archived month source products
+        uses: actions/download-artifact@v4
+        with:
+          run-id: 43659672871
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          pattern: c2-e1-real-ERA5-monthly-AB-*-NOT-MODEL
+          path: evidence/months
+      - name: Verify all four original source months with pinned source hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find evidence/months -name REAL_ERA5_MONTH_AB_SOURCE_MANIFEST.json -type f | sort)
+          test "${#manifests[@]}" -eq 4
+          folders=()
+          for file in "${manifests[@]}"; do folders+=("$(dirname "$file")"); done
+          python -m src.c2_era5_AB_fourmonth_aggregate --source-folders "${folders[@]}" --out evidence/aggregated
+      - name: Export A/B hourly proxy inputs without model permission
+        run: |
+          python scripts/c2_era5_ab_to_ba0_proxy_exports.py \
+            --hourly evidence/aggregated/REAL_ERA5_11904_HOURLY_FOUR_BA_AB.csv \
+            --provenance evidence/aggregated/REAL_ERA5_FOUR_MONTH_AB_PROVENANCE.json \
+            --out evidence/proxy_exports
+      - name: Confirm actual source data and explicit exclusion of model claims
+        run: |
+          python - <<'PY'
+          import csv,json,pathlib,hashlib
+          root=pathlib.Path('evidence/proxy_exports')
+          m=json.loads((root/'UNAPPROVED_WEATHER_PROXY_EXPORT_MANIFEST.json').read_text())
+          assert m['source_rows']==11904 and m['weather_proxy_qualified'] is False
+          assert m['geography_approved'] is False and m['model_training_permitted'] is False
+          for entry in m['exports'].values():
+              p=root/entry['file']
+              assert hashlib.sha256(p.read_bytes()).hexdigest()==entry['sha256']
+              with p.open(newline='') as f:
+                  assert sum(1 for _ in csv.DictReader(f))==11904
+          print('Four-month real ERA5 spatial proxies verified; NO model/geographic certification')
+          PY
+      - name: Preserve audit results and unapproved weather proxies
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-ba0-ERA5-4month-11904-unapproved-weather-proxies-${{ github.run_id }}
+          path: |
+            evidence/aggregated/
+            evidence/proxy_exports/
+          if-no-files-found: error
+          retention-days: 30
