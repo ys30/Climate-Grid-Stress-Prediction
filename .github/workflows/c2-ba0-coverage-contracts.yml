@@ -14,6 +14,11 @@ on:
     paths:
       - 'scripts/c2_ba_hourly_join_audit.py'
       - 'tests/test_c2_ba_hourly_join_audit.py'
+      - 'scripts/c2_eia930_wave_status_matrix.py'
+      - 'tests/test_c2_eia930_wave_status_matrix.py'
+      - 'docs/E2_WAVE1_VERIFIED_STATUS.json'
+      - 'docs/E2_WAVE2_VERIFIED_STATUS.json'
+      - 'docs/E2_WAVE3_VERIFIED_STATUS.json'
       - '.github/workflows/c2-ba0-coverage-contracts.yml'
   workflow_dispatch:
 permissions:
