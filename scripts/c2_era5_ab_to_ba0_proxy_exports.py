@@ -46,7 +46,15 @@ def validate(hourly, evidence):
     found=set()
     output={kind:[] for kind in COLUMNS}
     for row in source:
-        key=(row["ba"],row["timestamp_utc_start"])
+        original=row["timestamp_utc_start"]
+        try:
+            timestamp=datetime.fromisoformat(original.replace("Z","+00:00"))
+        except ValueError as err:
+            raise ValueError("Malformed source UTC timestamp") from err
+        if timestamp.utcoffset()!=timedelta(0) or (timestamp.minute,timestamp.second,timestamp.microsecond)!=(0,0,0):
+            raise ValueError("Non-UTC or non-hourly source timestamp")
+        canonical=timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+        key=(row["ba"],canonical)
         if key not in expected or key in found:
             raise ValueError("Duplicate, wrong or out-of-month UTC BA-hour")
         found.add(key)
