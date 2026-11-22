@@ -4,6 +4,11 @@ on:
     paths:
       - 'scripts/c2_ba_hourly_join_audit.py'
       - 'tests/test_c2_ba_hourly_join_audit.py'
+      - 'scripts/c2_eia930_wave_status_matrix.py'
+      - 'tests/test_c2_eia930_wave_status_matrix.py'
+      - 'docs/E2_WAVE1_VERIFIED_STATUS.json'
+      - 'docs/E2_WAVE2_VERIFIED_STATUS.json'
+      - 'docs/E2_WAVE3_VERIFIED_STATUS.json'
       - '.github/workflows/c2-ba0-coverage-contracts.yml'
   pull_request:
     paths:
@@ -24,5 +29,11 @@ jobs:
           python-version: '3.11'
       - name: Run BA-0 no-network unit tests
         run: python -m unittest discover -s tests -p 'test_c2_ba_hourly_join_audit.py' -v
+      - name: Test published EIA BA-year metadata reconciler
+        run: python -m unittest discover -s tests -p 'test_c2_eia930_wave_status_matrix.py' -v
+      - name: Produce source-only 24-BA-year matrix
+        run: |
+          python scripts/c2_eia930_wave_status_matrix.py docs/E2_WAVE1_VERIFIED_STATUS.json docs/E2_WAVE2_VERIFIED_STATUS.json docs/E2_WAVE3_VERIFIED_STATUS.json --output /tmp/c2_ba_year_eia_source_inventory.csv
+          python -c "import csv; r=list(csv.DictReader(open('/tmp/c2_ba_year_eia_source_inventory.csv'))); assert len(r)==24 and sum(x['source_verified']=='True' for x in r)==22; assert all(x['model_training_permitted']=='False' for x in r)"
       - name: Compile data audit tool
         run: python -m py_compile scripts/c2_ba_hourly_join_audit.py
