@@ -34,6 +34,7 @@ def sha256(path):
 def load(path, field, bas, start_year, end_year):
     records, errors = {}, []
     duplicates = defaultdict(int)
+    poisoned_keys = set()
     with open(path, newline='', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         needed = {'ba', 'utc_start', field}
@@ -53,6 +54,7 @@ def load(path, field, bas, start_year, end_year):
             key = (ba, time)
             if key in records:
                 duplicates[(ba, time.year)] += 1
+                poisoned_keys.add(key)
                 records[key] = None
                 continue
             try:
@@ -61,7 +63,7 @@ def load(path, field, bas, start_year, end_year):
                     raise ValueError('nonfinite or negative demand')
             except ValueError:
                 val = None
-            records[key] = val
+            records[key] = None if key in poisoned_keys else val
     return records, duplicates, errors
 
 def audit(demand_file, weather_file, bas, start_year=2020, end_year=2025, min_fraction=0.98):
@@ -86,7 +88,7 @@ def audit(demand_file, weather_file, bas, start_year=2020, end_year=2025, min_fr
                           'demand_valid_hours': demand_ok, 'weather_valid_hours': weather_ok,
                           'paired_valid_hours': paired, 'paired_fraction': round(fraction, 8),
                           'duplicate_rows': dups,
-                          'coverage_pass': fraction >= min_fraction and dups == 0})
+                          'coverage_pass': fraction >= min_fraction and dups == 0 and not derr and not werr})
     return {'status': 'INVENTORY_ONLY_NO_MODEL_PERMISSION',
             'demand_sha256': sha256(demand_file), 'weather_sha256': sha256(weather_file),
             'utc_input_errors': {'demand': derr[:100], 'weather': werr[:100],
