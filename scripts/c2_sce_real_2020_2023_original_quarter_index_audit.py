@@ -46,33 +46,47 @@ def source_workbook_info(raw,year,quarter):
     if not raw.startswith(b"PK"):
         raise ValueError(f"{year}Q{quarter} server returned non-XLSX content")
     wb=load_workbook(io.BytesIO(raw),read_only=True,data_only=True)
-    if len(wb.worksheets)!=1:raise ValueError("SCE historical workbook has multiple sheets")
+    if len(wb.worksheets)!=1:
+        raise ValueError("SCE historical workbook has multiple sheets")
     sheet=wb.worksheets[0]
-    hdrs=[]
-    for idx,row in enumerate(sheet.iter_rows(max_row=12,values_only=True),start=1):
-        vals=[str(v).strip() if v is not None else "" for v in row[:12]]
-        if "Zip Code" in vals and "TotalkWh" in vals:
-            hdrs.append({"row":idx,"columns":vals})
-    if len(hdrs)!=1:raise ValueError(f"{year}Q{quarter} lacks unique recognizable source header")
-    # Confirm the year IN the downloaded workbook, independently of its typo URL.
-    header_idx=hdrs[0]["row"]
-    columns=hdrs[0]["columns"]
-    year_index=next((i for i,h in enumerate(columns) if h.strip().lower()=="year"),None)
-    if year_index is None:raise ValueError("No original internal reporting year field")
+    def clean(value):
+        return re.sub(r"[^a-z0-9]","",str(value).lower()) if value is not None else ""
+    preview=[]
+    header=[]
+    for idx,row in enumerate(sheet.iter_rows(max_row=22,values_only=True),start=1):
+        vals=[str(v).strip()[:80] if v is not None else "" for v in row[:12]]
+        if any(vals):preview.append({"row":idx,"cells":vals})
+        normalized=[clean(v) for v in row[:12]]
+        if (("zipcode" in normalized or "zip" in normalized or "zipcodes" in normalized)
+                and any(v in normalized for v in ("totalkwh","totalusagekwh","usagekwh"))):
+            header.append({"row":idx,"columns":vals,"normalized_columns":normalized})
+    base={"sheet_name":sheet.title,"claimed_rows":sheet.max_row,
+          "claimed_columns":sheet.max_column,"source_first_rows_preview":preview[:15],
+          "original_XLSX_structure_verified":True,
+          "actual_zip_level_kwh_sum_reproduced":False}
+    if len(header)!=1:
+        return {**base,"recognized_schema":False,
+            "source_header":None,"schema_uncertainty":"ZIP/KWH fields absent or ambiguous in scanned first 22 rows"}
+    h=header[0]
+    year_index=next((i for i,x in enumerate(h["normalized_columns"]) if x=="year"),None)
+    if year_index is None:
+        return {**base,"recognized_schema":False,"source_header":h,
+                "schema_uncertainty":"No unique original reporting-year field"}
     sample=[]
-    for original_row in sheet.iter_rows(min_row=header_idx+1,max_row=header_idx+45,values_only=True):
+    for original_row in sheet.iter_rows(min_row=h["row"]+1,max_row=h["row"]+45,values_only=True):
         if len(original_row)>year_index and original_row[year_index] is not None:
             v=str(original_row[year_index]).strip()
             if v.endswith(".0"):v=v[:-2]
             sample.append(v)
     if not sample or any(v!=str(year) for v in sample):
-        raise ValueError(f"Source workbook internal year differs from {year}Q{quarter}: {sample[:10]}")
-    return {"source_header":hdrs[0],"sheet_name":sheet.title,
-            "internal_year_sample_count":len(sample),
-            "internal_year_sample_confirmed":True,
-            "official_filename_2002_Q2_typo":(year,quarter)==(2022,2),
-            "claimed_rows":sheet.max_row,"claimed_columns":sheet.max_column,
-            "actual_zip_level_kwh_sum_reproduced":False}
+        return {**base,"recognized_schema":False,"source_header":h,
+                "schema_uncertainty":f"Internal-year mismatch: {sample[:10]}",
+                "internal_year_sample_count":len(sample)}
+    return {**base,"recognized_schema":True,"source_header":h,
+        "internal_year_sample_count":len(sample),
+        "internal_year_sample_confirmed":True,
+        "official_filename_2002_Q2_typo":(year,quarter)==(2022,2)}
+
 
 def collect(index_html,download):
     links=source_links(index_html)
@@ -81,22 +95,31 @@ def collect(index_html,download):
         url=links[(year,quarter)]
         try:
             blob=download(url)
-            detail=source_workbook_info(blob,year,quarter)
+            if not blob.startswith(b"PK"):
+                raise ValueError("Response is not an original XLSX archive")
             digest=hashlib.sha256(blob).hexdigest()
             if (year,quarter)==(2020,1) and digest!=FIRST_SHA:
                 raise ValueError("Original SCE 2020 Q1 pinned source SHA drift")
+            detail=source_workbook_info(blob,year,quarter)
+            success=detail["recognized_schema"]
             result.append({"year":year,"quarter":quarter,"source_url":url,
-                           "http_original_source_sha256":digest,"response_bytes":len(blob),
-                           "status":"AUTHENTIC_XLSX_STRUCTURE_VERIFIED",**detail})
+                           "http_original_source_sha256":digest,
+                           "response_bytes":len(blob),
+                           "status":"AUTHENTIC_XLSX_STRUCTURE_VERIFIED" if success
+                                    else "AUTHENTIC_XLSX_SCHEMA_REVIEW_REQUIRED",
+                           **detail})
         except Exception as exc:
             result.append({"year":year,"quarter":quarter,"source_url":url,
                            "status":"SOURCE_NOT_VERIFIED","error":str(exc)[:300]})
-    succeeded=sum(x["status"]=="AUTHENTIC_XLSX_STRUCTURE_VERIFIED" for x in result)
-    return {"status":"REAL_SCE_16_QUARTER_SOURCE_AUDIT" if succeeded==16
-             else "SCE_SOURCE_INCOMPLETE_RESEARCH_NOT_APPROVED",
+    valid=sum(x["status"]=="AUTHENTIC_XLSX_STRUCTURE_VERIFIED" for x in result)
+    files=sum(x["status"] in ("AUTHENTIC_XLSX_STRUCTURE_VERIFIED",
+                              "AUTHENTIC_XLSX_SCHEMA_REVIEW_REQUIRED") for x in result)
+    return {"status":"REAL_SCE_16_QUARTER_SOURCE_AUDIT" if valid==16
+             else "SCE_SCHEMA_OR_SOURCE_INCOMPLETE_RESEARCH_NOT_APPROVED",
             "official_SCE_index":INDEX,"quarter_count_expected":16,
-            "quarter_count_verified":succeeded,
-            "all_2020_2023_original_sources_verified":succeeded==16,
+            "quarter_count_original_XLSX_verified":files,
+            "quarter_count_verified":valid,
+            "all_2020_2023_original_sources_verified":valid==16,
             "source_metadata_only":True,
             "Combined_source_recipient_ZIP_located":False,
             "ZIP_to_county_allocation_performed":False,
