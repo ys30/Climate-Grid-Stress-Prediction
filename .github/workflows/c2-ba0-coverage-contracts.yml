@@ -1,0 +1,28 @@
+name: C2 BA-0 UTC coverage contracts
+on:
+  push:
+    paths:
+      - 'scripts/c2_ba_hourly_join_audit.py'
+      - 'tests/test_c2_ba_hourly_join_audit.py'
+      - '.github/workflows/c2-ba0-coverage-contracts.yml'
+  pull_request:
+    paths:
+      - 'scripts/c2_ba_hourly_join_audit.py'
+      - 'tests/test_c2_ba_hourly_join_audit.py'
+      - '.github/workflows/c2-ba0-coverage-contracts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  coverage-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run BA-0 no-network unit tests
+        run: python -m unittest discover -s tests -p 'test_c2_ba_hourly_join_audit.py' -v
+      - name: Compile data audit tool
+        run: python -m py_compile scripts/c2_ba_hourly_join_audit.py
