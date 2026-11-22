@@ -11,7 +11,7 @@ from pathlib import Path
 BAS = ("CISO", "AZPS", "BPAT", "SRP")
 YEARS = tuple(range(2020, 2026))
 
-def reconcile(documents):
+def reconcile(documents, standalone=None, diagnostic=None):
     observed = {}
     for document in documents:
         if not isinstance(document.get("cohorts"), list):
@@ -21,6 +21,14 @@ def reconcile(documents):
             if key in observed:
                 raise ValueError(f"BA-year claimed by multiple sources: {key}")
             observed[key] = (row, document)
+    standalone = standalone or []
+    for extra in standalone:
+        key = (extra['ba'], int(extra['year']))
+        if key in observed:
+            raise ValueError(f'Standalone duplicates a wave row: {key}')
+        if not (extra.get('source_gate_pass') is True and extra.get('status') == 'standalone_artifact_hash_and_annual_gate_pass' and extra.get('raw_sha256') and extra.get('csv_sha256') and extra.get('evidence_document')):
+            raise ValueError(f'Unqualified standalone source record: {key}')
+        observed[key] = (dict(extra, gate_pass=True, status='artifact_hash_and_annual_gate_pass'), {'run_id':extra.get('run_id')})
     output = []
     for ba in BAS:
         for year in YEARS:
@@ -35,6 +43,9 @@ def reconcile(documents):
                     row.get("status") == "artifact_hash_and_annual_gate_pass" and
                     row.get("csv_sha256") and row.get("raw_sha256")
                 ) else row.get("status", "not_verified")
+            if diagnostic and (ba, year) == (diagnostic.get("ba", "AZPS"), int(diagnostic.get("year", 2023))) and not (status == "sha_and_annual_gate_verified"):
+                if diagnostic.get("source_gate_pass") is False and diagnostic.get("invalid_numeric_rows", 0) > 0:
+                    status = "authenticated_negative_demand_strict_gate_failed"
             output.append({
                 "ba": ba, "year": year, "source_status": status,
                 "source_verified": status == "sha_and_annual_gate_verified",
@@ -54,9 +65,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("files", nargs="+", type=Path, help="Saved Wave 1–3 verified status JSON files")
     ap.add_argument("--output", required=True, type=Path)
+    ap.add_argument("--standalone", action="append", type=Path, default=[])
+    ap.add_argument("--diagnostic", type=Path)
     args = ap.parse_args()
     docs = [json.loads(p.read_text(encoding="utf-8")) for p in args.files]
-    rows = reconcile(docs)
+    standalone = [json.loads(p.read_text(encoding="utf-8")) for p in args.standalone]
+    diagnostic = json.loads(args.diagnostic.read_text(encoding="utf-8")) if args.diagnostic else None
+    rows = reconcile(docs, standalone, diagnostic)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
