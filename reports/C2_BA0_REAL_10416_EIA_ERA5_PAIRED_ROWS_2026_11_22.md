@@ -8,7 +8,7 @@ On 2026-11-22, original completed GitHub Actions artifacts were downloaded and v
 - Seven canonical EIA-930 BA-year archives from source-verified Wave 1/3 runs: CISO/BPAT/SRP for 2023; CISO/AZPS/BPAT/SRP for 2025. Each UTC-start CSV SHA256 matches its source manifest; source hour-ending -> UTC-start labels were independently checked.
 - Total authenticated ERA5 area-proxy rows: **11,904** per candidate A/B dataset.
 - Total exact EIA demand × ERA5 paired rows: **10,416** = 14 BA×months × 744 unique UTC hours.
-- Twelve? No: **14 of 16 BA×months** were joined at exactly 744/744 hours. AZPS Jan/Jul 2023 were excluded due to their annual **canonical source gate failure**, not ERA5 incompleteness.
+- **14 of 16 BA×months** were joined at exactly 744/744 hours. AZPS Jan/Jul 2023 were excluded due to their annual **canonical source gate failure**, not ERA5 incompleteness.
 - A/B proxies are *HIFLD 2018 candidate* and *2024 TIGER county candidate*, **not** certified operational BA footprint or load-weighted exposure.
 - No model fitting, 2025 held-out evaluation, BA geographic certification, causal climate attribution, or SSP/PyPSA forecasting was performed.
 
