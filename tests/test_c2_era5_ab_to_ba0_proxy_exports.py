@@ -26,7 +26,10 @@ class TestFourMonthBridge(unittest.TestCase):
     def evidence(self):
         return {"geography_approved":False,"training_permitted":False,
                 "independently_verified_BA_hours":11904,"verified_months":4,
-                "BA_results":[{"ba":ba} for ba in BAS],
+                "source_months":[f"{year:04}-{month:02}-01T00:00:00Z" for year,month in MONTHS],
+                "BA_results":[{"ba":ba,"real_ERA5_hours":2976,
+                               "historical_geometry_approved":False,
+                               "training_allowed":False} for ba in BAS],
                 "A_weights_SHA256":"a"*64,"B_weights_SHA256":"b"*64}
     def test_full_four_month_hourly_contract(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -45,6 +48,13 @@ class TestFourMonthBridge(unittest.TestCase):
             self.assertEqual(out["A_HIFLD_2018"][0]["weather_value"],"10.000000")
             with self.assertRaises(ValueError):
                 validate(f,{**self.evidence(),"training_permitted":True})
+            with self.assertRaises(ValueError):
+                validate(f,{**self.evidence(),"source_months":["2023-01-01T00:00:00Z"]})
+            wrong=self.evidence()
+            wrong["BA_results"][0]["ba"]="CISO"
+            wrong["BA_results"][1]["ba"]="CISO"
+            with self.assertRaises(ValueError):
+                validate(f,wrong)
             rows[-1]["Census_minus_HIFLD_celsius"]="7"
             with f.open("w",newline="") as handle:
                 w=csv.DictWriter(handle,fieldnames=list(rows[0]))
