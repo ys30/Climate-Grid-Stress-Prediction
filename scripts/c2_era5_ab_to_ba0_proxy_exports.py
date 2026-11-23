@@ -29,10 +29,20 @@ def validate(hourly, evidence):
         raise ValueError("Source evidence must fail-closed on geography and training")
     if evidence.get("independently_verified_BA_hours") != 11904 or evidence.get("verified_months") != 4:
         raise ValueError("Missing complete four-month source provenance")
-    if len(evidence.get("BA_results",[])) != 4:
-        raise ValueError("Incomplete BA proxy source provenance")
-    if not evidence.get("A_weights_SHA256") or not evidence.get("B_weights_SHA256"):
-        raise ValueError("Weight source hashes required")
+    required_months = [f"{year:04}-{month:02}-01T00:00:00Z" for year, month in MONTHS]
+    if evidence.get("source_months") != required_months:
+        raise ValueError("Wrong seasonal source months or their order")
+    results = evidence.get("BA_results", [])
+    if not isinstance(results, list) or len(results) != 4 or {r.get("ba") for r in results} != set(BAS):
+        raise ValueError("Missing or duplicated BA source provenance")
+    if any(r.get("historical_geometry_approved") is not False or
+           r.get("training_allowed") is not False or
+           r.get("real_ERA5_hours") != 2976 for r in results):
+        raise ValueError("BA source statistics are not unapproved and complete")
+    if any(not isinstance(evidence.get(k), str) or len(evidence[k]) != 64 or
+           any(ch not in "0123456789abcdef" for ch in evidence[k])
+           for k in ("A_weights_SHA256", "B_weights_SHA256")):
+        raise ValueError("Full lowercase SHA256 weight source identities required")
     with Path(hourly).open(newline="", encoding="utf-8-sig") as stream:
         source=list(csv.DictReader(stream))
     expected=set()
