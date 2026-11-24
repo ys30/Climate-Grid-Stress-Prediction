@@ -182,7 +182,7 @@ def inspect(membership, consumption, crosswalk, county_map, manifest):
 def main():
     p = argparse.ArgumentParser()
     for name in ("membership", "consumption", "crosswalk", "county_map", "manifest", "output"):
-        p.add_argument("--" + name, required=True, type=Path)
+        p.add_argument("--" + name, "--" + name.replace("_", "-"), required=True, type=Path)
     a = p.parse_args()
     if a.output.exists():
         raise FileExistsError("Refuse to overwrite independent geographic evidence")
