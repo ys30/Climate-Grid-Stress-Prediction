@@ -19,12 +19,17 @@ class CECJointGeoGateTests(unittest.TestCase):
                 {"year": "2023", "month": "7", "ba": "SRP", "udc_id": "u2", "membership_effective_whole_month": "True"},
             ],
             "county_consumption_1306A": [
-                {"year": "2023", "month": "7", "county_fips": "06001", "udc_id": "u1",
+                {"year": "2023", "month": "7", "cec_county_number": "1", "county_fips": "06001", "udc_id": "u1",
                  "sector": "residential", "gwh": "10"},
-                {"year": "2023", "month": "7", "county_fips": "04013", "udc_id": "u2",
+                {"year": "2023", "month": "7", "cec_county_number": "2", "county_fips": "06013", "udc_id": "u2",
                  "sector": "residential", "gwh": "20"},
-                {"year": "2023", "month": "7", "county_fips": "06013", "udc_id": "u3",
+                {"year": "2023", "month": "7", "cec_county_number": "3", "county_fips": "06019", "udc_id": "u3",
                  "sector": "commercial", "gwh": "5"},
+            ],
+            "cec_county_crosswalk": [
+                {"cec_county_number": "1", "county_fips": "06001", "reviewed": "True"},
+                {"cec_county_number": "2", "county_fips": "06013", "reviewed": "True"},
+                {"cec_county_number": "3", "county_fips": "06019", "reviewed": "True"},
             ],
             "udc_eia_crosswalk": [
                 {"udc_id": "u1", "eia_utility_id": "100", "reviewed": "True"},
@@ -46,14 +51,14 @@ class CECJointGeoGateTests(unittest.TestCase):
             config["files"][key] = {
                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                 "source_release": "SYNTHETIC-TEST-ONLY",
-                "source_kind": "official_original" if key != "udc_eia_crosswalk" else "reviewed_crosswalk"
+                "source_kind": "official_original" if key in ("membership_1305", "county_consumption_1306A") else "reviewed_crosswalk"
             }
         if bad_manifest:
             config["files"]["membership_1305"]["sha256"] = "0" * 64
         manifest = self.root / "manifest.json"
         manifest.write_text(json.dumps(config))
         return [paths[k] for k in ("membership_1305", "county_consumption_1306A",
-                                  "udc_eia_crosswalk")] + [manifest]
+                                  "udc_eia_crosswalk", "cec_county_crosswalk")] + [manifest]
 
     def test_conditional_join_never_approves_model(self):
         result = inspect(*self.write())
@@ -113,6 +118,26 @@ class CECJointGeoGateTests(unittest.TestCase):
     def test_missing_effective_month_certification_is_rejected(self):
         self.tables["membership_1305"][0]["membership_effective_whole_month"] = ""
         with self.assertRaisesRegex(ValueError, "Whole-month membership"):
+            inspect(*self.write())
+
+    def test_county_crosswalk_wrong_fips_rejected(self):
+        self.tables["county_consumption_1306A"][0]["county_fips"] = "06003"
+        with self.assertRaisesRegex(ValueError, "county number to FIPS"):
+            inspect(*self.write())
+
+    def test_special_unknown_cec_county_number_never_allocated(self):
+        self.tables["county_consumption_1306A"][0]["cec_county_number"] = "99"
+        with self.assertRaisesRegex(ValueError, "special county"):
+            inspect(*self.write())
+
+    def test_non_california_county_mapping_rejected(self):
+        self.tables["cec_county_crosswalk"][1]["county_fips"] = "04013"
+        with self.assertRaisesRegex(ValueError, "California FIPS"):
+            inspect(*self.write())
+
+    def test_reviewed_county_mapping_required(self):
+        self.tables["cec_county_crosswalk"][0]["reviewed"] = "False"
+        with self.assertRaisesRegex(ValueError, "independently reviewed"):
             inspect(*self.write())
 
     def test_no_actual_public_data_fabrication(self):
