@@ -119,10 +119,10 @@ def inspect(membership, consumption, crosswalk, county_map, manifest):
         county = row["county_fips"].strip()
         sector = row["sector"].strip()
         county_number = row["cec_county_number"].strip()
-        if county_links.get(county_number) != county:
-            raise ValueError("Unreviewed CEC county number to FIPS mapping or special county 00/99")
         if len(county) != 5 or not county.isdigit() or not county.startswith("06") or not sector or not udc:
             raise ValueError("Bad source county FIPS, UDC or sector")
+        if county_links.get(county_number) != county:
+            raise ValueError("Unreviewed CEC county number to FIPS mapping or special county 00/99")
         # Normalized 1306A tables MUST have a declared aggregation grain.
         # A duplicated county/UDC/sector/month otherwise silently inflates
         # consumption. A separate original record identifier would be needed
