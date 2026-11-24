@@ -88,6 +88,7 @@ def inspect(membership, consumption, crosswalk, manifest):
     count = Counter()
     totals = defaultdict(float)
     candidate = defaultdict(float)
+    seen_consumption = set()
     for row in c:
         ym = _year_month(row)
         udc = row["udc_id"].strip()
@@ -95,6 +96,14 @@ def inspect(membership, consumption, crosswalk, manifest):
         sector = row["sector"].strip()
         if len(county) != 5 or not county.isdigit() or not sector or not udc:
             raise ValueError("Bad source county FIPS, UDC or sector")
+        # Normalized 1306A tables MUST have a declared aggregation grain.
+        # A duplicated county/UDC/sector/month otherwise silently inflates
+        # consumption. A separate original record identifier would be needed
+        # to represent multiple valid filings at this same grain.
+        grain = (ym, county, udc, sector)
+        if grain in seen_consumption:
+            raise ValueError("Duplicate county-UDC-sector-month consumption grain")
+        seen_consumption.add(grain)
         try:
             val = float(row["gwh"])
         except (TypeError, ValueError) as exc:
