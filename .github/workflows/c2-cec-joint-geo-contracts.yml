@@ -4,12 +4,16 @@ on:
   push:
     paths:
       - 'scripts/c2_cec_joint_geo_source_gate.py'
+      - 'scripts/c2_cec_1306a_source_detail_aggregation.py'
       - 'tests/test_c2_cec_joint_geo_source_gate.py'
+      - 'tests/test_c2_cec_1306a_source_detail_aggregation.py'
       - '.github/workflows/c2-cec-joint-geo-contracts.yml'
   pull_request:
     paths:
       - 'scripts/c2_cec_joint_geo_source_gate.py'
+      - 'scripts/c2_cec_1306a_source_detail_aggregation.py'
       - 'tests/test_c2_cec_joint_geo_source_gate.py'
+      - 'tests/test_c2_cec_1306a_source_detail_aggregation.py'
       - '.github/workflows/c2-cec-joint-geo-contracts.yml'
   workflow_dispatch:
 
@@ -26,9 +30,11 @@ jobs:
         with:
           python-version: '3.11'
       - name: Verify fail-closed CEC 1305/1306A contract
-        run: python -m unittest discover -s tests -p 'test_c2_cec_joint_geo_source_gate.py' -v
+        run: |
+          python -m unittest discover -s tests -p 'test_c2_cec_joint_geo_source_gate.py' -v
+          python -m unittest discover -s tests -p 'test_c2_cec_1306a_source_detail_aggregation.py' -v
       - name: Verify source script syntax
-        run: python -m py_compile scripts/c2_cec_joint_geo_source_gate.py
+        run: python -m py_compile scripts/c2_cec_joint_geo_source_gate.py scripts/c2_cec_1306a_source_detail_aggregation.py
       - name: State that synthetic tests do not validate geography
         run: |
           echo 'SYNTHETIC CONTRACTS ONLY: NO REAL CEC 1305/1306A SOURCE PROCESSED'
