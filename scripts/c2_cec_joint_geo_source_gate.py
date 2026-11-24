@@ -56,7 +56,7 @@ def inspect(membership, consumption, crosswalk, manifest):
             raise ValueError(f"Unversioned source or crosswalk: {key}")
         if key != "udc_eia_crosswalk" and item.get("source_kind") != "official_original":
             raise ValueError("Observed source must document official-original provenance")
-    m = read_table(membership, ("year", "month", "ba", "udc_id"))
+    m = read_table(membership, ("year", "month", "ba", "udc_id", "membership_effective_whole_month"))
     c = read_table(consumption, ("year", "month", "county_fips", "udc_id", "sector", "gwh"))
     w = read_table(crosswalk, ("udc_id", "eia_utility_id", "reviewed"))
     if not m or not c or not w:
@@ -73,6 +73,7 @@ def inspect(membership, consumption, crosswalk, manifest):
             raise ValueError("Invalid EIA utility identifier")
         identities[udc] = (eid, row["reviewed"] == "True")
     members = defaultdict(set)
+    time_uncertain = set()
     seen = set()
     for row in m:
         ym = _year_month(row)
@@ -84,6 +85,11 @@ def inspect(membership, consumption, crosswalk, manifest):
         if key in seen:
             raise ValueError("Duplicate 1305 BA membership record")
         seen.add(key)
+        whole_month = row["membership_effective_whole_month"].strip()
+        if whole_month not in ("True", "False"):
+            raise ValueError("Whole-month membership certification must be explicit")
+        if whole_month == "False":
+            time_uncertain.add((ym, udc))
         members[ym, udc].add(ba)
     count = Counter()
     totals = defaultdict(float)
@@ -115,6 +121,8 @@ def inspect(membership, consumption, crosswalk, manifest):
         identity = identities.get(udc)
         if not assoc:
             reason = "membership_unavailable"
+        elif (ym, udc) in time_uncertain:
+            reason = "membership_partial_month_unresolved"
         elif len(assoc) != 1:
             reason = "udc_multi_BA_nonexclusive"
         elif identity is None or not identity[0] or not identity[1]:
@@ -142,6 +150,7 @@ def inspect(membership, consumption, crosswalk, manifest):
             "Annual/monthly delivered GWh is not hourly geolocated demand",
             "Missing or multiply associated UDC must not be fractionally split",
             "Crosswalk must receive independent external scientific approval",
+            "Partial-month or unknown effective-date membership cannot assign whole-month GWh",
         ],
     }
 
