@@ -14,7 +14,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 BAS = {"AZPS", "BPAT", "CISO", "SRP"}
-FILE_KEYS = ("membership_1305", "county_consumption_1306A", "udc_eia_crosswalk")
+FILE_KEYS = ("membership_1305", "county_consumption_1306A", "udc_eia_crosswalk", "cec_county_crosswalk")
 
 
 def digest(path):
@@ -40,7 +40,7 @@ def _year_month(row):
     return year, month
 
 
-def inspect(membership, consumption, crosswalk, manifest):
+def inspect(membership, consumption, crosswalk, county_map, manifest):
     """Return strictly non-admitted source identity and join diagnostics."""
     meta = json.loads(Path(manifest).read_text(encoding="utf-8"))
     if meta.get("research_only") is not True or meta.get("training_permitted") is not False:
@@ -48,19 +48,37 @@ def inspect(membership, consumption, crosswalk, manifest):
     for key in FILE_KEYS:
         item = meta.get("files", {}).get(key, {})
         path = {"membership_1305": membership, "county_consumption_1306A": consumption,
-                "udc_eia_crosswalk": crosswalk}[key]
+                "udc_eia_crosswalk": crosswalk, "cec_county_crosswalk": county_map}[key]
         sha = item.get("sha256")
         if not isinstance(sha, str) or len(sha) != 64 or digest(path) != sha:
             raise ValueError(f"Missing or changed original input SHA256: {key}")
         if not isinstance(item.get("source_release"), str) or not item["source_release"].strip():
             raise ValueError(f"Unversioned source or crosswalk: {key}")
-        if key != "udc_eia_crosswalk" and item.get("source_kind") != "official_original":
+        if key in ("membership_1305", "county_consumption_1306A") and item.get("source_kind") != "official_original":
             raise ValueError("Observed source must document official-original provenance")
     m = read_table(membership, ("year", "month", "ba", "udc_id", "membership_effective_whole_month"))
-    c = read_table(consumption, ("year", "month", "county_fips", "udc_id", "sector", "gwh"))
+    c = read_table(consumption, ("year", "month", "cec_county_number", "county_fips", "udc_id", "sector", "gwh"))
     w = read_table(crosswalk, ("udc_id", "eia_utility_id", "reviewed"))
+    county_rows = read_table(county_map, ("cec_county_number", "county_fips", "reviewed"))
     if not m or not c or not w:
         raise ValueError("Empty observed source or identity crosswalk")
+    county_links = {}
+    used_fips = set()
+    for item in county_rows:
+        code = item["cec_county_number"].strip()
+        fips = item["county_fips"].strip()
+        if not code.isdigit() or not 1 <= int(code) <= 58 or code != str(int(code)):
+            raise ValueError("Invalid or special CEC county number; 00/99 cannot become FIPS")
+        if len(fips) != 5 or not fips.isdigit() or not fips.startswith("06"):
+            raise ValueError("CEC 1306A county must map to reviewed California FIPS")
+        if item["reviewed"] != "True":
+            raise ValueError("CEC county number to FIPS must be independently reviewed")
+        if code in county_links or fips in used_fips:
+            raise ValueError("Nonunique CEC county-to-FIPS conversion")
+        county_links[code] = fips
+        used_fips.add(fips)
+    if not county_links:
+        raise ValueError("CEC county-to-FIPS mapping missing")
     identities = {}
     for row in w:
         udc = row["udc_id"].strip()
@@ -100,7 +118,10 @@ def inspect(membership, consumption, crosswalk, manifest):
         udc = row["udc_id"].strip()
         county = row["county_fips"].strip()
         sector = row["sector"].strip()
-        if len(county) != 5 or not county.isdigit() or not sector or not udc:
+        county_number = row["cec_county_number"].strip()
+        if county_links.get(county_number) != county:
+            raise ValueError("Unreviewed CEC county number to FIPS mapping or special county 00/99")
+        if len(county) != 5 or not county.isdigit() or not county.startswith("06") or not sector or not udc:
             raise ValueError("Bad source county FIPS, UDC or sector")
         # Normalized 1306A tables MUST have a declared aggregation grain.
         # A duplicated county/UDC/sector/month otherwise silently inflates
@@ -140,6 +161,9 @@ def inspect(membership, consumption, crosswalk, manifest):
         "conditional_county_BA_month_candidates": len(candidate),
         "candidate_consumption_gwh": round(sum(candidate.values()), 6),
         "candidate_counts_are_not_observed_BA_hourly_load": True,
+        "cec_county_crosswalk_checked": True,
+        "unknown_county_00_99_never_allocated": True,
+        "normalized_1306a_reporting_grain_requires_independent_aggregation_review": True,
         "cec_public_joint_release_verified_by_this_script": False,
         "historical_BA_footprint_approved": False,
         "load_weighted_exposure_approved": False,
@@ -157,12 +181,12 @@ def inspect(membership, consumption, crosswalk, manifest):
 
 def main():
     p = argparse.ArgumentParser()
-    for name in ("membership", "consumption", "crosswalk", "manifest", "output"):
+    for name in ("membership", "consumption", "crosswalk", "county_map", "manifest", "output"):
         p.add_argument("--" + name, required=True, type=Path)
     a = p.parse_args()
     if a.output.exists():
         raise FileExistsError("Refuse to overwrite independent geographic evidence")
-    result = inspect(a.membership, a.consumption, a.crosswalk, a.manifest)
+    result = inspect(a.membership, a.consumption, a.crosswalk, a.county_map, a.manifest)
     a.output.parent.mkdir(parents=True, exist_ok=True)
     a.output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, indent=2))
