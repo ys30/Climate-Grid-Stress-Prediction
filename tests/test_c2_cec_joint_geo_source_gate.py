@@ -86,6 +86,21 @@ class CECJointGeoGateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Duplicate"):
             inspect(*self.write())
 
+    def test_duplicate_county_udc_sector_month_cannot_double_count(self):
+        self.tables["county_consumption_1306A"].append(
+            self.tables["county_consumption_1306A"][0].copy())
+        with self.assertRaisesRegex(ValueError, "Duplicate county-UDC-sector-month"):
+            inspect(*self.write())
+
+    def test_crosswalk_not_reviewed_does_not_allocate(self):
+        self.tables["udc_eia_crosswalk"][0]["reviewed"] = "False"
+        result = inspect(*self.write())
+        self.assertEqual(result["candidate_consumption_gwh"], 0)
+        self.assertEqual(
+            result["consumption_rows_by_source_association_status"]
+                  ["udc_eia_identity_unreviewed"], 1)
+        self.assertFalse(result["model_training_permitted"])
+
     def test_no_actual_public_data_fabrication(self):
         self.assertFalse(inspect(*self.write())["cec_public_joint_release_verified_by_this_script"])
 
