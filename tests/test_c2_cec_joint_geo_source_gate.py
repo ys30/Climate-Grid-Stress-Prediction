@@ -14,9 +14,9 @@ class CECJointGeoGateTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.tables = {
             "membership_1305": [
-                {"year": "2023", "month": "7", "ba": "CISO", "udc_id": "u1"},
-                {"year": "2023", "month": "7", "ba": "AZPS", "udc_id": "u2"},
-                {"year": "2023", "month": "7", "ba": "SRP", "udc_id": "u2"},
+                {"year": "2023", "month": "7", "ba": "CISO", "udc_id": "u1", "membership_effective_whole_month": "True"},
+                {"year": "2023", "month": "7", "ba": "AZPS", "udc_id": "u2", "membership_effective_whole_month": "True"},
+                {"year": "2023", "month": "7", "ba": "SRP", "udc_id": "u2", "membership_effective_whole_month": "True"},
             ],
             "county_consumption_1306A": [
                 {"year": "2023", "month": "7", "county_fips": "06001", "udc_id": "u1",
@@ -100,6 +100,20 @@ class CECJointGeoGateTests(unittest.TestCase):
             result["consumption_rows_by_source_association_status"]
                   ["udc_eia_identity_unreviewed"], 1)
         self.assertFalse(result["model_training_permitted"])
+
+    def test_partial_month_membership_does_not_assign_whole_month_gwh(self):
+        self.tables["membership_1305"][0]["membership_effective_whole_month"] = "False"
+        result = inspect(*self.write())
+        self.assertEqual(result["candidate_consumption_gwh"], 0)
+        self.assertEqual(
+            result["consumption_rows_by_source_association_status"][
+                "membership_partial_month_unresolved"], 1)
+        self.assertFalse(result["load_weighted_exposure_approved"])
+
+    def test_missing_effective_month_certification_is_rejected(self):
+        self.tables["membership_1305"][0]["membership_effective_whole_month"] = ""
+        with self.assertRaisesRegex(ValueError, "Whole-month membership"):
+            inspect(*self.write())
 
     def test_no_actual_public_data_fabrication(self):
         self.assertFalse(inspect(*self.write())["cec_public_joint_release_verified_by_this_script"])
