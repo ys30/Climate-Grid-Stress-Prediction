@@ -91,6 +91,14 @@ def acquire(out, years=YEARS, opener=None):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     manifest = []
+    lock_path = out / "BPA_FERC714_SOURCE_SHA256_LOCK.json"
+    if lock_path.exists():
+        lock = json.loads(lock_path.read_text(encoding="utf-8"))
+        if lock.get("source_type") != "BPA FERC-714 immutable original XLSX" or not isinstance(lock.get("sha256_by_year"), dict):
+            raise ValueError("Malformed immutable original source SHA lock")
+    else:
+        lock = {"source_type": "BPA FERC-714 immutable original XLSX",
+                "sha256_by_year": {}, "source_urls_by_year": {}}
     for year in years:
         if year not in YEARS:
             raise ValueError("Year outside BPA audit period")
@@ -101,10 +109,17 @@ def acquire(out, years=YEARS, opener=None):
                 "data_metric_definition_authenticated": False,
                 "EIA930_comparison_permitted": False}
         try:
+            expected = lock["sha256_by_year"].get(str(year))
             if target.exists():
-                # Never replace a frozen original on a runner re-run.
+                # A valid XLSX ZIP alone does not establish historical identity.
+                if not expected:
+                    raise ValueError("Existing original has no first-acquisition SHA lock")
                 raw = target.read_bytes()
+                if sha(raw) != expected:
+                    raise ValueError("Frozen original SHA changed since first acquisition")
                 source_status = "existing_original_reverified"
+            elif expected:
+                raise ValueError("SHA-locked original file is absent; refuse silent re-download")
             elif opener is None:
                 request = urllib.request.Request(url, headers={
                     "User-Agent": "C2-BPA-FERC714-Original-Source-Audit/1.0"})
@@ -119,6 +134,9 @@ def acquire(out, years=YEARS, opener=None):
             inventory = extract_inventory(raw)
             if not target.exists():
                 target.write_bytes(raw)
+                lock["sha256_by_year"][str(year)] = sha(raw)
+                lock["source_urls_by_year"][str(year)] = url
+                lock_path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
             item.update({"status": source_status,
                          "sha256": sha(raw), "original_file_bytes": len(raw),
                          "worksheet_count": len(inventory)})
