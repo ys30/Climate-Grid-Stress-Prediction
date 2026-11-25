@@ -17,7 +17,7 @@ from pathlib import Path
 RELEASE = "v2026.10.0"
 BASE = "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/" + RELEASE + "/"
 TABLES = ("core_ferc714__respondent_id", "core_ferc714__hourly_planning_area_demand")
-NAME = re.compile(r"BONNEVILLE|\\bBPA\\b", re.IGNORECASE)
+NAME = re.compile(r"BONNEVILLE|\bBPA\b", re.IGNORECASE)
 
 def digest(path):
     h = hashlib.sha256()
@@ -136,7 +136,7 @@ def main():
         result["download_complete"]=True
     finally:
         (a.out/"PUDL_FERC714_BPAT_SOURCE_AUDIT_MANIFEST.json").write_text(
-            json.dumps(result,indent=2,default=str)+"\\n",encoding="utf-8")
+            json.dumps(result,indent=2,default=str)+"\n",encoding="utf-8")
     if a.reviewed_respondent_id is None:
         print("Source metadata obtained; respondent must be explicitly reviewed")
     else:
