@@ -1,12 +1,30 @@
 """Synthetic contract tests only; official PUDL Parquet not acquired by tests."""
 import json
 import tempfile
+from datetime import datetime, timedelta, timezone
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from scripts.c2_bpat_pudl_ferc714_fixed_release import BASE, RELEASE, NAME, TABLES, download, audit
+from scripts.c2_bpat_pudl_ferc714_fixed_release import BASE, RELEASE, NAME, TABLES, download, audit, normalize_utc
 
 class TestFixedFERC714(unittest.TestCase):
+    def test_offset_aware_utc_conversion_not_timezone_stripping(self):
+        local = datetime(2025, 12, 31, 4, 0,
+                         tzinfo=timezone(timedelta(hours=-8)))
+        self.assertEqual(normalize_utc(local), datetime(2025, 12, 31, 12, 0))
+
+    def test_utc_naive_hour_kept_as_utc(self):
+        hour = datetime(2025, 12, 31, 12, 0)
+        self.assertEqual(normalize_utc(hour), hour)
+
+    def test_non_hourly_timestamp_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Non-hourly"):
+            normalize_utc(datetime(2025, 12, 31, 12, 30))
+
+    def test_invalid_time_type_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Invalid FERC datetime"):
+            normalize_utc("2025-12-31T12:00")
+
     def test_immutable_version_path_not_nightly(self):
         self.assertIn("/v2026.10.0/", BASE)
         self.assertNotIn("/nightly/", BASE)
