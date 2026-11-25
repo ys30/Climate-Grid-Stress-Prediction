@@ -1,0 +1,35 @@
+name: C2 BPAT actual original BPA FERC714 six-year acquisition
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/c2_bpa_ferc714_original_acquisition.py'
+      - 'tests/test_c2_bpa_ferc714_original_acquisition.py'
+      - '.github/workflows/c2-bpa-ferc714-original-six-year.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  bpa-original-six-year-source-only:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run non-evidence source intake unit contracts
+        run: python -m unittest discover -s tests -p 'test_c2_bpa_ferc714_original_acquisition.py' -v
+      - name: Retrieve six operator-original FERC714 workbooks and inspect without modifying bytes
+        run: |
+          python scripts/c2_bpa_ferc714_original_acquisition.py --out outputs/bpa_ferc714_original
+      - name: Always package source, hash, inventory and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-bpat-original-bpa-ferc714-2020-2025-SOURCE-ONLY
+          path: outputs/bpa_ferc714_original/
+          if-no-files-found: warn
+          retention-days: 30
