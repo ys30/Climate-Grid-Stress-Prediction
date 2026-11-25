@@ -65,6 +65,37 @@ class TestBPASourceGate(unittest.TestCase):
         self.assertEqual(rows[0]["status"], "existing_original_invalid")
         self.assertEqual(target.read_bytes(), b"corrupted archived source")
 
+    def test_valid_altered_xlsx_cannot_pass_frozen_identity_lock(self):
+        sample = fake_xlsx() + b" " * 1300
+        acquire(self.root, years=(2025,), opener=lambda url: sample)
+        target = self.root / "BPA_FERC714_2025_ORIGINAL.xlsx"
+        # A structurally valid alternate workbook is not the original source.
+        alternate = fake_xlsx() + b"x" * 1300
+        self.assertNotEqual(hashlib.sha256(sample).hexdigest(),
+                            hashlib.sha256(alternate).hexdigest())
+        target.write_bytes(alternate)
+        rows = acquire(self.root, years=(2025,), opener=lambda url: sample)
+        self.assertEqual(rows[0]["status"], "existing_original_invalid")
+        self.assertIn("SHA changed", rows[0]["error"])
+        self.assertEqual(target.read_bytes(), alternate)
+
+    def test_valid_existing_xlsx_without_original_hash_lock_rejected(self):
+        target = self.root / "BPA_FERC714_2025_ORIGINAL.xlsx"
+        sample = fake_xlsx() + b" " * 1300
+        target.write_bytes(sample)
+        rows = acquire(self.root, years=(2025,), opener=lambda url: sample)
+        self.assertEqual(rows[0]["status"], "existing_original_invalid")
+        self.assertIn("no first-acquisition SHA lock", rows[0]["error"])
+        self.assertEqual(target.read_bytes(), sample)
+
+    def test_missing_locked_original_not_silently_refetched(self):
+        sample = fake_xlsx() + b" " * 1300
+        acquire(self.root, years=(2025,), opener=lambda url: sample)
+        (self.root / "BPA_FERC714_2025_ORIGINAL.xlsx").unlink()
+        rows = acquire(self.root, years=(2025,), opener=lambda url: sample)
+        self.assertEqual(rows[0]["status"], "source_not_verified")
+        self.assertIn("refuse silent re-download", rows[0]["error"])
+
     def test_invalid_bytes_fail_closed_with_written_diagnostics(self):
         rows = acquire(self.root, years=(2025,), opener=lambda url: b"not xlsx")
         self.assertEqual(rows[0]["status"], "source_not_verified")
