@@ -1,0 +1,55 @@
+name: C2 BPAT immutable PUDL FERC714 core original-source intake
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/c2_bpat_pudl_ferc714_fixed_release.py
+      - tests/test_c2_bpat_pudl_ferc714_fixed_release.py
+      - .github/workflows/c2-bpat-pudl-ferc714-fixed-release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  fixed-release-core-ferc714:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned parquet reader
+        run: python -m pip install 'pyarrow==21.0.0'
+      - name: Run source-only synthetic contract tests
+        run: python -m unittest discover -s tests -p 'test_c2_bpat_pudl_ferc714_fixed_release.py' -v
+      - name: Download fixed release actual FERC714 hourly and respondent metadata and SHA archive
+        run: python scripts/c2_bpat_pudl_ferc714_fixed_release.py --out outputs/bpat_pudl_ferc714_v2026_10_0
+      - name: Source retrieval diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p outputs/bpat_pudl_ferc714_v2026_10_0
+          python - <<'PY'
+          import json,pathlib
+          out=pathlib.Path('outputs/bpat_pudl_ferc714_v2026_10_0')
+          p=out/'PUDL_FERC714_BPAT_SOURCE_AUDIT_MANIFEST.json'
+          if p.exists():
+              try:
+                  info=json.loads(p.read_text())
+                  print('source count',len(info.get('source_originals',[])))
+                  print('respondent audit',info.get('audit',{}).get('status','MISSING'))
+              except Exception as exc:
+                  print('manifest invalid',str(exc))
+          else:
+              print('No original source manifest created; download or setup failed')
+          PY
+      - name: Upload original immutable PUDL data and initial SHA manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-bpat-pudl-v2026-10-core-FERC714-ORIGINAL-REVIEW-REQUIRED
+          path: outputs/bpat_pudl_ferc714_v2026_10_0/
+          if-no-files-found: warn
+          retention-days: 30
