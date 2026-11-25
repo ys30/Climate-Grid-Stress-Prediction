@@ -11,7 +11,7 @@ import json
 import re
 import urllib.request
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 RELEASE = "v2026.10.0"
@@ -56,6 +56,17 @@ def download(name, root):
         # Keep failed bytes for explicit diagnosis, but never mark as acquired.
         raise
 
+def normalize_utc(stamp):
+    """Return UTC-naive timestamp only after converting any offset-aware time."""
+    if not isinstance(stamp, datetime):
+        raise ValueError("Invalid FERC datetime type")
+    if stamp.tzinfo is not None:
+        stamp = stamp.astimezone(timezone.utc).replace(tzinfo=None)
+    if stamp.minute != 0 or stamp.second != 0 or stamp.microsecond != 0:
+        raise ValueError("Non-hourly source timestamp cannot be joined to EIA-930")
+    return stamp
+
+
 def audit(respondents, hours, reviewed_respondent_id=None):
     import pyarrow.parquet as pq
     rt = pq.read_table(respondents, columns=[
@@ -63,13 +74,20 @@ def audit(respondents, hours, reviewed_respondent_id=None):
         "respondent_id_ferc714_csv","respondent_id_ferc714_xbrl","eia_code"])
     metadata = rt.to_pylist()
     candidates = [r for r in metadata if NAME.search(str(r.get("respondent_name_ferc714") or ""))]
+    candidate_ids = [r.get("respondent_id_ferc714") for r in candidates]
+    if len(candidate_ids) != len(set(candidate_ids)):
+        raise ValueError("Duplicate BPA candidate respondent ID in source metadata")
     # Discovery output is not silently promoted to a unique verified BPAT ID.
     if reviewed_respondent_id is None:
         return {"candidates":candidates, "status":"respondent_review_required",
-                "hourly_rows":None,"model_training_permitted":False}
+                "hourly_rows":None,"model_training_permitted":False,
+                "bpa_original_XLSX_verified":False,
+                "EIA930_full_hourly_comparison_completed":False}
     valid = [r for r in candidates if str(r["respondent_id_ferc714"]) == str(reviewed_respondent_id)]
     if len(valid) != 1:
         raise ValueError("Reviewed respondent ID must uniquely match a BPA-named source record")
+    if not valid[0].get("eia_code"):
+        raise ValueError("BPA respondent has no independently reviewable EIA code")
     ht = pq.ParquetFile(hours)
     required = {"respondent_id_ferc714", "datetime_utc", "demand_mwh","report_date"}
     if not required <= set(ht.schema.names):
@@ -84,11 +102,7 @@ def audit(respondents, hours, reviewed_respondent_id=None):
         for row in batch.to_pylist():
             if str(row["respondent_id_ferc714"]) != str(reviewed_respondent_id):
                 continue
-            stamp = row["datetime_utc"]
-            if stamp is None:
-                raise ValueError("Matched respondent has null time")
-            if stamp.tzinfo is not None:
-                stamp = stamp.replace(tzinfo=None)
+            stamp = normalize_utc(row["datetime_utc"])
             year = stamp.year
             if year < 2020 or year > 2025:
                 continue
