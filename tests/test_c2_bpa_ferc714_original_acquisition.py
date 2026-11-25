@@ -49,6 +49,22 @@ class TestBPASourceGate(unittest.TestCase):
         self.assertFalse(manifest["model_training_permitted"])
         self.assertFalse(manifest["actual_EIA930_source_comparison_completed"])
 
+    def test_existing_original_is_reverified_without_new_download(self):
+        sample = fake_xlsx() + b" " * 1300
+        acquire(self.root, years=(2025,), opener=lambda url: sample)
+        def forbidden_network(url):
+            raise AssertionError("Should not redownload a previously archived original")
+        rows = acquire(self.root, years=(2025,), opener=forbidden_network)
+        self.assertEqual(rows[0]["status"], "existing_original_reverified")
+        self.assertEqual(rows[0]["sha256"], hashlib.sha256(sample).hexdigest())
+
+    def test_invalid_preexisting_source_is_not_overwritten(self):
+        target = self.root / "BPA_FERC714_2025_ORIGINAL.xlsx"
+        target.write_bytes(b"corrupted archived source")
+        rows = acquire(self.root, years=(2025,), opener=lambda url: fake_xlsx() + b" " * 1300)
+        self.assertEqual(rows[0]["status"], "existing_original_invalid")
+        self.assertEqual(target.read_bytes(), b"corrupted archived source")
+
     def test_invalid_bytes_fail_closed_with_written_diagnostics(self):
         rows = acquire(self.root, years=(2025,), opener=lambda url: b"not xlsx")
         self.assertEqual(rows[0]["status"], "source_not_verified")
