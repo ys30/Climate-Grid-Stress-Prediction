@@ -41,6 +41,17 @@ def aggregate(detail, county_map, manifest):
             raise ValueError("Missing or changed source SHA or release: " + name)
     if meta.get("normalized_detail_schema_reviewed") is not True:
         raise ValueError("Original-to-normalized field lineage has not been reviewed")
+    # GWh conservation is necessary but insufficient: overlapping totals and
+    # detail cells conserve their double-counted sum. Require an independently
+    # reviewed disjoint source measure and amendment/supersession protocol.
+    if meta.get("energy_measure") != "delivered_electricity_gwh":
+        raise ValueError("Original energy measure must be reviewed as delivered electricity GWh")
+    if meta.get("detail_cells_confirmed_disjoint") is not True:
+        raise ValueError("Source detail cells may overlap or mix subtotals")
+    if meta.get("filing_amendments_resolved") is not True:
+        raise ValueError("Original and amended filings have not been reconciled")
+    if meta.get("denominator_and_sector_scope_reviewed") is not True:
+        raise ValueError("Original sector and accounting scope requires review")
     with Path(county_map).open(newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         if not {"cec_county_number", "county_fips", "reviewed"} <= set(reader.fieldnames or []):
@@ -106,6 +117,11 @@ def aggregate(detail, county_map, manifest):
         "detail_gwh": original_total,
         "aggregated_gwh": aggregated_total,
         "conservation_verified": True,
+        "conservation_alone_does_not_certify_disjoint_source_cells": True,
+        "energy_measure": "delivered_electricity_gwh",
+        "detail_cells_declared_disjoint_by_source_review": True,
+        "amended_filing_reconciliation_declared": True,
+        "source_scope_review_declared": True,
         "source_detail_sha256": sha(detail),
         "source_county_crosswalk_sha256": sha(county_map),
         "actual_CEC_official_schema_authenticated_by_this_script": False,
