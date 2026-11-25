@@ -39,6 +39,10 @@ class TestCEC1306ADetail(unittest.TestCase):
         manifest.write_text(json.dumps({
             "research_only": True, "training_permitted": False,
             "normalized_detail_schema_reviewed": schema_reviewed,
+            "energy_measure": "delivered_electricity_gwh",
+            "detail_cells_confirmed_disjoint": True,
+            "filing_amendments_resolved": True,
+            "denominator_and_sector_scope_reviewed": True,
             "files": {key: {"sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
                             "source_release": "SYNTHETIC-ONLY"}
                       for key, p in (("detail", detail), ("cec_county_crosswalk", county))}
@@ -78,6 +82,38 @@ class TestCEC1306ADetail(unittest.TestCase):
     def test_unreviewed_source_schema_rejected(self):
         with self.assertRaisesRegex(ValueError, "field lineage"):
             aggregate(*self.write(schema_reviewed=False))
+
+    def test_subtotal_overlap_not_proven_rejected(self):
+        detail, county, manifest = self.write()
+        proof = json.loads(manifest.read_text())
+        proof["detail_cells_confirmed_disjoint"] = False
+        manifest.write_text(json.dumps(proof))
+        with self.assertRaisesRegex(ValueError, "may overlap"):
+            aggregate(detail, county, manifest)
+
+    def test_unresolved_amendments_rejected(self):
+        detail, county, manifest = self.write()
+        proof = json.loads(manifest.read_text())
+        proof["filing_amendments_resolved"] = False
+        manifest.write_text(json.dumps(proof))
+        with self.assertRaisesRegex(ValueError, "amended filings"):
+            aggregate(detail, county, manifest)
+
+    def test_mixed_source_energy_measure_rejected(self):
+        detail, county, manifest = self.write()
+        proof = json.loads(manifest.read_text())
+        proof["energy_measure"] = "generation_gwh"
+        manifest.write_text(json.dumps(proof))
+        with self.assertRaisesRegex(ValueError, "delivered electricity GWh"):
+            aggregate(detail, county, manifest)
+
+    def test_unreviewed_sector_scope_rejected(self):
+        detail, county, manifest = self.write()
+        proof = json.loads(manifest.read_text())
+        proof["denominator_and_sector_scope_reviewed"] = False
+        manifest.write_text(json.dumps(proof))
+        with self.assertRaisesRegex(ValueError, "accounting scope"):
+            aggregate(detail, county, manifest)
 
     def test_missing_naics_category_rejected(self):
         self.details[0]["naics"] = ""
