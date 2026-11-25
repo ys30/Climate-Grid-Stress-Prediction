@@ -101,33 +101,39 @@ def acquire(out, years=YEARS, opener=None):
                 "data_metric_definition_authenticated": False,
                 "EIA930_comparison_permitted": False}
         try:
-            if opener is None:
+            if target.exists():
+                # Never replace a frozen original on a runner re-run.
+                raw = target.read_bytes()
+                source_status = "existing_original_reverified"
+            elif opener is None:
                 request = urllib.request.Request(url, headers={
                     "User-Agent": "C2-BPA-FERC714-Original-Source-Audit/1.0"})
                 with urllib.request.urlopen(request, timeout=100) as response:
                     raw = response.read(50000001)
+                source_status = "original_downloaded_workbook_inventory_pass"
             else:
                 raw = opener(url)
+                source_status = "original_downloaded_workbook_inventory_pass"
             if len(raw) > 50000000 or len(raw) < 1000 or not zipfile.is_zipfile(__import__("io").BytesIO(raw)):
-                raise ValueError("Original download not a bounded genuine XLSX ZIP")
+                raise ValueError("Original source is not a bounded valid XLSX ZIP")
             inventory = extract_inventory(raw)
-            if target.exists():
-                raise FileExistsError("Original source file already exists: " + str(target))
-            target.write_bytes(raw)
-            item.update({"status": "original_downloaded_workbook_inventory_pass",
+            if not target.exists():
+                target.write_bytes(raw)
+            item.update({"status": source_status,
                          "sha256": sha(raw), "original_file_bytes": len(raw),
                          "worksheet_count": len(inventory)})
             (out / ("BPA_FERC714_" + str(year) + "_SHEET_INVENTORY.json")).write_text(
                 json.dumps({"original_sha256": sha(raw), "worksheets": inventory},
                            indent=2) + "\n", encoding="utf-8")
         except Exception as exc:
-            item["status"] = "source_not_verified"
+            item["status"] = ("existing_original_invalid" if target.exists()
+                              else "source_not_verified")
             item["error"] = type(exc).__name__ + ": " + str(exc)[:450]
         manifest.append(item)
     (out / "BPA_FERC714_2020_2025_ORIGINAL_SOURCE_MANIFEST.json").write_text(
         json.dumps({"source_type": "BPA original FERC-714 operator-submitted XLSX",
                     "reports": manifest, "all_original_sources_obtained": all(
-                        x["status"] == "original_downloaded_workbook_inventory_pass"
+                        x["status"] in ("original_downloaded_workbook_inventory_pass", "existing_original_reverified")
                         for x in manifest),
                     "historical_BA_geography_approved": False,
                     "model_training_permitted": False,
@@ -148,10 +154,10 @@ def main():
     p.add_argument("--out", required=True, type=Path)
     args = p.parse_args()
     result = acquire(args.out)
-    print(json.dumps({"originals_verified": sum(x["status"].startswith("original_downloaded")
+    print(json.dumps({"originals_verified": sum(x["status"] in ("original_downloaded_workbook_inventory_pass", "existing_original_reverified")
                                                  for x in result), "of": len(result),
                       "model_training_permitted": False}))
-    if not all(x["status"].startswith("original_downloaded") for x in result):
+    if not all(x["status"] in ("original_downloaded_workbook_inventory_pass", "existing_original_reverified") for x in result):
         raise SystemExit("Original BPA XLSX retrieval/inventory INCOMPLETE; no model admission")
 
 
