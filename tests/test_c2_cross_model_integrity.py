@@ -31,7 +31,7 @@ class TestCrossModelIntegrity(unittest.TestCase):
         r=self.check(lambda a:a.append(dict(a[0])));self.assertFalse(r['passed'])
     def test_gap(self):
         r=self.check(lambda a:[x.update(date='2025-07-04') for x in a[2:]]);self.assertFalse(r['passed'])
-    def test_nonfinite(self):
+    def test_missing_estimator_pair(self):\n        r=self.check(lambda a:a.pop(1));self.assertFalse(r['passed'])\n        self.assertTrue(any('missing estimator' in x['issue'] for x in r['issues']))\n    def test_nonfinite(self):
         r=self.check(lambda a:a[0].update(actual_mw='nan'));self.assertFalse(r['passed'])
 
 if __name__=='__main__':
