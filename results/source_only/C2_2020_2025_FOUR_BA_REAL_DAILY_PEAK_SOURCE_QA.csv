@@ -1,0 +1,5 @@
+ba,all_UTC_days,complete_observed_days,incomplete_days,source_anomaly_candidate_days,largest_original_daily_peak_MW,largest_original_peak_UTC_day
+AZPS,2192,2188,4,7,101412,2020-01-22
+BPAT,2192,2192,0,0,11742,2020-11-25
+CISO,2192,2174,18,1,51104,2022-09-07
+SRP,2192,2178,14,23,70313,2023-06-03
