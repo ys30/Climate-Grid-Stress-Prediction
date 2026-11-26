@@ -3,6 +3,7 @@ import csv
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 from scripts.c2_run_validated_audit import run
 
@@ -50,6 +51,23 @@ class TestValidatedAudit(unittest.TestCase):
             run(source, out, bootstrap=0)
             with self.assertRaisesRegex(ValueError, 'OUTPUT EXISTS'):
                 run(source, out, bootstrap=0)
+    def test_existing_empty_output_directory_rejected(self):
+        with tempfile.TemporaryDirectory() as root:
+            source=Path(root)/'input.csv'
+            out=Path(root)/'out'
+            out.mkdir()
+            write_csv(source,make_rows())
+            with self.assertRaisesRegex(ValueError,'OUTPUT EXISTS'):
+                run(source,out)
+    def test_failed_computation_does_not_publish_partial_results(self):
+        with tempfile.TemporaryDirectory() as root:
+            source=Path(root)/'input.csv'
+            out=Path(root)/'out'
+            write_csv(source,make_rows())
+            with patch('scripts.c2_run_validated_audit.audit', side_effect=RuntimeError('injected computation failure')):
+                with self.assertRaisesRegex(RuntimeError,'injected'):
+                    run(source,out)
+            self.assertFalse(out.exists())
     def test_missing_one_model_fails_before_outputs(self):
         with tempfile.TemporaryDirectory() as root:
             source = Path(root)/"input.csv"
