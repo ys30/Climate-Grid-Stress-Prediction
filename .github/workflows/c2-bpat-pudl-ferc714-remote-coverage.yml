@@ -13,6 +13,9 @@ on:
       - scripts/c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py
       - tests/test_c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py
       - data/source_only/PUDL_ferc714_respondent_csv_xbrl_glue_97874c2.csv
+      - data/source_only/FERC714_Respondent_IDs_historical_tdeetjen_84f14fa.csv
+      - scripts/c2_bpat_ferc714_cross_era_identity_evidence.py
+      - tests/test_c2_bpat_ferc714_cross_era_identity_evidence.py
       - .github/workflows/c2-bpat-pudl-ferc714-remote-coverage.yml
 
 permissions:
@@ -45,6 +48,10 @@ jobs:
           python scripts/c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py \
             --csv data/source_only/PUDL_ferc714_respondent_csv_xbrl_glue_97874c2.csv \
             --out outputs/c2_bpat_pinned_glue/PUBLISHED_FERC_RESPONDENT_CROSS_ERA_AUDIT.json
+      - name: Test legacy Bonneville ID 122 to pinned PUDL 21 XBRL mapping
+        run: python -m unittest discover -s tests -p 'test_c2_bpat_ferc714_cross_era_identity_evidence.py' -v
+      - name: Audit true two-file Git-blob-verified BPA historical identity chain
+        run: python scripts/c2_bpat_ferc714_cross_era_identity_evidence.py --out outputs/c2_bpat_pinned_glue/BPA_FERC714_HISTORICAL_CROSS_ERA_IDENTITY.json
       - name: Query immutable release respondent candidates from public S3 without bulk Parquet download
         id: s3_candidate_query
         continue-on-error: true
