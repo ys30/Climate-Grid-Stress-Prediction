@@ -19,6 +19,8 @@ except ModuleNotFoundError:
 def run(input_csv, output_dir, bootstrap=1200, seed=20261126):
     input_csv = Path(input_csv)
     output_dir = Path(output_dir)
+    if (output_dir / 'episode_duration_metrics.csv').exists():
+        raise ValueError('C2 OUTPUT EXISTS: choose a new output directory to prevent stale result reuse')
     integrity = validate(input_csv)
     if not integrity["passed"]:
         # Avoid creating a misleading metrics file from failed input.
