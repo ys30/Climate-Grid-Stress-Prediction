@@ -46,7 +46,7 @@ def read_eia(path):
     return hourly
 
 def read_ferc(path):
-    hourly={};counts=Counter();nulls=Counter();spill=Counter()
+    hourly={};counts=Counter();nulls=Counter();spill=Counter();seen_utc=set()
     with open(path,encoding="utf-8",newline="") as fh:
         rd=csv.DictReader(fh)
         if not FERC_FIELDS.issubset(rd.fieldnames or []):
@@ -61,8 +61,9 @@ def read_ferc(path):
             if stamp.minute or stamp.second or stamp.microsecond:
                 raise ValueError("Non-hour FERC timestamp")
             key=(report_year,stamp)
-            if key in hourly:
-                raise ValueError("Duplicate FERC report-year/UTC hour")
+            if stamp in seen_utc:
+                raise ValueError("Duplicate FERC UTC hour across reporting years")
+            seen_utc.add(stamp)
             raw=row["demand_mwh"]
             val=None if raw is None or not raw.strip() else float(raw)
             if val is not None and (not math.isfinite(val) or val<0):
@@ -81,12 +82,18 @@ def calculate(eia,ferc,counts,nulls,spill,eia_hash,ferc_hash,source_url):
         record={"report_year":yr,"expected_hours":YEARS[yr],
                 "FERC_rows":counts[yr],"FERC_missing_demand":nulls[yr],
                 "FERC_UTC_year_spillover":spill[yr],
-                "FERC_complete_source_hours":counts[yr]==YEARS[yr] and nulls[yr]==0}
+                "FERC_row_count_equals_expected":counts[yr]==YEARS[yr],
+                "FERC_null_free":nulls[yr]==0,
+                "FERC_complete_source_hours":counts[yr]==YEARS[yr] and nulls[yr]==0,
+                "full_UTC_alignment_verified":False}
         for shift in (-1,0,1):
             pairs=[(val,eia[t+timedelta(hours=shift)]) for t,val in rows
                    if t+timedelta(hours=shift) in eia]
             tag={-1:"minus1h",0:"zero_shift",1:"plus1h"}[shift]
             record[tag+"_matched_hours"]=len(pairs)
+            record[tag+"_matched_fraction_of_expected_hours"]=len(pairs)/YEARS[yr]
+            record[tag+"_matched_fraction_of_nonmissing_FERC_rows"]=(len(pairs)/len(rows) if rows else None)
+            record[tag+"_all_expected_hours_matched"]=len(pairs)==YEARS[yr] and len(rows)==YEARS[yr]
             record[tag+"_mae_mw"]=(sum(abs(a-b) for a,b in pairs)/len(pairs) if pairs else None)
             record[tag+"_ferc_minus_eia_bias_mw"]=(sum(a-b for a,b in pairs)/len(pairs) if pairs else None)
         diagnostics.append(record)
