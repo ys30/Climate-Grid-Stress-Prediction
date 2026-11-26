@@ -1,0 +1,86 @@
+{
+  "protocol_id": "C2_FOUR_BA_MODEL_ADMISSION_V1_20261126",
+  "status": "EXPLORATORY_PROTOCOL_LOCK_NOT_CONFIRMATORY_PREREGISTRATION",
+  "historical_years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "BA_codes": [
+    "AZPS",
+    "BPAT",
+    "CISO",
+    "SRP"
+  ],
+  "data": {
+    "source_archive_sha256": "bc226839dbd4ababedfe2b4079cb79f06c3b0dd9d9971f3c98b3d27256eaa504",
+    "source_member_gzip_sha256": "88551b144acfaafb1be1e1a4691cd263101241a3b6def4429c3f099a006419ac",
+    "existing_LOYO_CSV_sha256": "41af7c24fd536c5d652f3cf39302499e9870c473d833fb98902375c91f31f0f1",
+    "weather_geography_operator_approved": false,
+    "EIA_vintages_reconciled": false,
+    "FERC714_respondent21_2020_25_core_validated": false
+  },
+  "unit": "BA x UTC day with 24 valid demand+temperature hours",
+  "seasons": {
+    "winter": [
+      11,
+      12,
+      1,
+      2,
+      3
+    ],
+    "nonwinter": [
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10
+    ]
+  },
+  "outcomes": {
+    "primary_descriptive": "daily_peak_MW",
+    "robustness": "daily_intra_day_P95_MW",
+    "secondary": "daily_mean_MW",
+    "no_significance_based_selection": true
+  },
+  "temperature": {
+    "candidate_ERA5": true,
+    "center": "BA x year x month",
+    "regressors": [
+      "max(-centered_T,0)",
+      "max(centered_T,0)"
+    ],
+    "interpretation": "descriptive noncausal association"
+  },
+  "quality": {
+    "original_primary_immutable": true,
+    "sensitivity_only": [
+      "exclude_source_flagged_day",
+      "exclude_flagged_and_unflagged_screened_day",
+      "exclude_review_and_plusminus_1day"
+    ]
+  },
+  "LOYO": {
+    "observed_total_fits": 336,
+    "distinct_configs": 48,
+    "deletion_refits": 288,
+    "predictive_out_of_sample": false
+  },
+  "predictive_validation": {
+    "blocked": true,
+    "year_2025_is_untouched": false,
+    "require_new_independently_sealed_data": true,
+    "preprocessing_training_only": true
+  },
+  "admission": {
+    "causal": false,
+    "future_SSP_CMIP6_PyPSA": false,
+    "model_training": false
+  },
+  "C1_frozen": true
+}
