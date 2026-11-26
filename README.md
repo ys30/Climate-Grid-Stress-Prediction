@@ -16,3 +16,18 @@ A. Weather-driven historical associations and counterfactual weather normalizati
 B. Out-of-time validated weather–electricity predictions, downscaled CMIP6-driven forecasts, and assumption-conditioned PyPSA stress screens.
 
 Read [protocol](docs/RESEARCH_DESIGN.md) and [source inventory](docs/SOURCE_AUDIT.md). Run `python -m unittest discover -s tests -v` for initial guardrails. No historical data files are stored in this initial commit.
+
+## Executable C2 persistent-event tail audit (2026-11-26)
+
+The standalone standard-library CLI [`scripts/c2_episode_tail_audit.py`](scripts/c2_episode_tail_audit.py) audits **already frozen, pre-labeled persistent episodes and already calculated predictions**. It does **not** fit a model, discover an event, fetch official data, or validate future forecast weather.
+
+Input CSV required headers:
+`ba,date,target,estimator,event_category,episode_id,actual_mw,calendar_pred_mw,weather_pred_mw`.
+Optional: `source_flag` (1/true/yes/y/flagged). `date` must be ISO YYYY-MM-DD. Provide one row per BA/date/target/estimator/event category. All episode IDs must represent >=2 consecutive days in the same calendar year; invalid inputs fail closed.
+
+```bash
+python scripts/c2_episode_tail_audit.py path/to/frozen_episode_pairs.csv results/c2_tail --bootstrap 1200 --seed 20261126
+python -m unittest discover -s tests -p 'test_c2_episode_tail_audit.py' -v
+```
+
+Outputs: `episode_duration_metrics.csv` and `audit_manifest.json`. Metrics include original and weather-assisted MAE, calendar-versus-weather signed error, underforecast fraction/severity, day-weighted versus episode-weighted delta MAE, and episode-cluster descriptive bootstrap percentiles for >=8 episodes. The audit **does not produce prospective skill or scientifically calibrated confidence intervals**. CI: [C2 episode audit tests](.github/workflows/c2-episode-tail-audit.yml). Executing the CLI requires the genuine archived prediction CSV converted to the specified schema; the code does not fabricate or bundle the original 7,626-row archive.
