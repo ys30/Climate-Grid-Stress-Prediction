@@ -42,6 +42,14 @@ class TestValidatedAudit(unittest.TestCase):
             self.assertEqual(result["input_sha256"], manifest["input_sha256"])
             self.assertEqual(result["evidence_level"], "retrospective_nonblind_observed_weather")
 
+    def test_refuses_overwriting_previous_metrics(self):
+        with tempfile.TemporaryDirectory() as root:
+            source = Path(root)/'input.csv'
+            out = Path(root)/'out'
+            write_csv(source, make_rows())
+            run(source, out, bootstrap=0)
+            with self.assertRaisesRegex(ValueError, 'OUTPUT EXISTS'):
+                run(source, out, bootstrap=0)
     def test_missing_one_model_fails_before_outputs(self):
         with tempfile.TemporaryDirectory() as root:
             source = Path(root)/"input.csv"
