@@ -1,0 +1,5 @@
+ba,source_hours,source_flagged_hours,screened_extreme_hours,unflagged_screened_hours,screened_hours_with_API_checked,screened_hours_with_API_unavailable
+AZPS,52608,12,3,1,0,3
+BPAT,52608,0,0,0,0,0
+CISO,52608,1,0,0,0,0
+SRP,52608,57,20,2,11,9
