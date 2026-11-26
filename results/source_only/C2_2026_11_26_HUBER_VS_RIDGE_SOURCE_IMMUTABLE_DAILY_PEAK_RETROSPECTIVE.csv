@@ -1,0 +1,17 @@
+ba,training_variant,estimator,calendar_peak_MAE_MW,weather_peak_MAE_MW,weather_minus_calendar_MAE_MW,weather_wins_of_3,blind_validation,weather_mask_approved
+AZPS,original,ridge,612.680144,500.796697,-111.883447,3,False,False
+AZPS,original,huber,499.329582,410.102464,-89.227118,3,False,False
+AZPS,exclude_source_flagged_training_sensitivity,ridge,503.690490,416.401709,-87.288781,3,False,False
+AZPS,exclude_source_flagged_training_sensitivity,huber,499.964393,410.475680,-89.488712,3,False,False
+BPAT,original,ridge,519.174982,473.743192,-45.431789,3,False,False
+BPAT,original,huber,520.983688,465.325758,-55.657930,3,False,False
+BPAT,exclude_source_flagged_training_sensitivity,ridge,519.174982,473.743192,-45.431789,3,False,False
+BPAT,exclude_source_flagged_training_sensitivity,huber,520.983688,465.325758,-55.657930,3,False,False
+CISO,original,ridge,1985.831188,1867.910762,-117.920425,3,False,False
+CISO,original,huber,1961.660934,1856.715151,-104.945783,3,False,False
+CISO,exclude_source_flagged_training_sensitivity,ridge,1985.831188,1867.910762,-117.920425,3,False,False
+CISO,exclude_source_flagged_training_sensitivity,huber,1961.660934,1856.715151,-104.945783,3,False,False
+SRP,original,ridge,1304.840472,1320.018896,15.178425,1,False,False
+SRP,original,huber,819.703351,736.300141,-83.403211,3,False,False
+SRP,exclude_source_flagged_training_sensitivity,ridge,842.519947,757.465833,-85.054114,3,False,False
+SRP,exclude_source_flagged_training_sensitivity,huber,825.285910,740.463183,-84.822727,3,False,False
