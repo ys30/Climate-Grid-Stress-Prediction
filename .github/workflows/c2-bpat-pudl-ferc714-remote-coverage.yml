@@ -1,0 +1,36 @@
+name: C2 BPAT PUDL FERC714 lightweight S3 respondent discovery
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/c2_bpat_pudl_ferc714_remote_coverage.py
+      - tests/test_c2_bpat_pudl_ferc714_remote_coverage.py
+      - .github/workflows/c2-bpat-pudl-ferc714-remote-coverage.yml
+
+permissions:
+  contents: read
+
+jobs:
+  discover-bpa-respondent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned DuckDB remote query engine
+        run: python -m pip install 'duckdb==1.4.1'
+      - name: Test fixed-release source-only gates without network
+        run: python -m unittest discover -s tests -p 'test_c2_bpat_pudl_ferc714_remote_coverage.py' -v
+      - name: Query immutable release respondent candidates from public S3 without bulk Parquet download
+        run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_remote_candidates
+      - name: Always upload concise source-only candidate and diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-bpat-pudl-v2026-10-ferc714-RESPONDENT-DISCOVERY-UNAPPROVED
+          path: outputs/c2_bpat_pudl_ferc714_remote_candidates/
+          if-no-files-found: warn
+          retention-days: 30
