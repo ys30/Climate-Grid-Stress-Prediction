@@ -1,0 +1,9 @@
+ba,season,raw_original_MW_per_cold_C,exclude_source_flagged_days_MW_per_cold_C,exclude_flagged_and_unflagged_candidate_days_MW_per_cold_C,exclude_review_plus_adjacent_days_MW_per_cold_C
+AZPS,winter_Nov_Mar,21.016720,69.003300,73.765322,73.205617
+AZPS,nonwinter_Apr_Oct,-147.797874,-142.991341,-142.991341,-143.119561
+BPAT,winter_Nov_Mar,184.989465,184.989465,184.989465,184.989465
+BPAT,nonwinter_Apr_Oct,50.272229,50.272229,50.272229,50.272229
+CISO,winter_Nov_Mar,194.669123,194.669123,194.669123,194.669123
+CISO,nonwinter_Apr_Oct,-550.450496,-549.992767,-549.992767,-549.745625
+SRP,winter_Nov_Mar,35.465618,52.650917,52.650917,49.934316
+SRP,nonwinter_Apr_Oct,-175.673341,-162.366751,-162.366751,-161.864598
