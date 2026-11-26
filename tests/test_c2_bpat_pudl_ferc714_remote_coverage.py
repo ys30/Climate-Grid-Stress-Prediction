@@ -85,6 +85,38 @@ class TestRemoteCoverage(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"Only fixed-release"):
                 run(Path(temp)/"invalid",transport="nightly")
 
+    def test_duckdb_connection_failure_preserves_diagnostics(self):
+        class FailingDB:
+            @staticmethod
+            def connect():
+                raise RuntimeError("synthetic duckdb connection failure")
+        with tempfile.TemporaryDirectory() as temp:
+            output=Path(temp)/"bad"
+            with patch.dict(sys.modules,{"duckdb":FailingDB}):
+                with self.assertRaisesRegex(RuntimeError,"synthetic duckdb"):
+                    run(output,transport="https")
+            proof=json.loads((output/"BPA_FERC714_PUDL_REMOTE_QUERY_PROVENANCE.json").read_text())
+            self.assertEqual(proof["status"],"QUERY_FAILED")
+            self.assertEqual(proof["failure_stage"],"duckdb_connection")
+            self.assertEqual(proof["error_class"],"RuntimeError")
+            self.assertFalse(proof["respondent_identity_approved"])
+
+    def test_candidate_source_error_is_distinguishable_from_no_candidate(self):
+        class FailingCandidates(FakeConn):
+            def execute(self, sql, params=None):
+                if "FROM read_parquet(" in sql:
+                    raise OSError("synthetic HTTPS 403 error")
+                return super().execute(sql,params)
+        with tempfile.TemporaryDirectory() as temp:
+            output=Path(temp)/"blocked"
+            with self.mocked(FailingCandidates([])):
+                with self.assertRaisesRegex(OSError,"403"):
+                    run(output,transport="https")
+            proof=json.loads((output/"BPA_FERC714_PUDL_REMOTE_QUERY_PROVENANCE.json").read_text())
+            self.assertEqual(proof["failure_stage"],"respondent_parquet_query")
+            self.assertIn("403",proof["error_message"])
+            self.assertNotIn("candidate_csv_sha256",proof)
+
     def test_output_never_overwritten(self):
         with tempfile.TemporaryDirectory() as temp:
             path=Path(temp)/"out"
