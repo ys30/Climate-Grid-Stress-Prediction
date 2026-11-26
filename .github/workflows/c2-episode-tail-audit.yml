@@ -27,12 +27,18 @@ jobs:
           test -f scripts/c2_cross_model_integrity.py
           test -f tests/test_c2_episode_tail_audit.py
           test -f tests/test_c2_cross_model_integrity.py
+          test -f scripts/c2_run_validated_audit.py
+          test -f tests/test_c2_run_validated_audit.py
       - name: Python syntax validation
-        run: python -m compileall -q scripts/c2_episode_tail_audit.py scripts/c2_cross_model_integrity.py tests/test_c2_episode_tail_audit.py tests/test_c2_cross_model_integrity.py
+        run: python -m compileall -q scripts/c2_episode_tail_audit.py scripts/c2_cross_model_integrity.py tests/test_c2_episode_tail_audit.py tests/test_c2_cross_model_integrity.py scripts/c2_run_validated_audit.py tests/test_c2_run_validated_audit.py
       - name: Episode audit regression tests
         env:
           PYTHONPATH: .
         run: python -m unittest discover -s tests -p 'test_c2_episode_tail_audit.py' -v
+      - name: Validated audit end-to-end tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p 'test_c2_run_validated_audit.py' -v
       - name: Cross-estimator integrity regression tests
         env:
           PYTHONPATH: .
