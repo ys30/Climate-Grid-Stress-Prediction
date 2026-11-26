@@ -34,6 +34,10 @@ class TestCrossModelIntegrity(unittest.TestCase):
     def test_missing_estimator_pair(self):
         r=self.check(lambda a:a.pop(1));self.assertFalse(r['passed'])
         self.assertTrue(any('missing estimator' in x['issue'] for x in r['issues']))
+    def test_entire_estimator_missing(self):
+        r=self.check(lambda a:a.__setitem__(slice(None),[x for x in a if x["estimator"]=="Ridge"]))
+        self.assertFalse(r["passed"])
+        self.assertTrue(any("missing required estimator" in x["issue"] for x in r["issues"]))
     def test_nonfinite(self):
         r=self.check(lambda a:a[0].update(actual_mw='nan'));self.assertFalse(r['passed'])
 
