@@ -73,13 +73,24 @@ def audit(respondents, hours, reviewed_respondent_id=None):
         "respondent_id_ferc714", "respondent_name_ferc714",
         "respondent_id_ferc714_csv","respondent_id_ferc714_xbrl","eia_code"])
     metadata = rt.to_pylist()
+    hourly_meta = pq.ParquetFile(hours)
+    required = {"respondent_id_ferc714", "datetime_utc",
+                "demand_mwh", "report_date"}
+    if not required <= set(hourly_meta.schema.names):
+        raise ValueError("FERC core hourly schema missing required fields")
+    if hourly_meta.metadata.num_rows < 1:
+        raise ValueError("PUDL core FERC hourly dataset is empty")
     candidates = [r for r in metadata if NAME.search(str(r.get("respondent_name_ferc714") or ""))]
+    if not candidates:
+        raise ValueError("No BPA-named respondent found; source identity review blocked")
     candidate_ids = [r.get("respondent_id_ferc714") for r in candidates]
     if len(candidate_ids) != len(set(candidate_ids)):
         raise ValueError("Duplicate BPA candidate respondent ID in source metadata")
     # Discovery output is not silently promoted to a unique verified BPAT ID.
     if reviewed_respondent_id is None:
         return {"candidates":candidates, "status":"respondent_review_required",
+                "source_hourly_parquet_schema_checked":True,
+                "source_hourly_parquet_total_rows":hourly_meta.metadata.num_rows,
                 "hourly_rows":None,"model_training_permitted":False,
                 "bpa_original_XLSX_verified":False,
                 "EIA930_full_hourly_comparison_completed":False}
@@ -88,10 +99,7 @@ def audit(respondents, hours, reviewed_respondent_id=None):
         raise ValueError("Reviewed respondent ID must uniquely match a BPA-named source record")
     if not valid[0].get("eia_code"):
         raise ValueError("BPA respondent has no independently reviewable EIA code")
-    ht = pq.ParquetFile(hours)
-    required = {"respondent_id_ferc714", "datetime_utc", "demand_mwh","report_date"}
-    if not required <= set(ht.schema.names):
-        raise ValueError("FERC core hourly schema missing fields")
+    ht = hourly_meta
     count = Counter()
     missing = Counter()
     seen = set()
