@@ -64,3 +64,11 @@ This is the first direct multi-BA *actual observed source* contrast of candidate
 4. Develop pre-specified multi-BA interaction/event-block model after reliable exposure geography and statistical dependence plan. No valid historical weather attribution coefficient or 2030/40/50 CMIP6-SSP/PyPSA model outcome can be claimed yet.
 
 **C-1 frozen and untouched.**
+
+## Additional ACTUAL two-mask comparison, strictly limited to selected months
+
+As a *distinct-source* spatial sensitivity, the prior authentic HIFLD-versus-TIGER matched-weather archive `C2_BA0_Geographic_Proxy_Sensitivity_2026_11_22.zip` was read and independently SHA-verified (**ZIP `40feadcee464856eddd374a4ca8c2a2c964d2f23389b1ffe288e7ae7d7ef0799`; source member `e754b35f2c6aaeb80b2a932cc9885382d3a1a93ae0d59cc27077810e65bbeb5c`**). Its actual coverage is **10,416 matched UTC hours in 14 BA-month cohorts**, not six full years: BPAT/CISO/SRP 2023 Jan/Jul plus 2025 Jan/Jul, AZPS 2025 Jan/Jul only.
+
+For each matched BA×year-month×UTC hour, candidate temperature anomalies were computed **separately per HIFLD and TIGER** based on same-month clock-hour means. For BPAT, HIFLD vs TIGER absolute mean temperature differences are **0.260, 0.215, 0.307, 0.223°C** for 2023-Jan, 2023-Jul, 2025-Jan, 2025-Jul. Under an *exploratory* ≤−5°C temperature-anomaly definition, **1, 0, 7, 1 BPAT hours out of 744 per month** changed cold classification. Larger mean absolute temperature differences are observed for AZPS (**1.38–2.06°C**) and SRP (**1.76–1.95°C**) in their overlap months. These numbers are **temperature-proxy classification sensitivity**, not validated geographic masks, full-period cold-load OR robustness or actual BA operator exposure.
+
+All 28 mask×month×threshold comparison rows (−3 and −5°C), original second-source ZIP, actually executed audit script and SHA manifest were included in the updated downloadable `C2_2020_2025_Four_BA_Cold_Load_Comparison_RealSource_2026_11_26.zip`, ZIP SHA256 **`f01bf2d2aa43da1657e3f554f8bf86bd27042f4b0ca1abcfe3cc283cb7248ed7`**, ZIP CRC passed. Full original EIA/ERA5 four-BA source ZIP is included, making the delivered package self-contained. No formal multi-BA interaction hypothesis test or climate causal claim has yet been approved.
