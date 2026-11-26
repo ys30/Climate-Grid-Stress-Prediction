@@ -47,7 +47,7 @@ def validate(path):
                 issues.append({'line':line,'issue':str(err)})
     if not n:
         issues.append({'issue':'empty input'})
-    for key,obs in by_day.items():
+    expected_models=set(counts)\n    for key,obs in by_day.items():\n        present={x[0] for x in obs}\n        if present != expected_models:\n            issues.append({'key':str(key),'issue':'missing estimator for paired BA/date/target/category; expected '+str(sorted(expected_models))+', found '+str(sorted(present))})
         if len({v[1] for v in obs})>1:
             issues.append({'key':str(key),'issue':'actual_mw differs across estimators'})
         if len({v[2] for v in obs})>1:
