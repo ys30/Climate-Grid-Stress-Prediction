@@ -53,10 +53,14 @@ def run(out, reviewed_respondent_id=None, transport="s3"):
            "EIA930_comparison_completed":False,
            "model_training_permitted":False}
     try:
+        proof["status"]="QUERY_SETUP_IN_PROGRESS"
+        proof["stage"]="duckdb_connection"
         con=duckdb.connect()
+        proof["stage"]="duckdb_httpfs_extension"
         con.execute("INSTALL httpfs; LOAD httpfs;")
         # Path-style is required because pudl.catalyst.coop has multiple dots.
         if transport == "s3":
+            proof["stage"]="anonymous_s3_secret_setup"
             con.execute("CREATE SECRET (TYPE s3, PROVIDER config, REGION 'us-west-2', URL_STYLE 'path')")
         # Keep a deterministic query string and record it with the results.
         sql=("SELECT respondent_id_ferc714, respondent_name_ferc714, "
@@ -68,6 +72,7 @@ def run(out, reviewed_respondent_id=None, transport="s3"):
         proof["candidate_sql"]=sql
         cols=["respondent_id_ferc714","respondent_name_ferc714",
               "respondent_id_ferc714_csv","respondent_id_ferc714_xbrl","eia_code"]
+        proof["stage"]="respondent_parquet_query"
         data=[dict(zip(cols,row)) for row in query(con,sql)]
         if not data:
             raise ValueError("No BPA respondent candidate in pinned PUDL release")
@@ -75,6 +80,7 @@ def run(out, reviewed_respondent_id=None, transport="s3"):
         if len(set(ids))!=len(ids):
             raise ValueError("Nonunique BPA respondent identifiers")
         proof["bpa_candidate_count"]=len(data)
+        proof["stage"]="candidate_csv_export"
         proof["candidate_csv_sha256"]=store_csv(out/"BPA_FERC714_RESPONDENT_CANDIDATES.csv",data,cols)
         proof["candidates"]=data
         if reviewed_respondent_id is None:
@@ -95,6 +101,7 @@ def run(out, reviewed_respondent_id=None, transport="s3"):
                     "AND datetime_utc < TIMESTAMP '2026-01-01' "
                     "GROUP BY 1 ORDER BY 1")
         proof["hourly_coverage_sql"]=hourly_sql
+        proof["stage"]="reviewed_respondent_hourly_coverage_query"
         rows=query(con,hourly_sql,[reviewed_respondent_id])
         fields=["utc_year","source_hour_rows","unique_utc_hours","null_demand_rows","first_utc","last_utc"]
         records=[dict(zip(fields,[str(x) if x is not None else "" for x in row])) for row in rows]
@@ -102,6 +109,12 @@ def run(out, reviewed_respondent_id=None, transport="s3"):
         proof["hourly_coverage"]=records
         proof["status"]="SOURCE_COVERAGE_CANDIDATE_NOT_IDENTITY_CERTIFIED"
         return proof
+    except Exception as exc:
+        proof["status"]="QUERY_FAILED"
+        proof["failure_stage"]=proof.get("stage","unclassified")
+        proof["error_class"]=type(exc).__name__
+        proof["error_message"]=str(exc)[:1000]
+        raise
     finally:
         (out/"BPA_FERC714_PUDL_REMOTE_QUERY_PROVENANCE.json").write_text(
             json.dumps(proof,indent=2,default=str)+"\n",encoding="utf-8")
