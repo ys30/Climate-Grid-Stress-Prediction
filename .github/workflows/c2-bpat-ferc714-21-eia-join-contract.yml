@@ -1,0 +1,24 @@
+name: C2 BPAT FERC714 respondent 21 hourly comparison contracts
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/c2_bpat_ferc714_21_vs_original_eia930_hourly.py
+      - tests/test_c2_bpat_ferc714_21_vs_original_eia930_hourly.py
+      - .github/workflows/c2-bpat-ferc714-21-eia-join-contract.yml
+
+permissions:
+  contents: read
+
+jobs:
+  source-only-join-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run FERC respondent 21 join contract tests (SYNTHETIC FERC INPUT)
+        run: python -m unittest discover -s tests -p 'test_c2_bpat_ferc714_21_vs_original_eia930_hourly.py' -v
