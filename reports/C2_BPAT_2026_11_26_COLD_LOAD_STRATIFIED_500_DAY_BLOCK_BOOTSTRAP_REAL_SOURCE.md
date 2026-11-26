@@ -52,3 +52,11 @@ Repository result table: `results/source_only/BPAT_2020_2025_ERA5_COLD_THRESHOLD
 ## Scientific next step
 
 Use a **weather-event block** robustness scheme (e.g., 5–7 day blocks) and, if feasible, a conditional logistic / hierarchical model accounting for year-month-hour, long-term load changes and alternative BA weather masks, with the 2020 demand spike source audit. Complete actual PUDL FERC714 respondent 21 hourly source retrieval and verify reporting scope separately. Only then consider formal historical climate attribution or future stress forecasts. **C-1 frozen, C-2 operational and attribution gates remain closed.**
+
+## Additional observed persistence robustness: seven-day blocks
+
+After the initial daily-block analysis, the real full BPAT EIA930 / candidate ERA5 cohort was independently re-run with **500 resamples of contiguous 7-day blocks** (within year-month), RNG seed `20261127`. The 7-day-block percentile 95% interval is **[4.22, 7.56]** (median 5.71), versus the daily-block interval **[4.90, 7.47]**. This explicitly checks sensitivity to multi-day serial dependence: the lower limit broadens downward but remains above one. Both intervals remain descriptive conditional sensitivity intervals, **not causal or independently held-out uncertainty**.
+
+The delivered, CRC-checked reproducibility archive now also contains the complete 500 seven-day draws, the full executed script and JSON summary:
+`C2_BPAT_2026_11_26_ERA5_Cold_Load_DayAndWeek_Block_Robustness.zip`
+SHA-256: `63d214a22d925b1a20ba1673b6a47c8054a0b3646e883544b76a62f0e9538fe9`.
