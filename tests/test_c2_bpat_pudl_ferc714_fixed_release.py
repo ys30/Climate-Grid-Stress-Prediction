@@ -1,6 +1,7 @@
 """Synthetic contract tests only; official PUDL Parquet not acquired by tests."""
 import json
 import tempfile
+from datetime import datetime
 from datetime import datetime, timedelta, timezone
 import unittest
 from pathlib import Path
@@ -47,6 +48,50 @@ class TestFixedFERC714(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 download("core_ferc714__respondent_id",Path(temp))
             self.assertEqual(path.read_bytes(),b"previous-data")
+
+    def test_real_parquet_schema_verified_before_respondent_selection(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            respondents = root/"respondents.parquet"
+            hours = root/"hourly.parquet"
+            pq.write_table(pa.table({
+                "respondent_id_ferc714": [9001],
+                "respondent_name_ferc714": ["Bonneville Power Administration"],
+                "respondent_id_ferc714_csv": [None],
+                "respondent_id_ferc714_xbrl": ["synthetic"],
+                "eia_code": [12345]}), respondents)
+            pq.write_table(pa.table({
+                "respondent_id_ferc714": [9001],
+                "datetime_utc": [datetime(2025, 1, 1, 0)],
+                "demand_mwh": [100.],
+                "report_date": [datetime(2025, 1, 1).date()]}), hours)
+            result = audit(respondents, hours)
+            self.assertEqual(result["status"], "respondent_review_required")
+            self.assertTrue(result["source_hourly_parquet_schema_checked"])
+            self.assertEqual(result["source_hourly_parquet_total_rows"], 1)
+            self.assertFalse(result["model_training_permitted"])
+
+    def test_missing_hourly_measure_fails_during_discovery(self):
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            respondents = root/"respondents.parquet"
+            hours = root/"hourly.parquet"
+            pq.write_table(pa.table({
+                "respondent_id_ferc714": [9001],
+                "respondent_name_ferc714": ["Bonneville Power Administration"],
+                "respondent_id_ferc714_csv": [None],
+                "respondent_id_ferc714_xbrl": ["synthetic"],
+                "eia_code": [12345]}), respondents)
+            pq.write_table(pa.table({
+                "respondent_id_ferc714": [9001],
+                "datetime_utc": [datetime(2025, 1, 1, 0)],
+                "report_date": [datetime(2025, 1, 1).date()]}), hours)
+            with self.assertRaisesRegex(ValueError,"missing required fields"):
+                audit(respondents, hours)
 
     def test_review_gate_without_external_parquet(self):
         """The no-review mode must never assert BPAT series availability.
