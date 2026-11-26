@@ -48,6 +48,20 @@ class TestBACodeLinkage(unittest.TestCase):
             self.assertEqual(data["status"],"QUERY_FAILED")
             self.assertEqual(data["error_stage"],"remote_identity_query")
             self.assertFalse(data["model_training_permitted"])
+    def test_duplicate_respondent_year_rejected(self):
+        with self.assertRaisesRegex(ValueError,"Duplicate respondent-year"):
+            inspect_rows([self.row(),self.row()])
+    def test_2026_outside_target_rejected(self):
+        row=list(self.row());row[1]="2026-01-01"
+        with self.assertRaisesRegex(ValueError,"outside 2020-2025"):
+            inspect_rows([tuple(row)])
+    def test_malformed_result_shape_rejected(self):
+        with self.assertRaisesRegex(ValueError,"schema width"):
+            inspect_rows([self.row()[:-1]])
+    def test_missing_2020_2024_not_silently_backfilled(self):
+        x=inspect_rows([self.row()])
+        self.assertEqual(len(x),1)
+        self.assertEqual(x[0]["report_date"],"2025-01-01")
     def test_output_cannot_be_overwritten(self):
         with tempfile.TemporaryDirectory() as tmp:
             path=Path(tmp)/"result"
