@@ -69,6 +69,22 @@ class TestRemoteCoverage(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,"Nonunique"):
                     run(Path(temp)/"out")
 
+    def test_https_public_fixed_version_uses_range_url_not_s3_secret(self):
+        with tempfile.TemporaryDirectory() as temp:
+            conn=FakeConn([self.candidate()])
+            with self.mocked(conn):
+                result=run(Path(temp)/"https-output",transport="https")
+            self.assertEqual(result["transport"],"https")
+            self.assertIn("/v2026.10.0/",result["respondent_uri"])
+            self.assertTrue(result["respondent_uri"].startswith("https://s3.us-west-2.amazonaws.com/"))
+            self.assertFalse(any("CREATE SECRET" in sql for sql,_ in conn.sqls))
+            self.assertTrue(any("read_parquet('https://" in sql for sql,_ in conn.sqls))
+
+    def test_transport_outside_fixed_release_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            with self.assertRaisesRegex(ValueError,"Only fixed-release"):
+                run(Path(temp)/"invalid",transport="nightly")
+
     def test_output_never_overwritten(self):
         with tempfile.TemporaryDirectory() as temp:
             path=Path(temp)/"out"
