@@ -1,0 +1,9 @@
+ba,season,original_daily_cold_hinge_MW_per_C,exclude_source_flagged_days_MW_per_C,exclude_flagged_plus_adjacent_days_MW_per_C,original_RMSE_MW,exclude_source_flagged_days_RMSE_MW,weather_geography_approved
+AZPS,winter_Nov_Mar,21.016720,69.003300,68.922024,3232.903104,438.071477,False
+AZPS,nonwinter_Apr_Oct,-147.797874,-142.991341,-143.119561,553.990823,328.414662,False
+BPAT,winter_Nov_Mar,184.989465,184.989465,184.989465,416.293871,416.293871,False
+BPAT,nonwinter_Apr_Oct,50.272229,50.272229,50.272229,503.884884,503.884884,False
+CISO,winter_Nov_Mar,194.669123,194.669123,194.669123,1184.878118,1184.878118,False
+CISO,nonwinter_Apr_Oct,-550.450496,-549.992767,-549.745625,2151.201944,2151.239795,False
+SRP,winter_Nov_Mar,35.465618,52.650917,49.934316,3380.100144,260.205666,False
+SRP,nonwinter_Apr_Oct,-175.673341,-162.366751,-161.864598,3356.068260,247.261581,False
