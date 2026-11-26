@@ -54,7 +54,7 @@ class TestRemoteCoverage(unittest.TestCase):
 
     def test_coverage_output_not_identity_certification(self):
         with tempfile.TemporaryDirectory() as temp:
-            conn=FakeConn([self.candidate()],[(2025,8760,8760,2,"2025-01-01","2025-12-31")])
+            conn=FakeConn([self.candidate()],[(2025,8760,8760,2,"2025-01-01","2026-01-01",1)])
             with self.mocked(conn):
                 result=run(Path(temp)/"out",reviewed_respondent_id=55)
             self.assertEqual(result["status"],"SOURCE_COVERAGE_CANDIDATE_NOT_IDENTITY_CERTIFIED")
@@ -62,6 +62,13 @@ class TestRemoteCoverage(unittest.TestCase):
             self.assertFalse(result["respondent_identity_approved"])
             self.assertFalse(result["EIA930_comparison_completed"])
             self.assertEqual(conn.sqls[-1][1],[55])
+            self.assertIn("year(report_date) AS report_year",conn.sqls[-1][0])
+            self.assertIn("year(datetime_utc) <> year(report_date)",conn.sqls[-1][0])
+            self.assertIn("report_date >= DATE '2020-01-01'",conn.sqls[-1][0])
+            self.assertNotIn("datetime_utc >= TIMESTAMP '2020-01-01'",conn.sqls[-1][0])
+            self.assertEqual(result["hourly_coverage"][0]["report_year"],"2025")
+            self.assertEqual(result["hourly_coverage"][0]["utc_outside_report_year_rows"],"1")
+            self.assertFalse(result["full_six_year_coverage_confirmed"])
 
     def test_duplicate_candidate_identity_fails_closed(self):
         with tempfile.TemporaryDirectory() as temp:
