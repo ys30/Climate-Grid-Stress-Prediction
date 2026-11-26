@@ -31,6 +31,29 @@ jobs:
       - name: Fallback to same-version public HTTPS Range Parquet on S3 protocol failure
         if: steps.s3_candidate_query.outcome == 'failure'
         run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_remote_candidates_https --transport https
+      - name: Enforce verifiable candidate CSV exists for at least one successful transport
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv,json,pathlib,sys
+          candidates=[]
+          for suffix in ('s3','https'):
+              root=pathlib.Path('outputs/c2_bpat_pudl_ferc714_remote_candidates_'+suffix)
+              p=root/'BPA_FERC714_RESPONDENT_CANDIDATES.csv'
+              m=root/'BPA_FERC714_PUDL_REMOTE_QUERY_PROVENANCE.json'
+              if not p.exists() or not m.exists():
+                  continue
+              proof=json.loads(m.read_text())
+              with p.open(newline='') as f:
+                  rows=list(csv.DictReader(f))
+              if proof.get('status')=='RESPONDENT_REVIEW_REQUIRED' and rows:
+                  candidates.append((suffix,len(rows)))
+          print('Verified derived BPA respondent candidate discovery:', candidates)
+          if not candidates:
+              sys.exit('No successful S3/HTTPS BPA respondent source query; no approval')
+          PY
       - name: Always upload concise source-only candidate and diagnostic report
         if: always()
         uses: actions/upload-artifact@v4
