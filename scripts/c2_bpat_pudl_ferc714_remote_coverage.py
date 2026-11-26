@@ -91,22 +91,31 @@ def run(out, reviewed_respondent_id=None, transport="s3"):
         if str(reviewed_respondent_id) not in ids:
             raise ValueError("Explicit reviewed ID absent from source candidates")
         proof["reviewed_candidate_id_for_diagnostic_only"]=reviewed_respondent_id
-        hourly_sql=("SELECT year(datetime_utc) AS utc_year, "
+        # Reporting-year cohort is NOT the same as the UTC timestamp's year.
+        # The last source hour may be normalized to the next UTC calendar day.
+        hourly_sql=("SELECT year(report_date) AS report_year, "
                     "count(*) AS source_hour_rows, "
                     "count(DISTINCT datetime_utc) AS unique_utc_hours, "
                     "count(*) FILTER (WHERE demand_mwh IS NULL) AS null_demand_rows, "
-                    "min(datetime_utc) AS first_utc, max(datetime_utc) AS last_utc "
+                    "min(datetime_utc) AS first_utc, max(datetime_utc) AS last_utc, "
+                    "count(*) FILTER (WHERE year(datetime_utc) <> year(report_date)) "
+                    "AS utc_outside_report_year_rows "
                     "FROM read_parquet('"+hourly_uri+"') "
-                    "WHERE respondent_id_ferc714=? AND datetime_utc >= TIMESTAMP '2020-01-01' "
-                    "AND datetime_utc < TIMESTAMP '2026-01-01' "
+                    "WHERE respondent_id_ferc714=? "
+                    "AND report_date >= DATE '2020-01-01' "
+                    "AND report_date < DATE '2026-01-01' "
                     "GROUP BY 1 ORDER BY 1")
         proof["hourly_coverage_sql"]=hourly_sql
         proof["stage"]="reviewed_respondent_hourly_coverage_query"
         rows=query(con,hourly_sql,[reviewed_respondent_id])
-        fields=["utc_year","source_hour_rows","unique_utc_hours","null_demand_rows","first_utc","last_utc"]
+        fields=["report_year","source_hour_rows","unique_utc_hours","null_demand_rows",
+                "first_utc","last_utc","utc_outside_report_year_rows"]
         records=[dict(zip(fields,[str(x) if x is not None else "" for x in row])) for row in rows]
         proof["hourly_coverage_csv_sha256"]=store_csv(out/"BPA_FERC714_2020_2025_HOURLY_COVERAGE.csv",records,fields)
         proof["hourly_coverage"]=records
+        proof["coverage_cohort"]="FERC_report_date_year_not_UTC_calendar_year"
+        proof["UTC_calendar_year_boundary_rows_reported_separately"]=True
+        proof["full_six_year_coverage_confirmed"]=False
         proof["status"]="SOURCE_COVERAGE_CANDIDATE_NOT_IDENTITY_CERTIFIED"
         return proof
     except Exception as exc:
