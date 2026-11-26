@@ -38,6 +38,7 @@ jobs:
         run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_remote_candidates_s3 --transport s3
       - name: Fallback to same-version public HTTPS Range Parquet on S3 protocol failure
         if: steps.s3_candidate_query.outcome == 'failure'
+        continue-on-error: true
         run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_remote_candidates_https --transport https
       - name: Query published annual PUDL-derived BPAT code linkage using S3
         id: bacode_s3
