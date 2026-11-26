@@ -1,0 +1,13 @@
+ba,event,episode_days,episodes,max_run_days
+AZPS,cold,101,32,8
+AZPS,high_load,146,23,23
+AZPS,warm,133,27,15
+BPAT,cold,92,27,9
+BPAT,high_load,82,15,18
+BPAT,warm,114,31,9
+CISO,cold,122,28,16
+CISO,high_load,30,10,7
+CISO,warm,84,22,12
+SRP,cold,95,31,9
+SRP,high_load,142,19,29
+SRP,warm,130,33,14
