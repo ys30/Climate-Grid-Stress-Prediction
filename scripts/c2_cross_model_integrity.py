@@ -47,7 +47,11 @@ def validate(path):
                 issues.append({'line':line,'issue':str(err)})
     if not n:
         issues.append({'issue':'empty input'})
-    expected_models=set(counts)\n    for key,obs in by_day.items():\n        present={x[0] for x in obs}\n        if present != expected_models:\n            issues.append({'key':str(key),'issue':'missing estimator for paired BA/date/target/category; expected '+str(sorted(expected_models))+', found '+str(sorted(present))})
+    expected_models=set(counts)
+    for key,obs in by_day.items():
+        present={x[0] for x in obs}
+        if present != expected_models:
+            issues.append({'key':str(key),'issue':'missing estimator for paired BA/date/target/category; expected '+str(sorted(expected_models))+', found '+str(sorted(present))})
         if len({v[1] for v in obs})>1:
             issues.append({'key':str(key),'issue':'actual_mw differs across estimators'})
         if len({v[2] for v in obs})>1:
@@ -69,7 +73,8 @@ def main():
     p.add_argument('--report',type=Path)
     args=p.parse_args()
     result=validate(args.input_csv)
-    output=json.dumps(result,indent=2)+'\n'
+    output=json.dumps(result,indent=2)+'
+'
     if args.report:
         args.report.parent.mkdir(parents=True,exist_ok=True)
         args.report.write_text(output,encoding='utf-8')
