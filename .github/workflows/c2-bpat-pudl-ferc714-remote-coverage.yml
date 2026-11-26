@@ -8,6 +8,8 @@ on:
       - tests/test_c2_bpat_pudl_ferc714_remote_coverage.py
       - scripts/c2_bpat_ferc714_identity_contract.py
       - tests/test_c2_bpat_ferc714_identity_contract.py
+      - scripts/c2_bpat_pudl_ferc714_ba_code_lookup.py
+      - tests/test_c2_bpat_pudl_ferc714_ba_code_lookup.py
       - .github/workflows/c2-bpat-pudl-ferc714-remote-coverage.yml
 
 permissions:
@@ -28,6 +30,8 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_c2_bpat_pudl_ferc714_remote_coverage.py' -v
       - name: Test numeric EIA-to-BA identity mapping contract
         run: python -m unittest discover -s tests -p 'test_c2_bpat_ferc714_identity_contract.py' -v
+      - name: Test published PUDL annual BA code linkage contract
+        run: python -m unittest discover -s tests -p 'test_c2_bpat_pudl_ferc714_ba_code_lookup.py' -v
       - name: Query immutable release respondent candidates from public S3 without bulk Parquet download
         id: s3_candidate_query
         continue-on-error: true
@@ -35,6 +39,15 @@ jobs:
       - name: Fallback to same-version public HTTPS Range Parquet on S3 protocol failure
         if: steps.s3_candidate_query.outcome == 'failure'
         run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_remote_candidates_https --transport https
+      - name: Query published annual PUDL-derived BPAT code linkage using S3
+        id: bacode_s3
+        if: always()
+        continue-on-error: true
+        run: python scripts/c2_bpat_pudl_ferc714_ba_code_lookup.py --out outputs/c2_bpat_ferc714_bacode_s3 --transport s3
+      - name: Retry published annual BPAT code linkage using HTTPS Range
+        if: always() && steps.bacode_s3.outcome == 'failure'
+        continue-on-error: true
+        run: python scripts/c2_bpat_pudl_ferc714_ba_code_lookup.py --out outputs/c2_bpat_ferc714_bacode_https --transport https
       - name: Enforce verifiable candidate CSV exists for at least one successful transport
         if: always()
         shell: bash
@@ -54,9 +67,23 @@ jobs:
                   rows=list(csv.DictReader(f))
               if proof.get('status')=='RESPONDENT_REVIEW_REQUIRED' and rows:
                   candidates.append((suffix,len(rows)))
-          print('Verified derived BPA respondent candidate discovery:', candidates)
-          if not candidates:
-              sys.exit('No successful S3/HTTPS BPA respondent source query; no approval')
+          bacode=[]
+          for suffix in ('s3','https'):
+              root=pathlib.Path('outputs/c2_bpat_ferc714_bacode_'+suffix)
+              p=root/'PUDL_BPAT_FERC714_YEARLY_RESPONDENT_LINKS.csv'
+              m=root/'PUDL_FERC714_BPAT_CURATED_IDENTITY_PROVENANCE.json'
+              if not p.exists() or not m.exists():
+                  continue
+              proof=json.loads(m.read_text())
+              with p.open(newline='') as f:
+                  rows=list(csv.DictReader(f))
+              if (proof.get('status')=='PUDL_DERIVED_BPAT_LINKAGE_CANDIDATE'
+                      and rows and all(x['balancing_authority_code_eia']=='BPAT' for x in rows)):
+                  bacode.append((suffix,len(rows)))
+          print('Name-match respondent candidates:', candidates)
+          print('Curated BPAT code-linked respondent-year rows:', bacode)
+          if not candidates and not bacode:
+              sys.exit('No real S3/HTTPS respondent or BPAT code-linkage output; no approval')
           PY
       - name: Always upload concise source-only candidate and diagnostic report
         if: always()
@@ -66,5 +93,7 @@ jobs:
           path: |
             outputs/c2_bpat_pudl_ferc714_remote_candidates_s3/
             outputs/c2_bpat_pudl_ferc714_remote_candidates_https/
+            outputs/c2_bpat_ferc714_bacode_s3/
+            outputs/c2_bpat_ferc714_bacode_https/
           if-no-files-found: warn
           retention-days: 30
