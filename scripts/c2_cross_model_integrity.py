@@ -73,8 +73,7 @@ def main():
     p.add_argument('--report',type=Path)
     args=p.parse_args()
     result=validate(args.input_csv)
-    output=json.dumps(result,indent=2)+'
-'
+    output=json.dumps(result,indent=2)+'\n'
     if args.report:
         args.report.parent.mkdir(parents=True,exist_ok=True)
         args.report.write_text(output,encoding='utf-8')
