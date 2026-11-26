@@ -60,6 +60,14 @@ jobs:
         if: steps.s3_candidate_query.outcome == 'failure'
         continue-on-error: true
         run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_remote_candidates_https --transport https
+      - name: Probe pinned PUDL respondent 21 source-only UTC annual coverage over 2020-2025
+        id: bpa21_coverage_s3
+        continue-on-error: true
+        run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_respondent21_coverage_s3 --transport s3 --reviewed-respondent-id 21
+      - name: Retry fixed-release respondent 21 UTC coverage using HTTPS
+        if: steps.bpa21_coverage_s3.outcome == 'failure'
+        continue-on-error: true
+        run: python scripts/c2_bpat_pudl_ferc714_remote_coverage.py --out outputs/c2_bpat_pudl_ferc714_respondent21_coverage_https --transport https --reviewed-respondent-id 21
       - name: Query published annual PUDL-derived BPAT code linkage using S3
         id: bacode_s3
         if: always()
@@ -117,5 +125,7 @@ jobs:
             outputs/c2_bpat_ferc714_bacode_s3/
             outputs/c2_bpat_ferc714_bacode_https/
             outputs/c2_bpat_pinned_glue/
+            outputs/c2_bpat_pudl_ferc714_respondent21_coverage_s3/
+            outputs/c2_bpat_pudl_ferc714_respondent21_coverage_https/
           if-no-files-found: warn
           retention-days: 30
