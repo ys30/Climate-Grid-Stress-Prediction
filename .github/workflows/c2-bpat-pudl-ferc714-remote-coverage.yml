@@ -12,6 +12,7 @@ on:
       - tests/test_c2_bpat_pudl_ferc714_ba_code_lookup.py
       - scripts/c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py
       - tests/test_c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py
+      - data/source_only/PUDL_ferc714_respondent_csv_xbrl_glue_97874c2.csv
       - .github/workflows/c2-bpat-pudl-ferc714-remote-coverage.yml
 
 permissions:
@@ -42,6 +43,7 @@ jobs:
         run: |
           mkdir -p outputs/c2_bpat_pinned_glue
           python scripts/c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py \
+            --csv data/source_only/PUDL_ferc714_respondent_csv_xbrl_glue_97874c2.csv \
             --out outputs/c2_bpat_pinned_glue/PUBLISHED_FERC_RESPONDENT_CROSS_ERA_AUDIT.json
       - name: Query immutable release respondent candidates from public S3 without bulk Parquet download
         id: s3_candidate_query
