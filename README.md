@@ -44,3 +44,15 @@ python -m unittest discover -s tests -p 'test_c2_*.py' -v
 ```
 
 The six integrity-unit tests were locally executed and passed before their GitHub commit; that does not establish that GitHub Actions has passed or that authentic 7,626-row inputs have been audited. Never label synthetic test fixtures as empirical observations.
+
+### Safe one-command C2 episode audit
+
+**Use the validated entrypoint** rather than running the lower-level metrics script on its own:
+
+```bash
+python scripts/c2_run_validated_audit.py frozen_episode_pairs.csv results/c2_tail_run_001 --bootstrap 1200
+```
+
+The command requires complete Ridge+Huber estimator coverage on every BA/date/target/event-category key, matching observed MW and episode IDs, and contiguous >=2-day episodes. An invalid input is rejected **before new metrics are produced**. A directory already holding `episode_duration_metrics.csv` is rejected to prevent mistaking stale prior output for a new run. Each successful run saves `input_integrity.json`, `episode_duration_metrics.csv` and `audit_manifest.json` with input SHA-256 and retrospective/nonblind evidence label.
+
+**Not an empirical execution:** the new CI fixtures are constructed test examples. The previously described 7,626 paired event-day records and source-flagged SRP peaks must be recovered from the actual archived ZIP before scientific numbers are recomputed. An observed-weather hindcast is not an issue-time forecast. Full source authenticity and geography approval remain pending.
