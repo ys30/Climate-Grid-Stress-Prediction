@@ -56,3 +56,11 @@ python scripts/c2_run_validated_audit.py frozen_episode_pairs.csv results/c2_tai
 The command requires complete Ridge+Huber estimator coverage on every BA/date/target/event-category key, matching observed MW and episode IDs, and contiguous >=2-day episodes. An invalid input is rejected **before new metrics are produced**. A directory already holding `episode_duration_metrics.csv` is rejected to prevent mistaking stale prior output for a new run. Each successful run saves `input_integrity.json`, `episode_duration_metrics.csv` and `audit_manifest.json` with input SHA-256 and retrospective/nonblind evidence label.
 
 **Not an empirical execution:** the new CI fixtures are constructed test examples. The previously described 7,626 paired event-day records and source-flagged SRP peaks must be recovered from the actual archived ZIP before scientific numbers are recomputed. An observed-weather hindcast is not an issue-time forecast. Full source authenticity and geography approval remain pending.
+
+### Snapshot-safe C2 audit gate (2026-11-26 follow-up)
+
+The validated runner now copies the input CSV bytes to an immutable *run-local snapshot* **before** applying integrity checks and computing metrics. Results are staged in a temporary directory and published only after the final manifest and integrity report are complete. If a destination directory exists, or the computation errors, no completed output is published at that location. The manifest includes the SHA-256 of the actual snapshot used for metrics. This protects against changing input between validation and scoring and against partial/stale outputs.
+
+The source-integrity gate also checks that Ridge and Huber have identical source-flag status for matched BA/date/target/event-category records, and refuses unknown flag values. The tests include mismatched flags, absent model rows, existing output folders, and injected computation failure. All tests are synthetic software checks; **they are not historical SRP validation**.
+
+The wrapper's atomic publication was smoke-tested in an isolated local harness, but GitHub Actions success still requires confirmation from the actual repository workflow. The original 7,626 matched event-day records are not included in this repository update.
