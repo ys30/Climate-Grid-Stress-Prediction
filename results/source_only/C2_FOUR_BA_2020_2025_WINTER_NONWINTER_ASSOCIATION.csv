@@ -1,0 +1,9 @@
+ba,season,valid_hours,cold_hours,cold_high_load_hours,total_high_load_hours,monthyear_MH_OR,informative_strata,geography_approved
+AZPS,winter_Nov_Mar,21790,1443,221,1101,4.264586,29,False
+AZPS,nonwinter_Apr_Oct,30792,1895,0,1554,,39,False
+BPAT,winter_Nov_Mar,21792,1581,465,1105,19.897079,28,False
+BPAT,nonwinter_Apr_Oct,30816,2365,241,1559,2.519,39,False
+CISO,winter_Nov_Mar,21692,479,63,1100,3.129785,18,False
+CISO,nonwinter_Apr_Oct,30807,1869,16,1559,0.148,35,False
+SRP,winter_Nov_Mar,21743,1264,198,1100,4.162330,28,False
+SRP,nonwinter_Apr_Oct,30740,2014,0,1552,,41,False
