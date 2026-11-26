@@ -1,0 +1,7 @@
+ba,target,estimator,event,pooled_persistent_days,episodes,calendar_MAE_MW,observed_weather_MAE_MW,weather_minus_calendar_MAE_MW,exploratory_weekblock_2p5,exploratory_weekblock_97p5
+SRP,peak,ridge,cold,95,31,2740.198413,2474.132001,-266.066413,-386.703442,-142.229859
+SRP,peak,huber,cold,95,31,2117.347201,1910.900359,-206.446842,-390.702626,-11.081015
+SRP,peak,ridge,warm,130,33,1274.208973,1569.066386,294.857414,129.130514,469.425096
+SRP,peak,huber,warm,130,33,1334.065328,1067.498324,-266.567003,-481.470188,-71.681497
+SRP,peak,ridge,high_load,142,19,1482.525201,1638.945507,156.420306,59.679944,262.747419
+SRP,peak,huber,high_load,142,19,1862.055302,1571.077444,-290.977858,-349.764446,-234.816851
