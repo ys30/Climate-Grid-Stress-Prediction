@@ -31,3 +31,16 @@ python -m unittest discover -s tests -p 'test_c2_episode_tail_audit.py' -v
 ```
 
 Outputs: `episode_duration_metrics.csv` and `audit_manifest.json`. Metrics include original and weather-assisted MAE, calendar-versus-weather signed error, underforecast fraction/severity, day-weighted versus episode-weighted delta MAE, and episode-cluster descriptive bootstrap percentiles for >=8 episodes. The audit **does not produce prospective skill or scientifically calibrated confidence intervals**. CI: [C2 episode audit tests](.github/workflows/c2-episode-tail-audit.yml). Executing the CLI requires the genuine archived prediction CSV converted to the specified schema; the code does not fabricate or bundle the original 7,626-row archive.
+
+### Mandatory cross-estimator integrity check (2026-11-26)
+
+Before running the event-duration CLI on any actual archived prediction rows, run the independent same-sample gate. It verifies the same observed load and episode label across estimators for every BA/date/target/category key; detects duplicate model rows, gaps, cross-year episodes, singletons and nonfinite measurements; and records the SHA-256 of the exact CSV examined. This script does **not** establish source authenticity or certify weather geography.
+
+```bash
+python scripts/c2_cross_model_integrity.py path/to/frozen_episode_pairs.csv --report results/c2_tail/input_integrity.json
+# Only if that exits 0:
+python scripts/c2_episode_tail_audit.py path/to/frozen_episode_pairs.csv results/c2_tail
+python -m unittest discover -s tests -p 'test_c2_*.py' -v
+```
+
+The six integrity-unit tests were locally executed and passed before their GitHub commit; that does not establish that GitHub Actions has passed or that authentic 7,626-row inputs have been audited. Never label synthetic test fixtures as empirical observations.
