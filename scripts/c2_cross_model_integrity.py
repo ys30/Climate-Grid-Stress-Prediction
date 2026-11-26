@@ -40,7 +40,10 @@ def validate(path, expected_models=("Huber", "Ridge")):
                     raise ValueError('blank key')
                 if model in [x[0] for x in by_day[key]]:
                     raise ValueError('duplicate estimator for BA/date/target/category')
-                by_day[key].append((model,actual,ep))
+                flag=r.get('source_flag', '').strip().lower()
+                if flag not in ('', '0', 'false', 'no', 'n', '1', 'true', 'yes', 'y', 'flagged'):
+                    raise ValueError('unknown source_flag value')
+                by_day[key].append((model,actual,ep,flag in ('1','true','yes','y','flagged')))
                 by_episode[(key[0],key[2],key[3],model,ep)].add(day)
                 counts[model]+=1
             except (ValueError,TypeError,KeyError) as err:
@@ -62,6 +65,8 @@ def validate(path, expected_models=("Huber", "Ridge")):
             issues.append({'key':str(key),'issue':'actual_mw differs across estimators'})
         if len({v[2] for v in obs})>1:
             issues.append({'key':str(key),'issue':'episode_id differs across estimators'})
+        if len({v[3] for v in obs})>1:
+            issues.append({'key':str(key),'issue':'source_flag differs across estimators'})
     for key,dates in by_episode.items():
         ss=sorted(dates)
         if len({d.year for d in ss})>1:
