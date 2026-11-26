@@ -1,0 +1,13 @@
+ba,target,n_test_years,weather_model_MAE_wins,mean_calendar_baseline_test_MAE_MW,mean_weather_augmented_test_MAE_MW,weather_minus_baseline_MAE_MW,independently_blind,weather_geography_approved
+AZPS,peak,3,3,612.7,500.8,-111.9,False,False
+AZPS,p95,3,3,470.4,383.5,-86.9,False,False
+AZPS,mean,3,3,363.0,304.4,-58.6,False,False
+BPAT,peak,3,3,519.2,473.7,-45.4,False,False
+BPAT,p95,3,3,502.6,457.3,-45.3,False,False
+BPAT,mean,3,3,370.8,329.6,-41.2,False,False
+CISO,peak,3,3,1985.8,1867.9,-117.9,False,False
+CISO,p95,3,3,1957.2,1842.3,-114.9,False,False
+CISO,mean,3,2,1374.6,1300.4,-74.2,False,False
+SRP,peak,3,1,1304.8,1320.0,15.2,False,False
+SRP,p95,3,3,489.6,403.0,-86.6,False,False
+SRP,mean,3,3,327.4,282.3,-45.0,False,False
