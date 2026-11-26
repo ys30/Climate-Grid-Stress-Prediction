@@ -10,6 +10,8 @@ on:
       - tests/test_c2_bpat_ferc714_identity_contract.py
       - scripts/c2_bpat_pudl_ferc714_ba_code_lookup.py
       - tests/test_c2_bpat_pudl_ferc714_ba_code_lookup.py
+      - scripts/c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py
+      - tests/test_c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py
       - .github/workflows/c2-bpat-pudl-ferc714-remote-coverage.yml
 
 permissions:
@@ -32,6 +34,15 @@ jobs:
         run: python -m unittest discover -s tests -p 'test_c2_bpat_ferc714_identity_contract.py' -v
       - name: Test published PUDL annual BA code linkage contract
         run: python -m unittest discover -s tests -p 'test_c2_bpat_pudl_ferc714_ba_code_lookup.py' -v
+      - name: Run pinned published FERC CSV-XBRL glue SHA contract tests
+        run: python -m unittest discover -s tests -p 'test_c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py' -v
+      - name: Recover fixed Git commit FERC respondent cross-format map independently of PUDL S3
+        id: pinned_glue
+        continue-on-error: true
+        run: |
+          mkdir -p outputs/c2_bpat_pinned_glue
+          python scripts/c2_bpat_ferc714_pudl_glue_csv_pinned_audit.py \
+            --out outputs/c2_bpat_pinned_glue/PUBLISHED_FERC_RESPONDENT_CROSS_ERA_AUDIT.json
       - name: Query immutable release respondent candidates from public S3 without bulk Parquet download
         id: s3_candidate_query
         continue-on-error: true
@@ -96,5 +107,6 @@ jobs:
             outputs/c2_bpat_pudl_ferc714_remote_candidates_https/
             outputs/c2_bpat_ferc714_bacode_s3/
             outputs/c2_bpat_ferc714_bacode_https/
+            outputs/c2_bpat_pinned_glue/
           if-no-files-found: warn
           retention-days: 30
