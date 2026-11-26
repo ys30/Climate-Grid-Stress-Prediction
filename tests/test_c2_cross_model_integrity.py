@@ -17,7 +17,7 @@ class TestCrossModelIntegrity(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             file=Path(td)/'sample.csv'
             with file.open('w',newline='') as f:
-                writer=csv.DictWriter(f,fieldnames=REQUIRED)
+                writer=csv.DictWriter(f,fieldnames=(*REQUIRED, 'source_flag'))
                 writer.writeheader()
                 writer.writerows(rows)
             return validate(file)
@@ -38,6 +38,13 @@ class TestCrossModelIntegrity(unittest.TestCase):
         r=self.check(lambda a:a.__setitem__(slice(None),[x for x in a if x["estimator"]=="Ridge"]))
         self.assertFalse(r["passed"])
         self.assertTrue(any("missing required estimator" in x["issue"] for x in r["issues"]))
+    def test_source_flag_mismatch(self):
+        r=self.check(lambda a:a[0].update(source_flag='yes'))
+        self.assertFalse(r['passed'])
+        self.assertTrue(any('source_flag differs' in x['issue'] for x in r['issues']))
+    def test_unknown_source_flag(self):
+        r=self.check(lambda a:a[0].update(source_flag='unknown'))
+        self.assertFalse(r['passed'])
     def test_nonfinite(self):
         r=self.check(lambda a:a[0].update(actual_mw='nan'));self.assertFalse(r['passed'])
 
