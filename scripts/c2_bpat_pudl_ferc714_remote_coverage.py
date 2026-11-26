@@ -16,6 +16,7 @@ VERSION="v2026.10.0"
 BASE="s3://pudl.catalyst.coop/"+VERSION+"/"
 RESP=BASE+"core_ferc714__respondent_id.parquet"
 HOUR=BASE+"core_ferc714__hourly_planning_area_demand.parquet"
+HTTPS_BASE="https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/"+VERSION+"/"
 
 
 def store_csv(path, records, names):
@@ -30,13 +31,20 @@ def query(con, sql, params=None):
     return con.execute(sql, params or []).fetchall()
 
 
-def run(out, reviewed_respondent_id=None):
+def run(out, reviewed_respondent_id=None, transport="s3"):
     import duckdb
+    if transport not in ("s3", "https"):
+        raise ValueError("Only fixed-release s3 or https transport is permitted")
+    respondent_uri = RESP if transport == "s3" else HTTPS_BASE + "core_ferc714__respondent_id.parquet"
+    hourly_uri = HOUR if transport == "s3" else HTTPS_BASE + "core_ferc714__hourly_planning_area_demand.parquet"
     out=Path(out)
     if out.exists():
         raise FileExistsError("Refuse to overwrite independent source discovery")
     out.mkdir(parents=True)
     proof={"release":VERSION,
+           "transport":transport,
+           "respondent_uri":respondent_uri,
+           "hourly_uri":hourly_uri,
            "read_only_source_type":"PUDL-curated public S3 Parquet remote query",
            "full_original_parquet_bytes_downloaded":False,
            "original_parquet_sha256_verified":False,
@@ -48,11 +56,12 @@ def run(out, reviewed_respondent_id=None):
         con=duckdb.connect()
         con.execute("INSTALL httpfs; LOAD httpfs;")
         # Path-style is required because pudl.catalyst.coop has multiple dots.
-        con.execute("CREATE SECRET (TYPE s3, PROVIDER config, REGION 'us-west-2', URL_STYLE 'path')")
+        if transport == "s3":
+            con.execute("CREATE SECRET (TYPE s3, PROVIDER config, REGION 'us-west-2', URL_STYLE 'path')")
         # Keep a deterministic query string and record it with the results.
         sql=("SELECT respondent_id_ferc714, respondent_name_ferc714, "
              "respondent_id_ferc714_csv, respondent_id_ferc714_xbrl, eia_code "
-             "FROM read_parquet('"+RESP+"') "
+             "FROM read_parquet('"+respondent_uri+"') "
              "WHERE regexp_matches(upper(coalesce(respondent_name_ferc714,'')),"
              "'BONNEVILLE|(^|[^A-Z])BPA([^A-Z]|$)') "
              "ORDER BY respondent_id_ferc714")
@@ -81,7 +90,7 @@ def run(out, reviewed_respondent_id=None):
                     "count(DISTINCT datetime_utc) AS unique_utc_hours, "
                     "count(*) FILTER (WHERE demand_mwh IS NULL) AS null_demand_rows, "
                     "min(datetime_utc) AS first_utc, max(datetime_utc) AS last_utc "
-                    "FROM read_parquet('"+HOUR+"') "
+                    "FROM read_parquet('"+hourly_uri+"') "
                     "WHERE respondent_id_ferc714=? AND datetime_utc >= TIMESTAMP '2020-01-01' "
                     "AND datetime_utc < TIMESTAMP '2026-01-01' "
                     "GROUP BY 1 ORDER BY 1")
@@ -102,8 +111,9 @@ def main():
     parser=argparse.ArgumentParser()
     parser.add_argument("--out",type=Path,required=True)
     parser.add_argument("--reviewed-respondent-id",type=int)
+    parser.add_argument("--transport",choices=("s3","https"),default="s3")
     args=parser.parse_args()
-    result=run(args.out,args.reviewed_respondent_id)
+    result=run(args.out,args.reviewed_respondent_id,args.transport)
     print(json.dumps({"status":result["status"],"candidate_count":result["bpa_candidate_count"],
                       "model_training_permitted":False}))
 
