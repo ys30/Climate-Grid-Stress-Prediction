@@ -6,6 +6,8 @@ on:
     paths:
       - scripts/c2_bpat_pudl_ferc714_fixed_release.py
       - tests/test_c2_bpat_pudl_ferc714_fixed_release.py
+      - scripts/c2_bpat_pudl_ferc714_verify_archive.py
+      - tests/test_c2_bpat_pudl_ferc714_verify_archive.py
       - .github/workflows/c2-bpat-pudl-ferc714-fixed-release.yml
 
 permissions:
@@ -24,8 +26,15 @@ jobs:
         run: python -m pip install 'pyarrow==21.0.0'
       - name: Run source-only synthetic contract tests
         run: python -m unittest discover -s tests -p 'test_c2_bpat_pudl_ferc714_fixed_release.py' -v
+      - name: Test immutable saved-Parquet review without network
+        run: python -m unittest discover -s tests -p 'test_c2_bpat_pudl_ferc714_verify_archive.py' -v
       - name: Download fixed release actual FERC714 hourly and respondent metadata and SHA archive
         run: python scripts/c2_bpat_pudl_ferc714_fixed_release.py --out outputs/bpat_pudl_ferc714_v2026_10_0
+      - name: Independently replay stored originals against SHA-pinned manifest
+        run: |
+          python -m scripts.c2_bpat_pudl_ferc714_verify_archive \
+            --source-dir outputs/bpat_pudl_ferc714_v2026_10_0 \
+            --out outputs/bpat_pudl_ferc714_replay
       - name: Source retrieval diagnostics
         if: always()
         shell: bash
@@ -50,6 +59,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: c2-bpat-pudl-v2026-10-core-FERC714-ORIGINAL-REVIEW-REQUIRED
-          path: outputs/bpat_pudl_ferc714_v2026_10_0/
+          path: |
+            outputs/bpat_pudl_ferc714_v2026_10_0/
+            outputs/bpat_pudl_ferc714_replay/
           if-no-files-found: warn
           retention-days: 30
