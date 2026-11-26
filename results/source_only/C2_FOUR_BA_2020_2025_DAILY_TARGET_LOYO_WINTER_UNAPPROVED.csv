@@ -1,0 +1,13 @@
+ba,target,full_cold_MW_per_C,leave_year_min_MW_per_C,leave_year_max_MW_per_C,year_omissions_same_sign,weather_geometry_approved
+AZPS,mean,43.213,40.154,45.834,6,False
+AZPS,p95,61.422,57.674,65.369,6,False
+AZPS,peak,21.017,5.005,77.242,6,False
+BPAT,mean,152.034,143.571,159.317,6,False
+BPAT,p95,180.905,173.185,189.627,6,False
+BPAT,peak,184.989,177.409,193.144,6,False
+CISO,mean,178.387,152.872,191.354,6,False
+CISO,p95,204.319,195.365,216.538,6,False
+CISO,peak,194.669,181.195,206.453,6,False
+SRP,mean,39.729,35.050,46.334,6,False
+SRP,p95,68.177,46.966,82.193,6,False
+SRP,peak,35.466,17.831,60.623,6,False
