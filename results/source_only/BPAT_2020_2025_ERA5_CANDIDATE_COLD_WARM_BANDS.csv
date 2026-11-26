@@ -1,0 +1,4 @@
+temperature_proxy_category,all_hours,high_load_hours,high_load_hour_fraction,source_geometry_approved
+cold_anomaly_le_-5C,4957,389,0.07847488400242082,False
+neutral_-5C_to_+5C,43509,130,0.002987887563492611,False
+warm_anomaly_ge_+5C,4142,7,0.0016900048285852245,False
