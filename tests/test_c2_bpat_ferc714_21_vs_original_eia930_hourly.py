@@ -24,6 +24,26 @@ class TestFERCRealInputAdmission(unittest.TestCase):
     def test_duplicate_UTC_hour_fails_closed(self):
         self.rows.append(self.rows[0].copy());self.write()
         with self.assertRaisesRegex(ValueError,"Duplicate FERC"):read_ferc(self.file)
+    def test_cross_report_year_same_utc_hour_is_rejected(self):
+        self.rows.append({"respondent_id_ferc714":"21",
+                          "report_date":"2021-01-01",
+                          "datetime_utc":"2021-01-01T00:00:00+00:00",
+                          "demand_mwh":"7100"})
+        self.write()
+        with self.assertRaisesRegex(ValueError,"across reporting years"):
+            read_ferc(self.file)
+
+    def test_partial_overlap_is_not_reported_as_complete(self):
+        f,c,n,s=read_ferc(self.file)
+        e={datetime(2021,1,1,tzinfo=timezone.utc):7000}
+        result=calculate(e,f,c,n,s,"eia","ferc","https://example.org/synthetic.csv")
+        year=result["annual_diagnostics"][0]
+        self.assertEqual(year["zero_shift_matched_hours"],1)
+        self.assertFalse(year["zero_shift_all_expected_hours_matched"])
+        self.assertLess(year["zero_shift_matched_fraction_of_expected_hours"],0.001)
+        self.assertFalse(year["FERC_row_count_equals_expected"])
+        self.assertFalse(year["full_UTC_alignment_verified"])
+
     def test_unapproved_respondent_fails_closed(self):
         self.rows[0]["respondent_id_ferc714"]="22";self.write()
         with self.assertRaisesRegex(ValueError,"respondent"):read_ferc(self.file)
