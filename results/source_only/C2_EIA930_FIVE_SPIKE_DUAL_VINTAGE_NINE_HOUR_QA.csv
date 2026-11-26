@@ -1,0 +1,6 @@
+ba,anchor_utc,anchor_old_mw,six_outer_hour_median_mw,anchor_div_outer_median,window_checked_api_hours,window_equal_numeric_hours,window_source_flagged_hours,window_unflagged_above_3x_outer_reference,reviewed_original_source,operator_certified,modeling_imputation_permitted
+AZPS,2020-01-22T15:00:00Z,101412,2732.5,37.11326623970723,0,0,3,0,False,False,False
+AZPS,2020-09-03T16:00:00Z,21020,4424.5,4.750819301616001,0,0,3,0,False,False,False
+SRP,2023-02-26T23:00:00Z,68520,3353.5,20.432384076338153,9,9,3,2,False,False,False
+SRP,2023-06-03T20:00:00Z,70313,4720.5,14.895244147865693,9,9,3,0,False,False,False
+BPAT,2020-11-25T23:00:00Z,11742,7376,1.5919197396963123,0,0,0,0,False,False,False
