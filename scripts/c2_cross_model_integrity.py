@@ -10,7 +10,7 @@ from pathlib import Path
 
 REQUIRED = ('ba','date','target','estimator','event_category','episode_id','actual_mw','calendar_pred_mw','weather_pred_mw')
 
-def validate(path):
+def validate(path, expected_models=("Huber", "Ridge")):
     path=Path(path)
     raw=path.read_bytes()
     sha=hashlib.sha256(raw).hexdigest()
@@ -47,7 +47,13 @@ def validate(path):
                 issues.append({'line':line,'issue':str(err)})
     if not n:
         issues.append({'issue':'empty input'})
-    expected_models=set(counts)
+    expected_models=set(expected_models)
+    absent=expected_models-set(counts)
+    if absent:
+        issues.append({"issue": "missing required estimator(s): " + ", ".join(sorted(absent))})
+    unexpected=set(counts)-expected_models
+    if unexpected:
+        issues.append({"issue": "unexpected estimator(s): " + ", ".join(sorted(unexpected))})
     for key,obs in by_day.items():
         present={x[0] for x in obs}
         if present != expected_models:
