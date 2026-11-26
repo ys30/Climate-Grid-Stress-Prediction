@@ -48,7 +48,7 @@ def run(out, reviewed_respondent_id=None):
         con=duckdb.connect()
         con.execute("INSTALL httpfs; LOAD httpfs;")
         # Path-style is required because pudl.catalyst.coop has multiple dots.
-        con.execute("CREATE SECRET (TYPE s3, PROVIDER config, REGION 'us-west-2', URL_STYLE 'path', KEY_ID '', SECRET '')")
+        con.execute("CREATE SECRET (TYPE s3, PROVIDER config, REGION 'us-west-2', URL_STYLE 'path')")
         # Keep a deterministic query string and record it with the results.
         sql=("SELECT respondent_id_ferc714, respondent_name_ferc714, "
              "respondent_id_ferc714_csv, respondent_id_ferc714_xbrl, eia_code "
