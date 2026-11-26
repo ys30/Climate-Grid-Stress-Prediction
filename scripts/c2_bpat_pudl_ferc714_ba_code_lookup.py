@@ -9,6 +9,7 @@ import argparse
 import csv
 import hashlib
 import json
+from datetime import date, datetime
 from pathlib import Path
 
 VERSION="v2026.10.0"
@@ -29,16 +30,35 @@ def source_url(transport):
 
 
 def inspect_rows(rows):
-    expected=set(FIELDS)
+    """Reject malformed/duplicate annual identifiers; missing years remain explicit."""
     observed=[]
+    seen=set()
     for vals in rows:
+        if len(vals)!=len(FIELDS):
+            raise ValueError("Unexpected summary record schema width")
         item=dict(zip(FIELDS,vals))
-        if set(item)!=expected:
-            raise ValueError("Unexpected summary record schema")
-        if item["balancing_authority_code_eia"]=="BPAT":
-            if item["respondent_type"]!="balancing_authority":
-                raise ValueError("BPAT code linked to a non-BA respondent in curated summary")
-            observed.append(item)
+        if item["balancing_authority_code_eia"]!="BPAT":
+            continue
+        if item["respondent_type"]!="balancing_authority":
+            raise ValueError("BPAT code linked to a non-BA respondent in curated summary")
+        rid=item["respondent_id_ferc714"]
+        if not isinstance(rid,int) or isinstance(rid,bool) or rid<=0:
+            raise ValueError("Invalid positive PUDL FERC respondent ID")
+        dt=item["report_date"]
+        if isinstance(dt, (date,datetime)):
+            year=dt.year
+        else:
+            try:
+                year=date.fromisoformat(str(dt)[:10]).year
+            except ValueError as exc:
+                raise ValueError("Invalid annual report_date") from exc
+        if not 2020<=year<=2025:
+            raise ValueError("Source row year outside 2020-2025 cohort")
+        key=(rid,year)
+        if key in seen:
+            raise ValueError("Duplicate respondent-year in annual linkage source")
+        seen.add(key)
+        observed.append(item)
     if not observed:
         raise ValueError("No BPAT code linkage in published summary table")
     return observed
