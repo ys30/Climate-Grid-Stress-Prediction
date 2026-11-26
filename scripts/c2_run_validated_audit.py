@@ -6,6 +6,7 @@ EIA-930 and not issue-time weather forecasts. This is *not* blind validation.
 """
 import argparse
 import json
+import tempfile
 from pathlib import Path
 
 try:
@@ -17,26 +18,40 @@ except ModuleNotFoundError:
 
 
 def run(input_csv, output_dir, bootstrap=1200, seed=20261126):
+    """Validate an immutable input snapshot, publish completed output atomically."""
     input_csv = Path(input_csv)
     output_dir = Path(output_dir)
-    if (output_dir / 'episode_duration_metrics.csv').exists():
+    if output_dir.exists():
         raise ValueError('C2 OUTPUT EXISTS: choose a new output directory to prevent stale result reuse')
-    integrity = validate(input_csv)
-    if not integrity["passed"]:
-        # Avoid creating a misleading metrics file from failed input.
-        summary = "; ".join(x["issue"] for x in integrity["issues"][:8])
-        raise ValueError("C2 INPUT INTEGRITY FAILED: " + summary)
-    # Ensure no preexisting metrics are mistaken for a new successful run.
-    result = audit(input_csv, output_dir, bootstrap=bootstrap, seed=seed)
-    result["input_sha256"] = integrity["input_sha256"]
-    result["integrity_passed"] = True
-    result["required_estimators"] = ["Huber", "Ridge"]
-    result["evidence_level"] = "retrospective_nonblind_observed_weather"
-    (output_dir / "audit_manifest.json").write_text(
-        json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    (output_dir / "input_integrity.json").write_text(
-        json.dumps(integrity, indent=2) + "\n", encoding="utf-8")
-    return result
+    if bootstrap < 0:
+        raise ValueError('bootstrap must not be negative')
+    # Copy exactly once: validation and metrics operate on identical source bytes.
+    frozen_bytes = input_csv.read_bytes()
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='c2_audit_', dir=output_dir.parent) as scratch:
+        scratch = Path(scratch)
+        snapshot = scratch / 'frozen_input.csv'
+        snapshot.write_bytes(frozen_bytes)
+        integrity = validate(snapshot)
+        if not integrity["passed"]:
+            summary = "; ".join(x["issue"] for x in integrity["issues"][:8])
+            raise ValueError("C2 INPUT INTEGRITY FAILED: " + summary)
+        stage = scratch / 'completed'
+        result = audit(snapshot, stage, bootstrap=bootstrap, seed=seed)
+        result["input_csv"] = str(input_csv)
+        result["input_sha256"] = integrity["input_sha256"]
+        result["integrity_passed"] = True
+        result["required_estimators"] = ["Huber", "Ridge"]
+        result["evidence_level"] = "retrospective_nonblind_observed_weather"
+        (stage / "audit_manifest.json").write_text(
+            json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        (stage / "input_integrity.json").write_text(
+            json.dumps(integrity, indent=2) + "\n", encoding="utf-8")
+        # A completed audit appears only after all outputs have been written.
+        if output_dir.exists():
+            raise ValueError('C2 OUTPUT EXISTS: directory appeared during this run')
+        stage.rename(output_dir)
+        return result
 
 
 def main():
