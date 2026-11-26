@@ -1,0 +1,9 @@
+ba,target,estimator,event,n_folds,test_days,calendar_MAE_MW,observed_weather_MAE_MW,weather_minus_calendar_MAE_MW,weather_wins,geography_approved
+SRP,peak,ridge,all_original,3,1089,1304.840472,1320.018896,15.178424,1,False
+SRP,peak,huber,all_original,3,1089,819.703351,736.300141,-83.403210,3,False
+SRP,peak,ridge,cold_tail_train_q10,3,105,2640.426426,2379.504037,-260.922389,3,False
+SRP,peak,huber,cold_tail_train_q10,3,105,2003.937927,1786.796035,-217.141892,3,False
+SRP,peak,ridge,warm_tail_train_q90,3,143,1296.609137,1598.651751,302.042614,0,False
+SRP,peak,huber,warm_tail_train_q90,3,143,1347.275653,1071.412890,-275.862763,3,False
+SRP,peak,ridge,high_demand_train_p95,3,152,2604.468646,2738.095685,133.627039,1,False
+SRP,peak,huber,high_demand_train_p95,3,152,3007.697154,2735.898966,-271.798188,3,False
