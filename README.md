@@ -189,3 +189,11 @@ python scripts/c2_eia930_pilot_quality_gate.py \
   --min-days 25 --require-full-month --output pilot/daily/strict_month_gate.json
 ```
 The [SRP pilot workflow](.github/workflows/c2-eia930-srp-pilot.yml) prints the observed admission level in the Actions step summary **only after** final quality-gate success. The latest quality-gate code and seven synthetic tests were run locally, 7/7 passed; the actual EIA source download and GitHub push-workflow result remain unverified in this chat. This is not a claim of a scientific forecasting result.
+
+### EIA-930 public source download hardening (2026-11-27)
+
+The [six-month official BALANCE downloader](scripts/c2_fetch_eia930_bulk.py) now makes **at most three attempts** to retrieve a source file on transient HTTP/network errors, rejects empty files and obvious HTML error pages, deletes partial downloaded files before retrying, and refuses to overwrite a pre-existing raw input. The downloaded source still must pass both normalized/source SHA-256 verification and the July coverage gate; retrying is **not** a substitute for checking EIA data integrity.
+
+New [HTTP failure-mode unit tests](tests/test_c2_eia930_bulk_download.py) cover failure then valid retry, HTML response, empty response, and overwrite prevention. The corresponding download/retry behavior was also reconstructed and exercised independently in a local isolated smoke test (4/4 passed); the repository test file is now included in the CI regression and SRP pilot prerequisites. **Do not interpret this local smoke test as a successful remote GitHub Actions run or as empirical SRP demand-forecast performance.**
+
+Authentic EIA source data have not been fetched by this local environment due to DNS resolution failure. A real run artifact and job log are still required to complete E2 official-source validation.
