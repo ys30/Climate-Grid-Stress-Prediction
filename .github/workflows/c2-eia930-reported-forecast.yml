@@ -45,6 +45,12 @@ jobs:
         run: |
           python scripts/c2_fetch_eia930_df.py artifacts/official_eia930 \
             --start-year "$FIRST_YEAR" --end-year "$LAST_YEAR"
+      - name: Verify original EIA source rows and manifest
+        run: |
+          python scripts/c2_verify_eia930_source.py \
+            artifacts/official_eia930/eia930_D_DF_hourly.csv \
+            artifacts/official_eia930/source_manifest.json \
+            --output artifacts/official_eia930/source_integrity.json
       - name: Build retrospective daily peak forecast benchmark
         run: |
           python scripts/c2_eia930_day_ahead_benchmark.py \
