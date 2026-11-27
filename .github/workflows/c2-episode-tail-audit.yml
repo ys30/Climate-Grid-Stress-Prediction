@@ -29,8 +29,10 @@ jobs:
           test -f tests/test_c2_cross_model_integrity.py
           test -f scripts/c2_run_validated_audit.py
           test -f tests/test_c2_run_validated_audit.py
+          test -f scripts/c2_archive_inventory.py
+          test -f tests/test_c2_archive_inventory.py
       - name: Python syntax validation
-        run: python -m compileall -q scripts/c2_episode_tail_audit.py scripts/c2_cross_model_integrity.py tests/test_c2_episode_tail_audit.py tests/test_c2_cross_model_integrity.py scripts/c2_run_validated_audit.py tests/test_c2_run_validated_audit.py
+        run: python -m compileall -q scripts/c2_episode_tail_audit.py scripts/c2_cross_model_integrity.py tests/test_c2_episode_tail_audit.py tests/test_c2_cross_model_integrity.py scripts/c2_run_validated_audit.py tests/test_c2_run_validated_audit.py scripts/c2_archive_inventory.py tests/test_c2_archive_inventory.py
       - name: Episode audit regression tests
         env:
           PYTHONPATH: .
@@ -39,6 +41,10 @@ jobs:
         env:
           PYTHONPATH: .
         run: python -m unittest discover -s tests -p 'test_c2_run_validated_audit.py' -v
+      - name: Archive inventory unit tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p 'test_c2_archive_inventory.py' -v
       - name: Cross-estimator integrity regression tests
         env:
           PYTHONPATH: .
