@@ -7,6 +7,7 @@ on:
       - 'scripts/c2_fetch_eia930_df.py'
       - 'scripts/c2_eia930_day_ahead_benchmark.py'
       - 'scripts/c2_verify_eia930_source.py'
+      - 'scripts/c2_fetch_eia930_bulk.py'
   workflow_dispatch:
 
 permissions:
@@ -31,18 +32,29 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_c2_fetch_eia930_df.py' -v
           python -m unittest discover -s tests -p 'test_c2_eia930_day_ahead_benchmark.py' -v
-      - name: Validate required EIA API key
+          python -m unittest discover -s tests -p 'test_c2_fetch_eia930_bulk.py' -v
+      - name: Detect optional EIA API key
         id: preflight
         run: |
           if [ -z "$EIA_API_KEY" ]; then
-            echo "::error::EIA_API_KEY secret is missing. Configure repository Actions secret; no authentic EIA data fetched."
-            exit 1
+            echo "available=no" >> "$GITHUB_OUTPUT"
+            echo "EIA_API_KEY unavailable; using official public EIA BALANCE CSV fallback"
+          else
+            echo "available=yes" >> "$GITHUB_OUTPUT"
           fi
-      - name: Fetch official source SRP July 2025 hourly D and DF
+      - name: Fetch via EIA API if configured
         id: fetch
+        if: steps.preflight.outputs.available == 'yes'
+        continue-on-error: true
         run: |
           python scripts/c2_fetch_eia930_df.py pilot/source \
             --start-year 2025 --end-year 2025 --month 7 --ba SRP
+      - name: Fallback to public official EIA BALANCE archive
+        id: bulk
+        if: steps.fetch.outcome != 'success'
+        run: |
+          python scripts/c2_fetch_eia930_bulk.py pilot/source \
+            --year 2025 --month 7 --ba SRP
       - name: Verify original EIA source rows and manifest
         id: integrity
         run: |
@@ -75,6 +87,7 @@ jobs:
         env:
           KEY_OUTCOME: ${{ steps.preflight.outcome }}
           FETCH_OUTCOME: ${{ steps.fetch.outcome }}
+          BULK_OUTCOME: ${{ steps.bulk.outcome }}
           INTEGRITY_OUTCOME: ${{ steps.integrity.outcome }}
           SCORE_OUTCOME: ${{ steps.score.outcome }}
           COVERAGE_OUTCOME: ${{ steps.coverage.outcome }}
@@ -84,7 +97,7 @@ jobs:
           import json,os
           from pathlib import Path
           result={name:os.environ[name+'_OUTCOME'] for name in
-                  ('KEY','FETCH','INTEGRITY','SCORE','COVERAGE')}
+                  ('KEY','FETCH','BULK','INTEGRITY','SCORE','COVERAGE')}
           Path('pilot/diagnostics/step_outcomes.json').write_text(json.dumps(result,indent=2)+'\\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
               f.write('## C2 SRP official EIA-930 source pilot\\n\\n')
