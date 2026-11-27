@@ -89,10 +89,26 @@ def download_bulk(path, year, month):
     path=Path(path)
     if path.exists():raise ValueError("raw bulk file exists")
     req=urllib.request.Request(url,headers={"User-Agent":"C2-ClimateGridResearch/0.1"})
-    with urllib.request.urlopen(req,timeout=90) as resp, path.open("wb") as output:
-        import shutil
-        shutil.copyfileobj(resp,output)
-    return url
+    # A transient EIA response failure must not leave a partial raw file behind.
+    import time
+    last_error=None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req,timeout=90) as resp:
+                content_type=resp.headers.get("Content-Type","").lower()
+                if "text/html" in content_type:
+                    raise ValueError("EIA bulk endpoint returned HTML rather than CSV")
+                with path.open("wb") as output:
+                    shutil.copyfileobj(resp,output)
+            if path.stat().st_size==0:
+                raise ValueError("EIA bulk endpoint returned an empty file")
+            return url
+        except (OSError, ValueError) as exc:
+            last_error=exc
+            path.unlink(missing_ok=True)
+            if attempt<2:
+                time.sleep(attempt+1)
+    raise RuntimeError(f"Failed to retrieve official EIA six-month CSV after 3 attempts: {type(last_error).__name__}") from last_error
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
