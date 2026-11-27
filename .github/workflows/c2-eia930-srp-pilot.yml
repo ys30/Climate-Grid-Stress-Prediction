@@ -6,6 +6,7 @@ on:
       - '.github/workflows/c2-eia930-srp-pilot.yml'
       - 'scripts/c2_fetch_eia930_df.py'
       - 'scripts/c2_eia930_day_ahead_benchmark.py'
+      - 'scripts/c2_verify_eia930_source.py'
   workflow_dispatch:
 
 permissions:
@@ -40,6 +41,12 @@ jobs:
         run: |
           python scripts/c2_fetch_eia930_df.py pilot/source \
             --start-year 2025 --end-year 2025 --month 7 --ba SRP
+      - name: Verify original EIA source rows and manifest
+        run: |
+          python scripts/c2_verify_eia930_source.py \
+            pilot/source/eia930_D_DF_hourly.csv \
+            pilot/source/source_manifest.json \
+            --output pilot/source/source_integrity.json
       - name: Score full 24-hour UTC days
         run: |
           python scripts/c2_eia930_day_ahead_benchmark.py \
