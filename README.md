@@ -64,3 +64,15 @@ The validated runner now copies the input CSV bytes to an immutable *run-local s
 The source-integrity gate also checks that Ridge and Huber have identical source-flag status for matched BA/date/target/event-category records, and refuses unknown flag values. The tests include mismatched flags, absent model rows, existing output folders, and injected computation failure. All tests are synthetic software checks; **they are not historical SRP validation**.
 
 The wrapper's atomic publication was smoke-tested in an isolated local harness, but GitHub Actions success still requires confirmation from the actual repository workflow. The original 7,626 matched event-day records are not included in this repository update.
+
+### Recovering the genuine archived 7,626 event-day pairs
+
+A read-only, **locally unit-tested** archive inspector is available at [`scripts/c2_archive_inventory.py`](scripts/c2_archive_inventory.py). It verifies the ZIP SHA-256, checks each ZIP member CRC, rejects traversal-like entry paths, and reports CSV columns and row counts **without modifying historical source records**.
+
+```bash
+python scripts/c2_archive_inventory.py C2_20261126_Persistent_Event_Duration_Signed_Error_Repro.zip \
+  --sha256 ddfd96bde7405a2ea9b28fa9df9cae4897739440614227704f0b246b34b9e0d8 \
+  --output results/c2_source_inventory.json
+```
+
+The SHA above comes from the existing archive report, not from a newly recovered local archive. If the hash mismatches, stop rather than silently switching archives. The expected source analysis includes **7,626 within-estimator matched weather/calendar day pairs**, which are not necessarily 7,626 separate BA/date keys and are not automatically in the new audit-runner schema. The inspector does NOT transform or certify the full input. Only after documenting the actual CSV schema can an explicit, checked adapter be developed. The four archive unit tests passed locally on synthetic ZIP fixtures; original-source archive recovery remains pending.
