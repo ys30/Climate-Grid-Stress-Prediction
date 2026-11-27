@@ -59,12 +59,28 @@ jobs:
             pilot/source/eia930_D_DF_hourly.csv \
             pilot/source/source_manifest.json \
             --output pilot/source/source_integrity.json
+          python scripts/c2_eia930_day_ahead_benchmark.py \
+            pilot/source/eia930_D_DF_hourly.csv pilot/api_daily --ba SRP
+          python - <<'PY'
+          import csv
+          from pathlib import Path
+          with Path('pilot/api_daily/eia930_df_daily.csv').open(newline='') as f:
+              actual=list(csv.DictReader(f))
+          july={r['date_utc'] for r in actual
+                if r['ba']=='SRP' and r['date_utc'].startswith('2025-07-')}
+          print(f'EIA API paired complete UTC July days: {len(july)}/31')
+          if len(july)<25:
+              raise SystemExit('EIA API coverage insufficient; try official bulk fallback')
+          PY
       - name: Preserve failed API source and try public EIA BALANCE
         id: bulk
         if: steps.fetch.outcome != 'success'
         run: |
           if [ -d pilot/source ]; then
             mv pilot/source pilot/failed_api_source
+          fi
+          if [ -d pilot/api_daily ]; then
+            mv pilot/api_daily pilot/failed_api_daily
           fi
           python scripts/c2_fetch_eia930_bulk.py pilot/source \
             --year 2025 --month 7 --ba SRP
