@@ -1,0 +1,68 @@
+name: C2 EIA-930 SRP July 2025 live pilot
+
+on:
+  push:
+    paths:
+      - '.github/workflows/c2-eia930-srp-pilot.yml'
+      - 'scripts/c2_fetch_eia930_df.py'
+      - 'scripts/c2_eia930_day_ahead_benchmark.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  srp-eia-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+    steps:
+      - name: Check out pinned repo version
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run offline EIA collector and hourly alignment tests first
+        env:
+          PYTHONPATH: .
+        run: |
+          python -m unittest discover -s tests -p 'test_c2_fetch_eia930_df.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_day_ahead_benchmark.py' -v
+      - name: Validate required EIA API key
+        run: |
+          if [ -z "$EIA_API_KEY" ]; then
+            echo "::error::EIA_API_KEY secret is missing. Configure repository Actions secret; no authentic EIA data fetched."
+            exit 1
+          fi
+      - name: Fetch official source SRP July 2025 hourly D and DF
+        run: |
+          python scripts/c2_fetch_eia930_df.py pilot/source \
+            --start-year 2025 --end-year 2025 --month 7 --ba SRP
+      - name: Score full 24-hour UTC days
+        run: |
+          python scripts/c2_eia930_day_ahead_benchmark.py \
+            pilot/source/eia930_D_DF_hourly.csv pilot/daily --ba SRP
+      - name: Pilot gate for complete UTC July
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          src=json.loads(Path('pilot/source/source_manifest.json').read_text())
+          scored=list(csv.DictReader(open('pilot/daily/eia930_df_daily.csv', newline='')))
+          incomplete=list(csv.DictReader(open('pilot/daily/excluded_days.csv', newline='')))
+          july={r['date_utc'] for r in scored if r['ba']=='SRP' and r['date_utc'].startswith('2025-07-')}
+          print(json.dumps({'source_rows':src['row_count'],'complete_july_days':len(july),
+                            'incomplete_days':len(incomplete),'sample_coverage':len(july)/31}, indent=2))
+          if len(july)<25:
+              raise SystemExit('Insufficient complete SRP days for pilot (<25/31); investigate source and hour semantics')
+          PY
+      - name: Always upload source and error artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-srp-eia930-july-2025-pilot
+          path: pilot/
+          retention-days: 30
+          if-no-files-found: warn
