@@ -125,3 +125,20 @@ The [SRP July 2025 live pilot](.github/workflows/c2-eia930-srp-pilot.yml) now wr
 **Official alternative without API requests:** EIA also offers six-month `Balance` CSV downloads on the [EIA Hourly Electric Grid Monitor / About EIA-930](https://www.eia.gov/electricity/930-content/about.html). Balance files include actual hourly demand and day-ahead demand forecasts; archive the original downloaded CSV and hash, then explicitly map its clock fields and BA identifiers into the normalized `period,respondent,type,value` format. The six-month raw file is **not** automatically the same API schema and should never be passed to the normalized scoring script without checking those mappings. A manual downloaded balance CSV is a real-data alternative if GitHub secrets or EIA API access remain unavailable.
 
 Current CI caveat: workflow code is committed, but this conversation has not retrieved the actual push-run job logs or produced genuine EIA-930 pilot source artifacts, so the real root cause and successful pilot status remain unconfirmed.
+
+### EIA-930 pilot failover update: official public bulk Balance archive
+
+The [SRP July 2025 pilot](.github/workflows/c2-eia930-srp-pilot.yml) now has two **real**, EIA-origin source routes: (1) official EIA APIv2 when the GitHub Actions `EIA_API_KEY` is configured and collection succeeds; (2) the **public, keyless** EIA six-month `EIA930_BALANCE_2025_Jul_Dec.csv` archive when the API key is absent or the API fetch fails. The second source is documented on the [official EIA-930 About page](https://www.eia.gov/electricity/930-content/about.html).
+
+The [bulk adapter](scripts/c2_fetch_eia930_bulk.py) explicitly maps `Balancing Authority`, `UTC Time at End of Hour`, `Demand (MW)`, and `Demand Forecast (MW)` to normalized `period,respondent,type,value`. It filters one BA and one **complete UTC** month, preserves null demand/forecast values as missing (never zero), retains the **original six-month EIA CSV bytes** along with normalized rows, and publishes hashes for **both**. [Source verification](scripts/c2_verify_eia930_source.py) checks the original raw bulk SHA-256 and normalized dataset SHA-256; **a bulk manifest never fabricates API pagination totals**. The source's `origin` is always recorded, allowing results to be separated by original API vs six-month CSV provenance. Code failures remain explicit and scored results cannot be published until the integrity gate passes.
+
+Local source CSV replay without an API key:
+```bash
+python scripts/c2_fetch_eia930_bulk.py results/srp_july_2025 \
+  --year 2025 --month 7 --ba SRP --bulk-file /path/to/EIA930_BALANCE_2025_Jul_Dec.csv
+python scripts/c2_verify_eia930_source.py \
+  results/srp_july_2025/eia930_D_DF_hourly.csv \
+  results/srp_july_2025/source_manifest.json
+```
+
+This change addresses a **known dependency risk** (API key availability / API collection failure) without claiming it caused the previously observed failure. The current chat still has not retrieved the actual push-run logs or executed a successful live EIA request; the latest public bulk route must pass the GitHub workflow and be checked against its uploaded original-source artifact before any empirical findings are reported.
