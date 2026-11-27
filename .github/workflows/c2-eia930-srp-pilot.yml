@@ -68,7 +68,7 @@ jobs:
             pilot/api_daily/excluded_days.csv \
             pilot/source/source_manifest.json --ba SRP --year 2025 --month 7 \
             --min-days 25 --output pilot/api_daily/quality_gate.json
-     - name: Preserve failed API source and try public EIA BALANCE
+      - name: Preserve failed API source and try public EIA BALANCE
         id: bulk
         if: steps.fetch.outcome != 'success'
         run: |
@@ -100,7 +100,7 @@ jobs:
             pilot/daily/excluded_days.csv \
             pilot/source/source_manifest.json --ba SRP --year 2025 --month 7 \
             --min-days 25 --output pilot/daily/quality_gate.json
-     - name: Save step outcomes for failure diagnosis
+      - name: Save step outcomes for failure diagnosis
         if: always()
         env:
           KEY_OUTCOME: ${{ steps.preflight.outcome }}
