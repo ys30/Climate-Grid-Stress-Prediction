@@ -176,3 +176,16 @@ The [`c2_eia930_pilot_quality_gate.py`](scripts/c2_eia930_pilot_quality_gate.py)
 It is invoked **before API acceptance** (so insufficient API coverage triggers the official bulk fallback), and **after selected-source verification and final daily scoring**. The [six synthetic fixture tests](tests/test_c2_eia930_pilot_quality_gate.py) were executed locally and passed 6/6, alongside Python bytecode compilation. This is not a claim about actual 2025 SRP demand observations or a green remote run.
 
 Authentic EIA file still needs retrieval via GitHub Actions. The official EIA public six-month CSV endpoint is an opaque binary download; the isolated local execution environment cannot resolve `www.eia.gov` DNS. Until a validated official EIA raw file and uploaded workflow artifacts are available, SRP performance statistics remain **not verified**.
+
+### Strict distinction: accepted SRP pilot versus complete UTC source month (2026-11-27)
+
+The [pilot quality gate](scripts/c2_eia930_pilot_quality_gate.py) records `admission` as `REJECTED`, `PILOT_ACCEPTED_PARTIAL`, or `FULL_MONTH`. The pilot's operational smoke-test floor remains **25 of 31** complete and paired UTC days; **25–30 days is explicitly partial**, and full July coverage means **31 of 31** paired UTC days with zero duplicate or malformed day classifications. The boolean `complete_utc_month` indicates **coverage only**; it does not certify genuine issue-time forecast vintage, respondent truth, BA geospatial validity, climate causality, or deployable model skill.
+
+To require full coverage in an independent dataset admission check, run:
+```bash
+python scripts/c2_eia930_pilot_quality_gate.py \
+  pilot/daily/eia930_df_daily.csv pilot/daily/excluded_days.csv \
+  pilot/source/source_manifest.json --ba SRP --year 2025 --month 7 \
+  --min-days 25 --require-full-month --output pilot/daily/strict_month_gate.json
+```
+The [SRP pilot workflow](.github/workflows/c2-eia930-srp-pilot.yml) prints the observed admission level in the Actions step summary **only after** final quality-gate success. The latest quality-gate code and seven synthetic tests were run locally, 7/7 passed; the actual EIA source download and GitHub push-workflow result remain unverified in this chat. This is not a claim of a scientific forecasting result.
