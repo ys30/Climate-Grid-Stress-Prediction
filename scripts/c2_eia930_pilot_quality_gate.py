@@ -44,7 +44,7 @@ def gate(daily_path, excluded_path, manifest_path, *, ba='SRP', year=2025, month
             'calendar_days':expected,'complete_days':len(complete),
             'incomplete_days':len(incomplete),'wholly_missing_days':expected-len(seen),
             'coverage_fraction':len(complete)/expected,'minimum_complete_days':min_days,
-            'full_month_research_ready':complete_month,'admission':admission,
+            'complete_utc_month':complete_month,'admission':admission,
             'errors':errors,'note':'Coverage gate only, not evidence of forecast skill or verified forecast vintage'}
 
 def main():
@@ -61,6 +61,6 @@ def main():
     if a.output:
         a.output.parent.mkdir(parents=True,exist_ok=True)
         a.output.write_text(content,encoding='utf-8')
-    if not result['passed'] or (a.require_full_month and not result['full_month_research_ready']):raise SystemExit(2)
+    if not result['passed'] or (a.require_full_month and not result['complete_utc_month']):raise SystemExit(2)
 
 if __name__=='__main__':main()
