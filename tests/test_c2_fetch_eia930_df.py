@@ -15,7 +15,16 @@ class TestEiaFetcher(unittest.TestCase):
             {"period":start,"respondent":ba,"type":"D","value":"120"},
             {"period":start,"respondent":ba,"type":"DF","value":"115"}]}}
     def test_leap_year(self):
-        self.assertEqual(month_window(2024,2)[1],"2024-02-29T23")
+        self.assertEqual(month_window(2024,2),("2024-02-01T01","2024-03-01T00"))
+        self.assertEqual(month_window(2024,12),("2024-12-01T01","2025-01-01T00"))
+        self.assertEqual(month_window(2025,2),("2025-02-01T01","2025-03-01T00"))
+    def test_full_month_hours_exactly_24_per_day(self):
+        import calendar
+        for year,month in ((2024,2),(2025,2),(2024,12)):
+            start,end=month_window(year,month)
+            from datetime import datetime
+            fmt='%Y-%m-%dT%H'
+            self.assertEqual(int((datetime.strptime(end,fmt)-datetime.strptime(start,fmt)).total_seconds()/3600)+1, 24*calendar.monthrange(year,month)[1])
     def test_month_fetch(self):
         rows,meta=request_page("SRP",2023,1,None,self.fake)
         self.assertEqual(len(rows),2)
