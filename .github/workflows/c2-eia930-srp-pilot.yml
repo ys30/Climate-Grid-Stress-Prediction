@@ -109,12 +109,12 @@ jobs:
           from pathlib import Path
           result={name:os.environ[name+'_OUTCOME'] for name in
                   ('KEY','FETCH','BULK','INTEGRITY','SCORE','COVERAGE')}
-          Path('pilot/diagnostics/step_outcomes.json').write_text(json.dumps(result,indent=2)+'\\n')
+          Path('pilot/diagnostics/step_outcomes.json').write_text(json.dumps(result,indent=2)+'\n')
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
-              f.write('## C2 SRP official EIA-930 source pilot\\n\\n')
+              f.write('## C2 SRP official EIA-930 source pilot\n\n')
               for key,value in result.items():
-                  f.write(f'- {key.lower()}: **{value}**\\n')
-              f.write('\\nThis summary does not contain the API key. For any failed step, inspect its raw GitHub Actions log.\\n')
+                  f.write(f'- {key.lower()}: **{value}**\n')
+              f.write('\nThis summary does not contain the API key. For any failed step, inspect its raw GitHub Actions log.\n')
           PY
       - name: Always upload source and error artifacts
         if: always()
