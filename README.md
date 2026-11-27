@@ -168,3 +168,11 @@ Two concrete workflow defects were corrected. First, an API retrieval can pass r
 Second, consecutive small pushes previously set `concurrency.cancel-in-progress: true`, meaning ongoing long-running EIA downloads could be canceled whenever an unrelated fix triggered the workflow again. The pilot now uses a branch-specific concurrency group with **`cancel-in-progress: false`** so later pushes are queued rather than canceling in-progress pilot runs.
 
 Current fact boundary: the local archived collector unit-test subset passed 5/5; full *latest* repository CI and the authentic SRP official-source pilot have **not** been confirmed passing from an actual push-run log or artifact. Do not mistake synthetic/incomplete-year scorecards for real EIA results.
+
+### SRP July EIA-930 pilot: independently tested quality gate (2026-11-27)
+
+The [`c2_eia930_pilot_quality_gate.py`](scripts/c2_eia930_pilot_quality_gate.py) now enforces the **same** source-month and complete-hour coverage acceptance rules on both API ingestion and official bulk BALANCE fallback. Unlike a simple count of scored rows, it identifies complete vs incomplete vs entirely missing UTC dates; rejects duplicated day classifications and false complete days (`paired_hours != 24`); checks that the selected BA/month exists in the source manifest; and writes `quality_gate.json` with the true 31-day denominator and source origin.
+
+It is invoked **before API acceptance** (so insufficient API coverage triggers the official bulk fallback), and **after selected-source verification and final daily scoring**. The [six synthetic fixture tests](tests/test_c2_eia930_pilot_quality_gate.py) were executed locally and passed 6/6, alongside Python bytecode compilation. This is not a claim about actual 2025 SRP demand observations or a green remote run.
+
+Authentic EIA file still needs retrieval via GitHub Actions. The official EIA public six-month CSV endpoint is an opaque binary download; the isolated local execution environment cannot resolve `www.eia.gov` DNS. Until a validated official EIA raw file and uploaded workflow artifacts are available, SRP performance statistics remain **not verified**.
