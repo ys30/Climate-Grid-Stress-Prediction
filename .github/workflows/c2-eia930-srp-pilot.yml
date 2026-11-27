@@ -32,26 +32,31 @@ jobs:
           python -m unittest discover -s tests -p 'test_c2_fetch_eia930_df.py' -v
           python -m unittest discover -s tests -p 'test_c2_eia930_day_ahead_benchmark.py' -v
       - name: Validate required EIA API key
+        id: preflight
         run: |
           if [ -z "$EIA_API_KEY" ]; then
             echo "::error::EIA_API_KEY secret is missing. Configure repository Actions secret; no authentic EIA data fetched."
             exit 1
           fi
       - name: Fetch official source SRP July 2025 hourly D and DF
+        id: fetch
         run: |
           python scripts/c2_fetch_eia930_df.py pilot/source \
             --start-year 2025 --end-year 2025 --month 7 --ba SRP
       - name: Verify original EIA source rows and manifest
+        id: integrity
         run: |
           python scripts/c2_verify_eia930_source.py \
             pilot/source/eia930_D_DF_hourly.csv \
             pilot/source/source_manifest.json \
             --output pilot/source/source_integrity.json
       - name: Score full 24-hour UTC days
+        id: score
         run: |
           python scripts/c2_eia930_day_ahead_benchmark.py \
             pilot/source/eia930_D_DF_hourly.csv pilot/daily --ba SRP
       - name: Pilot gate for complete UTC July
+        id: coverage
         run: |
           python - <<'PY'
           import csv, json
@@ -64,6 +69,28 @@ jobs:
                             'incomplete_days':len(incomplete),'sample_coverage':len(july)/31}, indent=2))
           if len(july)<25:
               raise SystemExit('Insufficient complete SRP days for pilot (<25/31); investigate source and hour semantics')
+          PY
+      - name: Save step outcomes for failure diagnosis
+        if: always()
+        env:
+          KEY_OUTCOME: ${{ steps.preflight.outcome }}
+          FETCH_OUTCOME: ${{ steps.fetch.outcome }}
+          INTEGRITY_OUTCOME: ${{ steps.integrity.outcome }}
+          SCORE_OUTCOME: ${{ steps.score.outcome }}
+          COVERAGE_OUTCOME: ${{ steps.coverage.outcome }}
+        run: |
+          mkdir -p pilot/diagnostics
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          result={name:os.environ[name+'_OUTCOME'] for name in
+                  ('KEY','FETCH','INTEGRITY','SCORE','COVERAGE')}
+          Path('pilot/diagnostics/step_outcomes.json').write_text(json.dumps(result,indent=2)+'\\n')
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('## C2 SRP official EIA-930 source pilot\\n\\n')
+              for key,value in result.items():
+                  f.write(f'- {key.lower()}: **{value}**\\n')
+              f.write('\\nThis summary does not contain the API key. For any failed step, inspect its raw GitHub Actions log.\\n')
           PY
       - name: Always upload source and error artifacts
         if: always()
