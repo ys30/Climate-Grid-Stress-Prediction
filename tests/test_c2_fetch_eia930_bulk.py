@@ -57,6 +57,21 @@ class TestEiaBulkAdapter(unittest.TestCase):
             file.write_text('invalid,columns\n1,2\n')
             with self.assertRaisesRegex(ValueError,'Unsupported BALANCE schema'):
                 csv_to_month(file,Path(td)/'out')
+    def test_iso_utc_source_format_is_supported(self):
+        with tempfile.TemporaryDirectory() as td:
+            def convert(rows):
+                rows[0]['UTC Time at End of Hour']='2025-07-01 01:00:00'
+                rows[1]['UTC Time at End of Hour']='2025-07-01T02:00:00'
+            out=Path(td)/'normalized'
+            csv_to_month(self.fixture(td,convert),out)
+            report=verify(out/'eia930_D_DF_hourly.csv',out/'source_manifest.json')
+            self.assertTrue(report['passed'],report['issues'])
+    def test_subhourly_utc_timestamp_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            def change(rows):
+                rows[0]['UTC Time at End of Hour']='07/01/2025 01:15:00 AM'
+            with self.assertRaisesRegex(ValueError,'non-hourly'):
+                csv_to_month(self.fixture(td,change),Path(td)/'normalized')
     def test_existing_output_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             file=self.fixture(td)
