@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-"""EIA API v2 D/DF monthly exporter; preserves historical source values, no modeling."""
+"""EIA API v2 UTC hourly-ending D/DF exporter; full UTC calendar days."""
 import argparse
-import calendar
 import csv
 import datetime as dt
 import hashlib
@@ -17,8 +16,9 @@ BAS = ("CISO", "AZPS", "BPAT", "SRP")
 FIELDS = ("period", "respondent", "type", "value")
 
 def month_window(year, month):
-    last = calendar.monthrange(year, month)[1]
-    return f"{year:04d}-{month:02d}-01T00", f"{year:04d}-{month:02d}-{last:02d}T23"
+    start = dt.datetime(year, month, 1, 1)
+    next_month = dt.datetime(year + (month == 12), month % 12 + 1, 1)
+    return start.strftime("%Y-%m-%dT%H"), next_month.strftime("%Y-%m-%dT%H")
 
 def _get_json(url):
     request = urllib.request.Request(url, headers={"User-Agent":"C2-ClimateGridResearch/0.1"})
@@ -56,7 +56,7 @@ def request_page(ba, year, month, api_key, fetch=None):
                 raise ValueError("Incomplete EIA response row")
             if item["respondent"]!=ba or item["type"] not in ("D","DF"):
                 raise ValueError("Unexpected respondent or type")
-            if not start <= item["period"] <= end:
+            if not start <= str(item["period"]) <= end:
                 raise ValueError("Returned period outside requested month")
             rows.append({k:item[k] for k in FIELDS})
         offset+=len(page)
@@ -94,6 +94,7 @@ def collect(outdir,start_year=2023,end_year=2025,bas=BAS,api_key=None,fetch=None
               "source_sha256":hashlib.sha256(csv_path.read_bytes()).hexdigest(),
               "row_count":sum(r["rows"] for r in index),
               "month_ba_manifest":index,
+              "clock_convention":"UTC hourly hour-ending; monthly queries cover first day 01:00 through next month 00:00, inclusive",
               "note":"Historical EIA DF; original issue-time vintage not independently certified."}
         (path/"source_manifest.json").write_text(json.dumps(meta,indent=2)+"\n",encoding="utf-8")
         path.rename(outdir)
