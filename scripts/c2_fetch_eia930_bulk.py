@@ -10,6 +10,7 @@ import datetime as dt
 import hashlib
 import json
 import math
+import shutil
 import tempfile
 import urllib.request
 from pathlib import Path
@@ -30,6 +31,8 @@ def csv_to_month(source, destination, ba="SRP", year=2025, month=7, source_url=N
     target.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="c2_bulk_",dir=target) as root:
         folder=Path(root)
+        original=folder/"EIA930_BALANCE_original.csv"
+        shutil.copyfile(source, original)
         normalized=folder/"eia930_D_DF_hourly.csv"
         with source.open(newline="",encoding="utf-8-sig") as f, normalized.open("w",newline="",encoding="utf-8") as out:
             reader=csv.DictReader(f)
@@ -63,6 +66,7 @@ def csv_to_month(source, destination, ba="SRP", year=2025, month=7, source_url=N
         if count==0:raise ValueError("No matching BA/month records in EIA BALANCE file")
         metadata={"source_url":source_url,"source_format":"EIA930_BALANCE_6MONTH",
                   "origin":"bulk","original_bulk_sha256":raw_hash,
+                  "original_bulk_file":original.name,
                   "source_sha256":hashlib.sha256(normalized.read_bytes()).hexdigest(),
                   "row_count":count,"month_ba_manifest":[dict(ba=ba,year=year,month=month,rows=count)],
                   "utc_clock":"EIA UTC Time at End of Hour",
