@@ -100,6 +100,18 @@ jobs:
             pilot/daily/excluded_days.csv \
             pilot/source/source_manifest.json --ba SRP --year 2025 --month 7 \
             --min-days 25 --output pilot/daily/quality_gate.json
+      - name: Report coverage admission separately from forecast validation
+        if: steps.coverage.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads(Path('pilot/daily/quality_gate.json').read_text())
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write(f"## SRP 2025-07 data coverage: {r['admission']}\\n\\n")
+              f.write(f"Complete days: **{r['complete_days']}/{r['calendar_days']}**. ")
+              f.write("Passing this gate does not validate original forecast issue-time or model skill.\\n\\n")
+          PY
       - name: Save step outcomes for failure diagnosis
         if: always()
         env:
