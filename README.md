@@ -76,3 +76,18 @@ python scripts/c2_archive_inventory.py C2_20261126_Persistent_Event_Duration_Sig
 ```
 
 The SHA above comes from the existing archive report, not from a newly recovered local archive. If the hash mismatches, stop rather than silently switching archives. The expected source analysis includes **7,626 within-estimator matched weather/calendar day pairs**, which are not necessarily 7,626 separate BA/date keys and are not automatically in the new audit-runner schema. The inspector does NOT transform or certify the full input. Only after documenting the actual CSV schema can an explicit, checked adapter be developed. The four archive unit tests passed locally on synthetic ZIP fixtures; original-source archive recovery remains pending.
+
+### EIA-930 four-BA reported forecast benchmark: source retrieval and real-data workflow
+
+New [official-source collector](scripts/c2_fetch_eia930_df.py) retrieves EIA API v2 hourly original values `D` and `DF` in BA × month chunks, verifies the API-returned total, rejects duplicate keys, writes a SHA-256 source manifest, and refuses to overwrite old runs. It **does not** invent or impute missing demand. The four target BAs are CISO, AZPS, BPAT, and SRP. Run with `EIA_API_KEY` from your environment (do not commit this key):
+
+```bash
+python scripts/c2_fetch_eia930_df.py results/c2_eia930_source_2023_25 --start-year 2023 --end-year 2025
+python scripts/c2_eia930_day_ahead_benchmark.py \
+  results/c2_eia930_source_2023_25/eia930_D_DF_hourly.csv \
+  results/c2_eia930_df_2023_25 --ba CISO --ba AZPS --ba BPAT --ba SRP
+```
+
+Also available: [manual GitHub Actions source-and-benchmark workflow](.github/workflows/c2-eia930-reported-forecast.yml). Configure repository secret `EIA_API_KEY` if required, then dispatch the workflow for the desired complete historical years; it archives raw export, source manifest, daily metrics, incomplete-day waterfall, and output manifest. The offline collector tests require no API access. **No live EIA extraction or operational skill number is claimed from adding this code/workflow.**
+
+EIA publishes values using the hour-ending convention (source: https://www.eia.gov/electricity/930-content/about.html). Our initial daily metric is a complete **UTC** 24-hour demand peak, *not* BA-local operating day. Distinguish the historical reported DF series from a verified original forecast issuance vintage; ERA5 realized-weather predictors remain hindsight inputs. External acquisition is blocked in the current isolated environment, so independent BA-year data coverage and comparisons to the 142 SRP event dates are still pending.
