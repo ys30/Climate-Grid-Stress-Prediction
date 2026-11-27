@@ -40,6 +40,21 @@ class TestEiaFetcher(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,"ended"):
             request_page("SRP",2023,1,None,
                          lambda url: {"response":{"total":"2","data":[]}})
+    def test_single_month_pilot_and_key_gate(self):
+        with tempfile.TemporaryDirectory() as root:
+            output=Path(root)/"pilot"
+            meta=collect(output,2025,2025,("SRP",),fetch=self.fake,months=[7])
+            self.assertEqual(meta["row_count"],2)
+            self.assertEqual(meta["selected_months"],[7])
+            self.assertEqual(len(meta["month_ba_manifest"]),1)
+            self.assertEqual(meta["month_ba_manifest"][0]["month"],7)
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaisesRegex(ValueError,"EIA_API_KEY required"):
+                collect(Path(root)/"missing_key",2025,2025,("SRP",),months=[7])
+    def test_invalid_month_fails(self):
+        with tempfile.TemporaryDirectory() as root:
+            with self.assertRaisesRegex(ValueError,"Invalid month"):
+                collect(Path(root)/"bad",2025,2025,("SRP",),fetch=self.fake,months=[13])
     def test_manifest_export_and_no_overwrite(self):
         with tempfile.TemporaryDirectory() as root:
             output=Path(root)/"run"
