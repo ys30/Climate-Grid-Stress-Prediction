@@ -154,3 +154,9 @@ Bulk workflow output preserves the original six-month raw CSV, derived SRP one-m
 The SRP July 2025 pilot's API path now includes **both** source acquisition and integrity verification within its guarded stage. A transport failure, timeout, incomplete API file, mismatched SHA-256, or BA/month provenance check failure triggers a fallback to official public `EIA930_BALANCE_2025_Jul_Dec.csv`. An unsuccessful partial API export is retained under `pilot/failed_api_source/` for diagnosis, rather than discarded. The **selected** source (API or bulk) still has to pass the independent verifier before scoring. The script does **not** treat failed API source verification as valid empirical data.
 
 Source acceptance, full 24-hour UTC days, missingness, and nonblind forecast-vintage cautions remain the same. GitHub Actions successful completion and new genuine EIA demand-forecast metrics have not yet been independently observed here.
+
+### July 2025 full-month synthetic integration gate
+
+The new [`tests/test_c2_eia930_full_month_pipeline.py`](tests/test_c2_eia930_full_month_pipeline.py) exercises the **complete** EIA-930 bulk fallback chain on generated *synthetic* SRP data: original BALANCE CSV (744 UTC hour-ending stamps × D/DF = **1,488 normalized rows**) → byte-preserving archive/source checksum → normalized CSV → independent manifest verification → 31 complete UTC calendar days → daily peak and signed-error calculations → annual BA coverage waterfall. A second case deletes the August 1 00:00 UTC hour-ending record and requires July 31 to be marked incomplete, not fabricated as a complete day.
+
+The synthetic integration gate now runs in **both** the C2 regression workflow and the live SRP pilot **before** any official source download. It makes no statement about authentic SRP demand, observed operational forecast error or the reported 142 event days. Full remote CI green status remains unverified until the actual Actions log is available.
