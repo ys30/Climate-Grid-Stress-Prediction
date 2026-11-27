@@ -110,6 +110,7 @@ jobs:
           result={name:os.environ[name+'_OUTCOME'] for name in
                   ('KEY','FETCH','BULK','INTEGRITY','SCORE','COVERAGE')}
           Path('pilot/diagnostics/step_outcomes.json').write_text(json.dumps(result,indent=2)+'\n')
+          json.loads(Path('pilot/diagnostics/step_outcomes.json').read_text())
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
               f.write('## C2 SRP official EIA-930 source pilot\n\n')
               for key,value in result.items():
