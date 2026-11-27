@@ -37,6 +37,15 @@ class TestEiaBulkAdapter(unittest.TestCase):
             days,excluded,_=read_pairs(out/'eia930_D_DF_hourly.csv',{'SRP'})
             self.assertEqual(days,[])
             self.assertEqual(len(excluded),2)
+    def test_original_bulk_tampering_fails_verifier(self):
+        with tempfile.TemporaryDirectory() as td:
+            out=Path(td)/'normalized'
+            csv_to_month(self.fixture(td),out)
+            original=out/'EIA930_BALANCE_original.csv'
+            original.write_text(original.read_text().replace('1,100','9,999'))
+            result=verify(out/'eia930_D_DF_hourly.csv',out/'source_manifest.json')
+            self.assertFalse(result['passed'])
+            self.assertTrue(any('original bulk source SHA-256 mismatch' in issue for issue in result['issues']))
     def test_duplicate_source_hour_fails(self):
         with tempfile.TemporaryDirectory() as td:
             def duplicate(rows):rows.append(dict(rows[0]))
