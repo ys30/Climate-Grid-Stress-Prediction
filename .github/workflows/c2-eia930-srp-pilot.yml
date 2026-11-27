@@ -108,9 +108,9 @@ jobs:
           from pathlib import Path
           r=json.loads(Path('pilot/daily/quality_gate.json').read_text())
           with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
-              f.write(f"## SRP 2025-07 data coverage: {r['admission']}\\n\\n")
+              f.write(f"## SRP 2025-07 data coverage: {r['admission']}\n\n")
               f.write(f"Complete days: **{r['complete_days']}/{r['calendar_days']}**. ")
-              f.write("Passing this gate does not validate original forecast issue-time or model skill.\\n\\n")
+              f.write("Passing this gate does not validate original forecast issue-time or model skill.\n\n")
           PY
       - name: Save step outcomes for failure diagnosis
         if: always()
