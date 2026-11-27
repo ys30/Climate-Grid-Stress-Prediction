@@ -63,8 +63,14 @@ def verify(source_csv, source_manifest):
     for key,info in specs.items():
         if counts[key]!=int(info["rows"]):
             issues.append(f"month {key}: actual rows {counts[key]} != {info['rows']}")
-        if int(info["api_total"]) != int(info["rows"]):
-            issues.append(f"month {key}: API reported total disagrees")
+        if meta.get("origin")=="bulk":
+            if "api_total" in info:
+                issues.append(f"month {key}: bulk manifest cannot claim API page totals")
+            if not meta.get("original_bulk_sha256"):
+                issues.append("bulk export missing original source SHA-256")
+        else:
+            if "api_total" not in info or int(info["api_total"]) != int(info["rows"]):
+                issues.append(f"month {key}: API reported total disagrees")
     if not rows:
         issues.append("zero source rows")
     return {"passed":not issues,"issues":issues,"rows":rows,"source_sha256":digest,
