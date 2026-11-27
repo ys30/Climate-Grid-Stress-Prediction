@@ -39,8 +39,10 @@ jobs:
           test -f tests/test_c2_eia930_coverage_scorecard.py
           test -f scripts/c2_verify_eia930_source.py
           test -f tests/test_c2_verify_eia930_source.py
+          test -f scripts/c2_fetch_eia930_bulk.py
+          test -f tests/test_c2_fetch_eia930_bulk.py
       - name: Python syntax validation
-        run: python -m compileall -q scripts/c2_episode_tail_audit.py scripts/c2_cross_model_integrity.py tests/test_c2_episode_tail_audit.py tests/test_c2_cross_model_integrity.py scripts/c2_run_validated_audit.py tests/test_c2_run_validated_audit.py scripts/c2_archive_inventory.py tests/test_c2_archive_inventory.py scripts/c2_eia930_day_ahead_benchmark.py tests/test_c2_eia930_day_ahead_benchmark.py scripts/c2_fetch_eia930_df.py tests/test_c2_fetch_eia930_df.py scripts/c2_eia930_coverage_scorecard.py tests/test_c2_eia930_coverage_scorecard.py scripts/c2_verify_eia930_source.py tests/test_c2_verify_eia930_source.py
+        run: python -m compileall -q scripts/c2_episode_tail_audit.py scripts/c2_cross_model_integrity.py tests/test_c2_episode_tail_audit.py tests/test_c2_cross_model_integrity.py scripts/c2_run_validated_audit.py tests/test_c2_run_validated_audit.py scripts/c2_archive_inventory.py tests/test_c2_archive_inventory.py scripts/c2_eia930_day_ahead_benchmark.py tests/test_c2_eia930_day_ahead_benchmark.py scripts/c2_fetch_eia930_df.py tests/test_c2_fetch_eia930_df.py scripts/c2_eia930_coverage_scorecard.py tests/test_c2_eia930_coverage_scorecard.py scripts/c2_verify_eia930_source.py tests/test_c2_verify_eia930_source.py scripts/c2_fetch_eia930_bulk.py tests/test_c2_fetch_eia930_bulk.py
       - name: Episode audit regression tests
         env:
           PYTHONPATH: .
@@ -69,6 +71,10 @@ jobs:
         env:
           PYTHONPATH: .
         run: python -m unittest discover -s tests -p 'test_c2_verify_eia930_source.py' -v
+      - name: EIA public bulk Balance adapter regression tests
+        env:
+          PYTHONPATH: .
+        run: python -m unittest discover -s tests -p 'test_c2_fetch_eia930_bulk.py' -v
       - name: Cross-estimator integrity regression tests
         env:
           PYTHONPATH: .
