@@ -16,7 +16,7 @@ class TestEiaBulkDownload(unittest.TestCase):
     def test_transient_failure_then_valid_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest=Path(tmp)/"source.csv"
-            events=[URLError("temporary error"), _Response(b"a,b\\n1,2\\n")]
+            events=[URLError("temporary error"), _Response(b"a,b\n1,2\n")]
             def respond(*args,**kwargs):
                 entry=events.pop(0)
                 if isinstance(entry,Exception):
@@ -25,7 +25,7 @@ class TestEiaBulkDownload(unittest.TestCase):
             with patch("scripts.c2_fetch_eia930_bulk.urllib.request.urlopen",side_effect=respond),patch("time.sleep"):
                 url=download_bulk(dest,2025,7)
             self.assertIn("EIA930_BALANCE_2025_Jul_Dec.csv",url)
-            self.assertEqual(dest.read_bytes(),b"a,b\\n1,2\\n")
+            self.assertEqual(dest.read_bytes(),b"a,b\n1,2\n")
     def test_html_rejected_and_partial_file_removed(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest=Path(tmp)/"source.csv"
