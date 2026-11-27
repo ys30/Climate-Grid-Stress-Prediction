@@ -68,12 +68,16 @@ def request_page(ba, year, month, api_key, fetch=None):
     return rows, {"ba":ba,"year":year,"month":month,"start":start,"end":end,
                   "rows":len(rows),"api_total":reported_total}
 
-def collect(outdir,start_year=2023,end_year=2025,bas=BAS,api_key=None,fetch=None):
+def collect(outdir,start_year=2023,end_year=2025,bas=BAS,api_key=None,fetch=None,months=None):
     outdir=Path(outdir)
     if outdir.exists():
         raise ValueError("Output directory exists; refuse overwrite")
     if start_year>end_year or not bas or any(b not in BAS for b in bas):
         raise ValueError("Invalid years or BA selection")
+    if months is not None and (not months or any(m<1 or m>12 for m in months)):
+        raise ValueError("Invalid month selection")
+    if fetch is None and not api_key:
+        raise ValueError("EIA_API_KEY required for live EIA API requests; configure repository secret EIA_API_KEY")
     outdir.parent.mkdir(parents=True,exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="c2_eia_stage_",dir=outdir.parent) as tmp:
         path=Path(tmp)
@@ -83,13 +87,14 @@ def collect(outdir,start_year=2023,end_year=2025,bas=BAS,api_key=None,fetch=None
             writer=csv.DictWriter(f,fieldnames=FIELDS)
             writer.writeheader()
             for year in range(start_year,end_year+1):
-                for month in range(1,13):
+                for month in (sorted(set(months)) if months is not None else range(1,13)):
                     for ba in bas:
                         rows,record=request_page(ba,year,month,api_key,fetch=fetch)
                         writer.writerows(rows)
                         index.append(record)
         meta={"source_url":ENDPOINT,"frequency":"hourly","types":["D","DF"],
               "bas":list(bas),"years":[start_year,end_year],
+              "selected_months":sorted(set(months)) if months is not None else list(range(1,13)),
               "retrieved_at_utc":dt.datetime.now(dt.timezone.utc).isoformat(),
               "source_sha256":hashlib.sha256(csv_path.read_bytes()).hexdigest(),
               "row_count":sum(r["rows"] for r in index),
@@ -106,9 +111,10 @@ def main():
     p.add_argument("--start-year",type=int,default=2023)
     p.add_argument("--end-year",type=int,default=2025)
     p.add_argument("--ba",action="append",choices=BAS)
+    p.add_argument("--month",action="append",type=int,choices=range(1,13),metavar="1..12",help="Limit to selected calendar month(s); default all months")
     args=p.parse_args()
     meta=collect(args.output_dir,args.start_year,args.end_year,
-                 tuple(args.ba or BAS),api_key=os.environ.get("EIA_API_KEY"))
+                 tuple(args.ba or BAS),api_key=os.environ.get("EIA_API_KEY"),months=args.month)
     print(json.dumps({k:v for k,v in meta.items() if k!="month_ba_manifest"},indent=2))
 
 if __name__=="__main__":
