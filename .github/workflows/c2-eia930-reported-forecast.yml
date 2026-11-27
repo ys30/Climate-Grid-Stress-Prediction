@@ -1,0 +1,60 @@
+name: C2 official EIA-930 D-DF retrospective benchmark
+on:
+  workflow_dispatch:
+    inputs:
+      start_year:
+        description: "First complete calendar year (inclusive)"
+        required: true
+        default: "2023"
+        type: string
+      end_year:
+        description: "Last complete calendar year (inclusive)"
+        required: true
+        default: "2025"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  eia930-reported-forecast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check date bounds
+        env:
+          FIRST_YEAR: ${{ inputs.start_year }}
+          LAST_YEAR: ${{ inputs.end_year }}
+        run: |
+          python - <<'PY'
+          import os
+          a,b=int(os.environ['FIRST_YEAR']),int(os.environ['LAST_YEAR'])
+          if not (2019 <= a <= b <= 2025): raise SystemExit("Year bounds must satisfy 2019 <= start <= end <= 2025")
+          print(f"Collecting reported historical EIA-930 D/DF from {a} through {b}")
+          PY
+      - name: Collect original-source hourly D-DF
+        env:
+          FIRST_YEAR: ${{ inputs.start_year }}
+          LAST_YEAR: ${{ inputs.end_year }}
+        run: |
+          python scripts/c2_fetch_eia930_df.py artifacts/official_eia930 \
+            --start-year "$FIRST_YEAR" --end-year "$LAST_YEAR"
+      - name: Build retrospective daily peak forecast benchmark
+        run: |
+          python scripts/c2_eia930_day_ahead_benchmark.py \
+            artifacts/official_eia930/eia930_D_DF_hourly.csv \
+            artifacts/reported_forecast_daily \
+            --ba CISO --ba AZPS --ba BPAT --ba SRP
+      - name: Archive provenance and scorecard
+        uses: actions/upload-artifact@v4
+        with:
+          name: c2-eia930-original-source-and-reported-forecast
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30
