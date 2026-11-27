@@ -107,3 +107,11 @@ An [SRP July 2025 EIA-930 D/DF pilot workflow](.github/workflows/c2-eia930-srp-p
 To limit source acquisition rather than treating missing configuration as scientific negative evidence, `scripts/c2_fetch_eia930_df.py` now supports `--month 7` and fails with an explicit missing-key error before requests. The EIA API documentation requires a registered API key: https://www.eia.gov/opendata/documentation.php .
 
 **Gate remains open:** no authentic hourly source download, BA coverage, or verified GitHub Actions pass has been observed in this chat. Review the Actions execution result and `pilot/source/source_manifest.json` plus `pilot/daily/eia930_df_daily.csv` before reporting a real value.
+
+### Source authenticity gate for official EIA-930 pilot (2026-11-26)
+
+The SRP pilot and four-BA workflow now run [`scripts/c2_verify_eia930_source.py`](scripts/c2_verify_eia930_source.py) **before** computing any D/DF scorecard. This checks the saved source CSV SHA-256 against the original retrieval manifest, exact record counts against API totals and each BA×month export, proper UTC hour-ending month assignment (including a first-of-next-month 00:00 record), duplicate keys, permitted respondent/type values, and invalid values. A failure stops the scoring workflow; available pilot artifacts can still be inspected to diagnose it.
+
+The verifier has [five synthetic fixture regression tests](tests/test_c2_verify_eia930_source.py), incorporated into the CI workflow. A separate regression guard ensures blank/null EIA hourly values mark incomplete UTC days rather than crashing or being silently treated as zero.
+
+This validates the *integrity of the downloaded file against its manifest*, **not** the true original forecast issuance vintage or the truth of reported EIA data. No successful live pilot, final BA-year performance estimate, or empirical 142-day join is claimed until the official workflow produces and retains its actual output.
