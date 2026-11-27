@@ -49,6 +49,14 @@ class TestEia930DayAhead(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,"invalid UTC hour"):
                 read_pairs(self.make(rows,d))
 
+    def test_null_source_value_marks_day_incomplete(self):
+        with tempfile.TemporaryDirectory() as d:
+            rows=self.rows()
+            rows[0]["value"]=None
+            scored,excluded,_=read_pairs(self.make(rows,d))
+            self.assertEqual(scored,[])
+            self.assertEqual(excluded[0]["paired_hours"],23)
+
     def test_negative_demand_fails(self):
         with tempfile.TemporaryDirectory() as d:
             rows=self.rows();rows[0]["value"]="-1"
