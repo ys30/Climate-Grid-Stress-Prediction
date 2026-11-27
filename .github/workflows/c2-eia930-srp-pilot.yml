@@ -9,6 +9,7 @@ on:
       - 'scripts/c2_verify_eia930_source.py'
       - 'scripts/c2_fetch_eia930_bulk.py'
       - 'tests/test_c2_eia930_full_month_pipeline.py'
+      - 'scripts/c2_eia930_pilot_quality_gate.py'
   workflow_dispatch:
 
 concurrency:
@@ -39,6 +40,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_c2_eia930_day_ahead_benchmark.py' -v
           python -m unittest discover -s tests -p 'test_c2_fetch_eia930_bulk.py' -v
           python -m unittest discover -s tests -p 'test_c2_eia930_full_month_pipeline.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_pilot_quality_gate.py' -v
       - name: Detect optional EIA API key
         id: preflight
         run: |
@@ -61,18 +63,12 @@ jobs:
             --output pilot/source/source_integrity.json
           python scripts/c2_eia930_day_ahead_benchmark.py \
             pilot/source/eia930_D_DF_hourly.csv pilot/api_daily --ba SRP
-          python - <<'PY'
-          import csv
-          from pathlib import Path
-          with Path('pilot/api_daily/eia930_df_daily.csv').open(newline='') as f:
-              actual=list(csv.DictReader(f))
-          july={r['date_utc'] for r in actual
-                if r['ba']=='SRP' and r['date_utc'].startswith('2025-07-')}
-          print(f'EIA API paired complete UTC July days: {len(july)}/31')
-          if len(july)<25:
-              raise SystemExit('EIA API coverage insufficient; try official bulk fallback')
-          PY
-      - name: Preserve failed API source and try public EIA BALANCE
+          python scripts/c2_eia930_pilot_quality_gate.py \
+            pilot/api_daily/eia930_df_daily.csv \
+            pilot/api_daily/excluded_days.csv \
+            pilot/source/source_manifest.json --ba SRP --year 2025 --month 7 \
+            --min-days 25 --output pilot/api_daily/quality_gate.json
+     - name: Preserve failed API source and try public EIA BALANCE
         id: bulk
         if: steps.fetch.outcome != 'success'
         run: |
@@ -99,19 +95,12 @@ jobs:
       - name: Pilot gate for complete UTC July
         id: coverage
         run: |
-          python - <<'PY'
-          import csv, json
-          from pathlib import Path
-          src=json.loads(Path('pilot/source/source_manifest.json').read_text())
-          scored=list(csv.DictReader(open('pilot/daily/eia930_df_daily.csv', newline='')))
-          incomplete=list(csv.DictReader(open('pilot/daily/excluded_days.csv', newline='')))
-          july={r['date_utc'] for r in scored if r['ba']=='SRP' and r['date_utc'].startswith('2025-07-')}
-          print(json.dumps({'source_rows':src['row_count'],'complete_july_days':len(july),
-                            'incomplete_days':len(incomplete),'sample_coverage':len(july)/31}, indent=2))
-          if len(july)<25:
-              raise SystemExit('Insufficient complete SRP days for pilot (<25/31); investigate source and hour semantics')
-          PY
-      - name: Save step outcomes for failure diagnosis
+          python scripts/c2_eia930_pilot_quality_gate.py \
+            pilot/daily/eia930_df_daily.csv \
+            pilot/daily/excluded_days.csv \
+            pilot/source/source_manifest.json --ba SRP --year 2025 --month 7 \
+            --min-days 25 --output pilot/daily/quality_gate.json
+     - name: Save step outcomes for failure diagnosis
         if: always()
         env:
           KEY_OUTCOME: ${{ steps.preflight.outcome }}
