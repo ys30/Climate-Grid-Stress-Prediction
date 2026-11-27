@@ -46,20 +46,27 @@ jobs:
           else
             echo "available=yes" >> "$GITHUB_OUTPUT"
           fi
-      - name: Fetch via EIA API if configured
+      - name: Collect and verify EIA API source when configured
         id: fetch
         if: steps.preflight.outputs.available == 'yes'
         continue-on-error: true
         run: |
           timeout 180s python scripts/c2_fetch_eia930_df.py pilot/source \
             --start-year 2025 --end-year 2025 --month 7 --ba SRP
-      - name: Fallback to public official EIA BALANCE archive
+          python scripts/c2_verify_eia930_source.py \
+            pilot/source/eia930_D_DF_hourly.csv \
+            pilot/source/source_manifest.json \
+            --output pilot/source/source_integrity.json
+      - name: Preserve failed API source and try public EIA BALANCE
         id: bulk
         if: steps.fetch.outcome != 'success'
         run: |
+          if [ -d pilot/source ]; then
+            mv pilot/source pilot/failed_api_source
+          fi
           python scripts/c2_fetch_eia930_bulk.py pilot/source \
             --year 2025 --month 7 --ba SRP
-      - name: Verify original EIA source rows and manifest
+      - name: Verify selected source (API or official bulk) before scoring
         id: integrity
         run: |
           python scripts/c2_verify_eia930_source.py \
