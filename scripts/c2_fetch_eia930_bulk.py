@@ -67,7 +67,7 @@ def csv_to_month(source, destination, ba="SRP", year=2025, month=7, source_url=N
                   "row_count":count,"month_ba_manifest":[dict(ba=ba,year=year,month=month,rows=count)],
                   "utc_clock":"EIA UTC Time at End of Hour",
                   "note":"Official EIA historical bulk D/DF; not authenticated original issue-time forecast vintage"}
-        (folder/"source_manifest.json").write_text(json.dumps(metadata,indent=2)+"\\n",encoding="utf-8")
+        (folder/"source_manifest.json").write_text(json.dumps(metadata,indent=2)+"\n",encoding="utf-8")
         folder.rename(destination)
     return metadata
 
