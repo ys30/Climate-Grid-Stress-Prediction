@@ -142,3 +142,9 @@ python scripts/c2_verify_eia930_source.py \
 ```
 
 This change addresses a **known dependency risk** (API key availability / API collection failure) without claiming it caused the previously observed failure. The current chat still has not retrieved the actual push-run logs or executed a successful live EIA request; the latest public bulk route must pass the GitHub workflow and be checked against its uploaded original-source artifact before any empirical findings are reported.
+
+#### SRP pilot operational failure recovery (follow-up)
+
+After repeated uninspectable push-run failures, the July 2025 SRP pilot now **does not require an EIA API key**: it attempts API ingestion only if a secret is present and automatically falls back to EIA's public historical `EIA930_BALANCE_2025_Jul_Dec.csv` when the API step is skipped or fails. The optional API attempt has a **180-second limit**, leaving runtime for the public fallback; repeated pushes cancel older in-progress pilot jobs. A passing downstream score is gated on the source manifest and complete UTC-day requirement, not on availability of the API secret.
+
+Bulk workflow output preserves the original six-month raw CSV, derived SRP one-month normalized D/DF CSV, both SHA-256 hashes, manifest, source verifier report and daily scorecard. If both API and public EIA download fail, the workflow should still **fail visibly**, with per-step status diagnostics, rather than fabricate an EIA result. Run-level success and true empirical results remain unconfirmed until actual Actions logs and artifacts are inspected.
