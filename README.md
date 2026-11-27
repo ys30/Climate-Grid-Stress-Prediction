@@ -115,3 +115,13 @@ The SRP pilot and four-BA workflow now run [`scripts/c2_verify_eia930_source.py`
 The verifier has [five synthetic fixture regression tests](tests/test_c2_verify_eia930_source.py), incorporated into the CI workflow. A separate regression guard ensures blank/null EIA hourly values mark incomplete UTC days rather than crashing or being silently treated as zero.
 
 This validates the *integrity of the downloaded file against its manifest*, **not** the true original forecast issuance vintage or the truth of reported EIA data. No successful live pilot, final BA-year performance estimate, or empirical 142-day join is claimed until the official workflow produces and retains its actual output.
+
+### SRP pilot failure diagnosis and official non-API source option
+
+The [SRP July 2025 live pilot](.github/workflows/c2-eia930-srp-pilot.yml) now writes `pilot/diagnostics/step_outcomes.json` and a GitHub Actions step summary with **which stage failed**: API-key preflight, original data fetch, source manifest verification, 24-hour scoring, or coverage gate. The artifact upload runs even on error. These diagnostics intentionally never expose the value of `EIA_API_KEY`.
+
+**Before concluding an API bug:** first inspect the exact failed step. In particular, a missing `EIA_API_KEY` repository Actions secret is a configuration failure, not an observed electricity-data quality failure. Push-triggered run conclusions cannot be recovered from a commit status with an empty status array.
+
+**Official alternative without API requests:** EIA also offers six-month `Balance` CSV downloads on the [EIA Hourly Electric Grid Monitor / About EIA-930](https://www.eia.gov/electricity/930-content/about.html). Balance files include actual hourly demand and day-ahead demand forecasts; archive the original downloaded CSV and hash, then explicitly map its clock fields and BA identifiers into the normalized `period,respondent,type,value` format. The six-month raw file is **not** automatically the same API schema and should never be passed to the normalized scoring script without checking those mappings. A manual downloaded balance CSV is a real-data alternative if GitHub secrets or EIA API access remain unavailable.
+
+Current CI caveat: workflow code is committed, but this conversation has not retrieved the actual push-run job logs or produced genuine EIA-930 pilot source artifacts, so the real root cause and successful pilot status remain unconfirmed.
