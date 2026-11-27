@@ -45,10 +45,18 @@ def csv_to_month(source, destination, ba="SRP", year=2025, month=7, source_url=N
             for line,r in enumerate(reader,2):
                 if (r[COLUMNS["ba"]] or "").strip()!=ba: continue
                 raw=(r[COLUMNS["period"]] or "").strip()
-                try:
-                    stamp=dt.datetime.strptime(raw,"%m/%d/%Y %I:%M:%S %p")
-                except ValueError as exc:
-                    raise ValueError(f"row {line}: unparseable UTC hour-ending {raw}") from exc
+                stamp=None
+                for fmt in ("%m/%d/%Y %I:%M:%S %p",
+                            "%m/%d/%Y %H:%M:%S",
+                            "%Y-%m-%d %H:%M:%S",
+                            "%Y-%m-%dT%H:%M:%S"):
+                    try:
+                        stamp=dt.datetime.strptime(raw,fmt)
+                        break
+                    except ValueError:
+                        pass
+                if stamp is None or stamp.minute!=0 or stamp.second!=0:
+                    raise ValueError(f"row {line}: unparseable or non-hourly UTC hour-ending {raw!r}")
                 if not start < stamp <= end:continue
                 for field in ("D","DF"):
                     value=(r[COLUMNS[field]] or "").replace(",","").strip()
