@@ -36,7 +36,7 @@ def read_pairs(path, requested_bas=None):
             if requested_bas and ba not in requested_bas:
                 continue
             hour=parse_hour(r["period"])
-            val=r["value"].strip()
+            val=(r["value"] or "").strip()
             if not val:
                 continue
             try:
