@@ -10,6 +10,10 @@ on:
       - 'scripts/c2_fetch_eia930_bulk.py'
   workflow_dispatch:
 
+concurrency:
+  group: c2-eia930-srp-pilot
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -47,7 +51,7 @@ jobs:
         if: steps.preflight.outputs.available == 'yes'
         continue-on-error: true
         run: |
-          python scripts/c2_fetch_eia930_df.py pilot/source \
+          timeout 180s python scripts/c2_fetch_eia930_df.py pilot/source \
             --start-year 2025 --end-year 2025 --month 7 --ba SRP
       - name: Fallback to public official EIA BALANCE archive
         id: bulk
