@@ -38,10 +38,13 @@ def gate(daily_path, excluded_path, manifest_path, *, ba='SRP', year=2025, month
     if not any(x.get('ba')==ba and int(x.get('year',0))==year and int(x.get('month',0))==month for x in manifest.get('month_ba_manifest',[])):
         errors.append('source month absent from manifest')
     if len(complete)<min_days:errors.append(f'{len(complete)} complete days below minimum {min_days}')
+    complete_month=(len(complete)==expected and not errors)
+    admission='FULL_MONTH' if complete_month else ('PILOT_ACCEPTED_PARTIAL' if not errors else 'REJECTED')
     return {'passed':not errors,'ba':ba,'year':year,'month':month,'source_origin':origin,
             'calendar_days':expected,'complete_days':len(complete),
             'incomplete_days':len(incomplete),'wholly_missing_days':expected-len(seen),
             'coverage_fraction':len(complete)/expected,'minimum_complete_days':min_days,
+            'full_month_research_ready':complete_month,'admission':admission,
             'errors':errors,'note':'Coverage gate only, not evidence of forecast skill or verified forecast vintage'}
 
 def main():
@@ -50,6 +53,7 @@ def main():
     p.add_argument('source_manifest',type=Path);p.add_argument('--ba',default='SRP')
     p.add_argument('--year',type=int,default=2025);p.add_argument('--month',type=int,default=7)
     p.add_argument('--min-days',type=int,default=25);p.add_argument('--output',type=Path)
+    p.add_argument('--require-full-month',action='store_true',help='Reject partial calendar-month coverage even if pilot threshold is met')
     a=p.parse_args()
     result=gate(a.daily_csv,a.excluded_csv,a.source_manifest,ba=a.ba,year=a.year,month=a.month,min_days=a.min_days)
     content=json.dumps(result,indent=2)+'\n'
@@ -57,6 +61,6 @@ def main():
     if a.output:
         a.output.parent.mkdir(parents=True,exist_ok=True)
         a.output.write_text(content,encoding='utf-8')
-    if not result['passed']:raise SystemExit(2)
+    if not result['passed'] or (a.require_full_month and not result['full_month_research_ready']):raise SystemExit(2)
 
 if __name__=='__main__':main()
