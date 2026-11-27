@@ -26,7 +26,7 @@ class TestPilotQualityGate(unittest.TestCase):
             r=gate(*self.fixture(d))
             self.assertTrue(r['passed']);self.assertEqual(r['complete_days'],31)
             self.assertEqual(r['wholly_missing_days'],0)
-            self.assertTrue(r['full_month_research_ready'])
+            self.assertTrue(r['complete_utc_month'])
             self.assertEqual(r['admission'],'FULL_MONTH')
     def test_coverage_threshold(self):
         with tempfile.TemporaryDirectory() as d:
@@ -37,14 +37,14 @@ class TestPilotQualityGate(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             r=gate(*self.fixture(d,25,1))
             self.assertTrue(r['passed']);self.assertEqual(r['wholly_missing_days'],5)
-            self.assertFalse(r['full_month_research_ready'])
+            self.assertFalse(r['complete_utc_month'])
             self.assertEqual(r['admission'],'PILOT_ACCEPTED_PARTIAL')
     def test_pilot_accepted_but_partial_month_is_not_research_ready(self):
         with tempfile.TemporaryDirectory() as d:
             r=gate(*self.fixture(d,30,1),min_days=25)
             self.assertTrue(r['passed'])
             self.assertEqual(r['admission'],'PILOT_ACCEPTED_PARTIAL')
-            self.assertFalse(r['full_month_research_ready'])
+            self.assertFalse(r['complete_utc_month'])
     def test_false_complete_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             paths=self.fixture(d,31)
