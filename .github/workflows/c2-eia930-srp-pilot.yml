@@ -12,8 +12,8 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: c2-eia930-srp-pilot
-  cancel-in-progress: true
+  group: c2-eia930-srp-pilot-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
