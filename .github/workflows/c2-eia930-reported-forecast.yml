@@ -51,6 +51,17 @@ jobs:
             artifacts/official_eia930/eia930_D_DF_hourly.csv \
             artifacts/reported_forecast_daily \
             --ba CISO --ba AZPS --ba BPAT --ba SRP
+      - name: Report complete, incomplete and wholly missing BA-days
+        env:
+          FIRST_YEAR: ${{ inputs.start_year }}
+          LAST_YEAR: ${{ inputs.end_year }}
+        run: |
+          python scripts/c2_eia930_coverage_scorecard.py \
+            artifacts/reported_forecast_daily/eia930_df_daily.csv \
+            artifacts/reported_forecast_daily/excluded_days.csv \
+            artifacts/reported_forecast_daily/ba_year_coverage.json \
+            --start-year "$FIRST_YEAR" --end-year "$LAST_YEAR" \
+            --ba CISO --ba AZPS --ba BPAT --ba SRP
       - name: Archive provenance and scorecard
         uses: actions/upload-artifact@v4
         with:
