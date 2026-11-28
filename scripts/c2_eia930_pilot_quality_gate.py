@@ -34,7 +34,7 @@ def gate(daily_path, excluded_path, manifest_path, *, ba='SRP', year=2025, month
     expected=calendar.monthrange(year,month)[1]
     if not (0<=min_days<=expected):raise ValueError('min_days outside calendar month length')
     origin=manifest.get('origin','api')
-    if origin not in ('api','bulk'):errors.append(f'unrecognized source origin: {origin}')
+    if origin not in ('api','bulk','pudl_zenodo_raw'):errors.append(f'unrecognized source origin: {origin}')
     if not any(x.get('ba')==ba and int(x.get('year',0))==year and int(x.get('month',0))==month for x in manifest.get('month_ba_manifest',[])):
         errors.append('source month absent from manifest')
     if len(complete)<min_days:errors.append(f'{len(complete)} complete days below minimum {min_days}')
