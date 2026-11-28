@@ -12,7 +12,10 @@ import tempfile
 import urllib.request
 import zipfile
 from pathlib import Path
-from scripts.c2_fetch_eia930_bulk import csv_to_month
+try:
+    from scripts.c2_fetch_eia930_bulk import csv_to_month
+except ModuleNotFoundError:
+    from c2_fetch_eia930_bulk import csv_to_month
 
 RECORD_URL = "https://zenodo.org/records/22215263/files/eia930-2025half2.zip?download=1"
 PUBLISHED_MD5 = "48cf49085d90c80c60d9fd38a65caa49"
