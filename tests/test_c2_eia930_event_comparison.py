@@ -63,6 +63,37 @@ class TestEventDfComparison(unittest.TestCase):
             self.assertEqual(result["frozen_episodes"],2)
             self.assertEqual(result["matched_days"],4)
             self.assertEqual(result["by_duration"]["2-3d"]["matched_days"],4)
+    def test_quality_month_scope_does_not_mark_other_year_clean(self):
+        with tempfile.TemporaryDirectory() as td:
+            event,daily=make(td)
+            with event.open("a") as f:
+                f.write("SRP,2024-07-01,peak,Huber,observed_high_load,E1,1000,900,950\\n")
+                f.write("SRP,2024-07-02,peak,Huber,observed_high_load,E1,1000,900,950\\n")
+            with daily.open("a") as f:
+                f.write("SRP,2024-07-01,24,1000,-200,800\\n")
+                f.write("SRP,2024-07-02,24,1000,-200,800\\n")
+            quality=Path(td)/"flags.json"
+            quality.write_text('{"ba":"SRP","year":2025,"month":7,"flagged_dates_utc":["2025-07-01"]}')
+            result=compare(event,daily,quality_flags_json=quality)
+            self.assertEqual(result["matched_days"],4)
+            self.assertEqual(result["quality_unflagged_matched"]["matched_days"],1)
+            self.assertEqual(result["quality_flagged_matched"]["matched_days"],1)
+            self.assertEqual(result["quality_status_unknown_matched"],2)
+            self.assertEqual(result["quality_audit_scope"],[2025,7])
+    def test_quality_date_outside_audit_scope_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            event,daily=make(td)
+            quality=Path(td)/"flags.json"
+            quality.write_text('{"ba":"SRP","year":2025,"month":7,"flagged_dates_utc":["2025-08-01"]}')
+            with self.assertRaisesRegex(ValueError,"outside audited"):
+                compare(event,daily,quality_flags_json=quality)
+    def test_quality_month_missing_rejected(self):
+        with tempfile.TemporaryDirectory() as td:
+            event,daily=make(td)
+            quality=Path(td)/"flags.json"
+            quality.write_text('{"ba":"SRP","flagged_dates_utc":[]}')
+            with self.assertRaisesRegex(ValueError,"year/month"):
+                compare(event,daily,quality_flags_json=quality)
     def test_operator_signed_error_identity_guard(self):
         with tempfile.TemporaryDirectory() as td:
             event,daily=make(td)
