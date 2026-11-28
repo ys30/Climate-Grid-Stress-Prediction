@@ -102,6 +102,12 @@ def download_bulk(path, year, month):
                     shutil.copyfileobj(resp,output)
             if path.stat().st_size==0:
                 raise ValueError("EIA bulk endpoint returned an empty file")
+            # Validate the actual archive format before declaring a source download successful.
+            # Do not read all six months into memory just to check its header.
+            with path.open(newline="",encoding="utf-8-sig") as check:
+                headers=next(csv.reader(check),[])
+            if not set(COLUMNS.values()).issubset(set(headers)):
+                raise ValueError("EIA bulk endpoint response lacks BALANCE CSV columns")
             return url
         except (OSError, ValueError) as exc:
             last_error=exc
