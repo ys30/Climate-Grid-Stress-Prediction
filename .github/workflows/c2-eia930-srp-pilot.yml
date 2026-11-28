@@ -13,6 +13,7 @@ on:
       - 'tests/test_c2_eia930_full_month_pipeline.py'
       - 'scripts/c2_eia930_pilot_quality_gate.py'
       - 'scripts/c2_eia930_bulk_quality_flags.py'
+      - 'scripts/c2_eia930_flag_sensitivity.py'
   workflow_dispatch:
 
 concurrency:
@@ -47,6 +48,7 @@ jobs:
           python -m unittest discover -s tests -p 'test_c2_eia930_full_month_pipeline.py' -v
           python -m unittest discover -s tests -p 'test_c2_eia930_pilot_quality_gate.py' -v
           python -m unittest discover -s tests -p 'test_c2_eia930_bulk_quality_flags.py' -v
+          python -m unittest discover -s tests -p 'test_c2_eia930_flag_sensitivity.py' -v
       - name: Detect optional EIA API key
         id: preflight
         run: |
@@ -123,6 +125,13 @@ jobs:
             pilot/daily/excluded_days.csv \
             pilot/source/source_manifest.json --ba SRP --year 2025 --month 7 \
             --min-days 25 --output pilot/daily/quality_gate.json
+      - name: Compare all and unflagged-day signed errors for raw BALANCE sources
+        if: steps.coverage.outcome == 'success' && (steps.bulk.outcome == 'success' || steps.zenodo.outcome == 'success')
+        run: |
+          python scripts/c2_eia930_flag_sensitivity.py \
+            pilot/daily/eia930_df_daily.csv \
+            pilot/source/raw_bulk_quality_flags.json \
+            pilot/quality_sensitivity --ba SRP --year 2025 --month 7
       - name: Report coverage admission separately from forecast validation
         if: steps.coverage.outcome == 'success'
         run: |
