@@ -237,3 +237,21 @@ The flag set includes missing D/DF, reported imputed Demand, Adjusted Demand dif
 The [SRP pilot workflow](.github/workflows/c2-eia930-srp-pilot.yml) executes the sensitivity calculation **only when the selected source is EIA BALANCE bulk or the PUDL raw BALANCE archive, after both source integrity and day-coverage checks pass**. It is not run on the API route, which does not carry the original BALANCE imputed/adjusted side columns. [Seven new regression cases](tests/test_c2_eia930_flag_sensitivity.py) cover score consistency, missing flagged-day denominator, incorrect source BA, duplicate scored day, incomplete scored hour count, null empty subgroup and out-of-month flags. The new code and tests were committed to CI; **their actual CI pass is not yet verified**.
 
 This provides a suitable precursor for joining SRP's retrospective 142 observed-high-load event days and comparing signed underforecast separately by event duration, but that event-level real-data join remains **unexecuted** without the authentic archived event CSV and current EIA source files. Source flags are not evidence of climate causality or operational original forecast-vintage validity.
+
+### E2: frozen persistent-event versus reported operator day-ahead forecasts
+
+The new [`scripts/c2_eia930_event_comparison.py`](scripts/c2_eia930_event_comparison.py) provides a strict **descriptive** join of an already-frozen per-day C2 event prediction table (same schema as [`c2_episode_tail_audit.py`](scripts/c2_episode_tail_audit.py)) to EIA-930 reported D/DF **complete UTC daily peaks**, keyed by **BA and ISO UTC date**. It requires explicitly selected `target`, `estimator` and `event_category`; prevents cross-model and cross-target double counting; requires an episode to have at least two consecutive dates within one year; validates the D/DF signed-error identity and the observed daily target between the two inputs (default absolute tolerance 1 MW). It refuses to score unmatched source dates, reports their **actual dates** and counts, and retains each frozen episode's **original full duration bucket**, rather than misclassifying partially matched episodes based only on the limited EIA overlap.
+
+Daily matched records report operator, calendar and realized-weather forecast signed errors on the **same observed date**. Summary records report MAE and underforecast fraction for 2–3-day, 4–7-day and >=8-day episodes, plus (when provided) the quality-unflagged matched subset. Results are descriptive and do **not** create an operational original-vintage weather forecast.
+
+Required inputs are **both** (a) the archived, originally fitted model-event-day predictions and (b) a verified EIA D/DF daily CSV with overlapping BA/date/peak units. Example, only after both real files have passed integrity checks:
+```bash
+python scripts/c2_eia930_event_comparison.py \
+  /path/to/frozen_c2_episode_predictions.csv \
+  /path/to/eia930_df_daily.csv \
+  results/srp_operator_event_comparison \
+  --ba SRP --target peak --estimator Huber \
+  --event-category observed_high_load \
+  --quality-flags /path/to/raw_bulk_quality_flags.json
+```
+The event category argument must exactly match the archived input labels; this README example does **not** assert the label was verified in the unavailable archive. The regression suite [`tests/test_c2_eia930_event_comparison.py`](tests/test_c2_eia930_event_comparison.py) checks signed errors, missing operator days, target mismatch, episode contiguity, duplicate conditioning and source arithmetic. No real event/operator overlap has been computed in this chat, and the historical 142 SRP peak event days are **not** asserted to overlap July 2025 without evidence.
