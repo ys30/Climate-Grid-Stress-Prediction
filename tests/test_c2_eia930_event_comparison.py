@@ -50,6 +50,19 @@ class TestEventDfComparison(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             with self.assertRaisesRegex(ValueError,"no matching pre-frozen"):
                 compare(*make(td),target="mean")
+    def test_episode_identifier_reusable_across_years(self):
+        with tempfile.TemporaryDirectory() as td:
+            event,daily=make(td)
+            with event.open("a") as f:
+                f.write("SRP,2024-07-01,peak,Huber,observed_high_load,E1,1000,900,950\n")
+                f.write("SRP,2024-07-02,peak,Huber,observed_high_load,E1,1000,900,950\\n")
+            with daily.open("a") as f:
+                f.write("SRP,2024-07-01,24,1000,-200,800\n")
+                f.write("SRP,2024-07-02,24,1000,-200,800\\n")
+            result=compare(event,daily)
+            self.assertEqual(result["frozen_episodes"],2)
+            self.assertEqual(result["matched_days"],4)
+            self.assertEqual(result["by_duration"]["2-3d"]["matched_days"],4)
     def test_operator_signed_error_identity_guard(self):
         with tempfile.TemporaryDirectory() as td:
             event,daily=make(td)
