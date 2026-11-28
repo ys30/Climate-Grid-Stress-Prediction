@@ -97,7 +97,7 @@ jobs:
           python scripts/c2_fetch_eia930_zenodo.py pilot/source \
             --year 2025 --month 7 --ba SRP
       - name: Audit EIA bulk imputed, adjusted and forecast-mismatch flags
-        if: steps.bulk.outcome == 'success'
+        if: steps.bulk.outcome == 'success' || steps.zenodo.outcome == 'success'
         run: |
           python scripts/c2_eia930_bulk_quality_flags.py \
             pilot/source/EIA930_BALANCE_original.csv \
