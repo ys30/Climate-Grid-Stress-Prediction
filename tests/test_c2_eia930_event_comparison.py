@@ -67,11 +67,11 @@ class TestEventDfComparison(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             event,daily=make(td)
             with event.open("a") as f:
-                f.write("SRP,2024-07-01,peak,Huber,observed_high_load,E1,1000,900,950\\n")
-                f.write("SRP,2024-07-02,peak,Huber,observed_high_load,E1,1000,900,950\\n")
+                f.write("SRP,2024-07-01,peak,Huber,observed_high_load,E1,1000,900,950\n")
+                f.write("SRP,2024-07-02,peak,Huber,observed_high_load,E1,1000,900,950\n")
             with daily.open("a") as f:
-                f.write("SRP,2024-07-01,24,1000,-200,800\\n")
-                f.write("SRP,2024-07-02,24,1000,-200,800\\n")
+                f.write("SRP,2024-07-01,24,1000,-200,800\n")
+                f.write("SRP,2024-07-02,24,1000,-200,800\n")
             quality=Path(td)/"flags.json"
             quality.write_text('{"ba":"SRP","year":2025,"month":7,"flagged_dates_utc":["2025-07-01"]}')
             result=compare(event,daily,quality_flags_json=quality)
