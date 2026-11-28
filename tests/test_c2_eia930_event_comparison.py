@@ -55,10 +55,10 @@ class TestEventDfComparison(unittest.TestCase):
             event,daily=make(td)
             with event.open("a") as f:
                 f.write("SRP,2024-07-01,peak,Huber,observed_high_load,E1,1000,900,950\n")
-                f.write("SRP,2024-07-02,peak,Huber,observed_high_load,E1,1000,900,950\\n")
+                f.write("SRP,2024-07-02,peak,Huber,observed_high_load,E1,1000,900,950\n")
             with daily.open("a") as f:
                 f.write("SRP,2024-07-01,24,1000,-200,800\n")
-                f.write("SRP,2024-07-02,24,1000,-200,800\\n")
+                f.write("SRP,2024-07-02,24,1000,-200,800\n")
             result=compare(event,daily)
             self.assertEqual(result["frozen_episodes"],2)
             self.assertEqual(result["matched_days"],4)
