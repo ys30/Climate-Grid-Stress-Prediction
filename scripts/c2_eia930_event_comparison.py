@@ -45,12 +45,24 @@ def compare(events_csv,daily_csv,*,ba="SRP",target="peak",estimator="Huber",
         if abs((forecast-actual)-signed)>1e-5:raise ValueError("EIA signed-error identity mismatch")
         operator[day]=(actual,forecast,signed)
     flagged=set()
+    quality_scope=None
     if quality_flags_json:
         flags=json.loads(Path(quality_flags_json).read_text())
         if flags.get("ba")!=ba:raise ValueError("quality source BA mismatch")
-        flagged=set(flags["flagged_dates_utc"])
-        if len(flagged)!=len(flags["flagged_dates_utc"]):
-            raise ValueError("duplicate source flagged date")
+        try:
+            quality_scope=(int(flags["year"]),int(flags["month"]))
+        except (KeyError,ValueError,TypeError) as exc:
+            raise ValueError("quality source year/month missing or invalid") from exc
+        if not 1 <= quality_scope[1] <= 12:
+            raise ValueError("quality source month outside 1-12")
+        raw_flags=flags.get("flagged_dates_utc")
+        if not isinstance(raw_flags,list) or len(raw_flags)!=len(set(raw_flags)):
+            raise ValueError("duplicate or invalid source flagged dates")
+        flagged=set(raw_flags)
+        for rawday in flagged:
+            flagday=dt.date.fromisoformat(rawday)
+            if (flagday.year,flagday.month)!=quality_scope:
+                raise ValueError("quality flag date outside audited year/month")
     selected={}
     for row in events:
         if row["ba"]!=ba or row["target"]!=target or row["estimator"]!=estimator or row["event_category"]!=event_category:
@@ -91,7 +103,8 @@ def compare(events_csv,daily_csv,*,ba="SRP",target="peak",estimator="Huber",
             "weather_pred_peak_mw":weather,"operator_signed_error_mw":bias,
             "calendar_signed_error_mw":cal-obs,
             "weather_signed_error_mw":weather-obs,
-            "source_quality_flagged":day.isoformat() in flagged if quality_flags_json else None})
+            "source_quality_flagged":(day.isoformat() in flagged)
+            if quality_scope==(day.year,day.month) else None})
     def stats(items):
         def metric(key):return sum(abs(x[key]) for x in items)/len(items) if items else None
         def under(key):return sum(x[key]<0 for x in items)/len(items) if items else None
@@ -104,11 +117,16 @@ def compare(events_csv,daily_csv,*,ba="SRP",target="peak",estimator="Huber",
                 "weather_underforecast_fraction":under("weather_signed_error_mw")}
     by_duration={name:stats([x for x in records if x["duration"]==name]) for name in ("2-3d","4-7d","8+d")}
     clean=[x for x in records if x["source_quality_flagged"] is False]
+    unknown=[x for x in records if x["source_quality_flagged"] is None]
+    flagged_records=[x for x in records if x["source_quality_flagged"] is True]
     return {"ba":ba,"target":target,"estimator":estimator,"event_category":event_category,
             "frozen_event_days":len(selected),"frozen_episodes":len(episodes),
             "matched_days":len(records),"unmatched_days":len(unmatched),
             "unmatched_dates":unmatched,"all_matched":stats(records),
             "by_duration":by_duration,"quality_unflagged_matched":stats(clean) if quality_flags_json else None,
+            "quality_flagged_matched":stats(flagged_records) if quality_flags_json else None,
+            "quality_status_unknown_matched":len(unknown),
+            "quality_audit_scope":list(quality_scope) if quality_scope else None,
             "records":records,
             "interpretation":"Descriptive overlap only; reported EIA DF issue-time vintage is not independently proven; realized weather is hindsight; missing dates never scored."}
 
