@@ -57,6 +57,25 @@ class TestPilotQualityGate(unittest.TestCase):
             with paths[0].open('a') as f:f.write('SRP,2025-07-01,24\n')
             r=gate(*paths)
             self.assertFalse(r['passed']);self.assertTrue(any('duplicate' in x for x in r['errors']))
+    def test_valid_zenodo_archive_origin_accepted_for_pilot(self):
+        with tempfile.TemporaryDirectory() as d:
+            paths=self.fixture(d,31)
+            meta=json.loads(paths[2].read_text())
+            meta['origin']='pudl_zenodo_raw'
+            paths[2].write_text(json.dumps(meta))
+            result=gate(*paths)
+            self.assertTrue(result['passed'],result['errors'])
+            self.assertEqual(result['admission'],'FULL_MONTH')
+            self.assertEqual(result['source_origin'],'pudl_zenodo_raw')
+    def test_unknown_archive_origin_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            paths=self.fixture(d,31)
+            meta=json.loads(paths[2].read_text())
+            meta['origin']='unverified_external'
+            paths[2].write_text(json.dumps(meta))
+            result=gate(*paths)
+            self.assertFalse(result['passed'])
+            self.assertEqual(result['admission'],'REJECTED')
     def test_missing_manifest_month_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             paths=self.fixture(d,31)
