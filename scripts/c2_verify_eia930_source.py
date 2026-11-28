@@ -63,7 +63,7 @@ def verify(source_csv, source_manifest):
     for key,info in specs.items():
         if counts[key]!=int(info["rows"]):
             issues.append(f"month {key}: actual rows {counts[key]} != {info['rows']}")
-        if meta.get("origin")=="bulk":
+        if meta.get("origin") in ("bulk","pudl_zenodo_raw"):
             if "api_total" in info:
                 issues.append(f"month {key}: bulk manifest cannot claim API page totals")
             rawfile=meta.get("original_bulk_file")
@@ -79,6 +79,25 @@ def verify(source_csv, source_manifest):
         else:
             if "api_total" not in info or int(info["api_total"]) != int(info["rows"]):
                 issues.append(f"month {key}: API reported total disagrees")
+    if meta.get("origin")=="pudl_zenodo_raw":
+        archive_meta=meta.get("archive_provenance",{})
+        archive_name=archive_meta.get("archive_file")
+        if not archive_name or Path(archive_name).name!=archive_name:
+            issues.append("missing or invalid Zenodo archive path")
+        else:
+            archive=source_manifest.parent/archive_name
+            if not archive.is_file():
+                issues.append("Zenodo archive not retained")
+            else:
+                raw=archive.read_bytes()
+                expected_sha=archive_meta.get("archive_sha256")
+                expected_md5=archive_meta.get("published_md5")
+                if hashlib.sha256(raw).hexdigest()!=expected_sha:
+                    issues.append("Zenodo archive SHA-256 mismatch")
+                if hashlib.md5(raw).hexdigest()!=expected_md5:
+                    issues.append("Zenodo archive published MD5 mismatch")
+        if archive_meta.get("member")!="eia930-2025half2-balance.csv":
+            issues.append("unexpected PUDL archive source member")
     if not rows:
         issues.append("zero source rows")
     return {"passed":not issues,"issues":issues,"rows":rows,"source_sha256":digest,
