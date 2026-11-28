@@ -13,10 +13,12 @@ class _Response(io.BytesIO):
         self.headers={"Content-Type":ctype}
 
 class TestEiaBulkDownload(unittest.TestCase):
+    CSV_HEADER=b"Balancing Authority,UTC Time at End of Hour,Demand (MW),Demand Forecast (MW)\n"
+    CSV_ROW=b"SRP,07/01/2025 01:00:00 AM,1000,950\n"
     def test_transient_failure_then_valid_csv(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest=Path(tmp)/"source.csv"
-            events=[URLError("temporary error"), _Response(b"a,b\n1,2\n")]
+            events=[URLError("temporary error"), _Response(self.CSV_HEADER+self.CSV_ROW)]
             def respond(*args,**kwargs):
                 entry=events.pop(0)
                 if isinstance(entry,Exception):
@@ -25,7 +27,15 @@ class TestEiaBulkDownload(unittest.TestCase):
             with patch("scripts.c2_fetch_eia930_bulk.urllib.request.urlopen",side_effect=respond),patch("time.sleep"):
                 url=download_bulk(dest,2025,7)
             self.assertIn("EIA930_BALANCE_2025_Jul_Dec.csv",url)
-            self.assertEqual(dest.read_bytes(),b"a,b\n1,2\n")
+            self.assertEqual(dest.read_bytes(),self.CSV_HEADER+self.CSV_ROW)
+    def test_csv_like_invalid_columns_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest=Path(tmp)/"source.csv"
+            with patch("scripts.c2_fetch_eia930_bulk.urllib.request.urlopen",
+                       side_effect=lambda *a,**kw:_Response(b"a,b\\n1,2\\n")),patch("time.sleep"):
+                with self.assertRaisesRegex(RuntimeError,"after 3 attempts"):
+                    download_bulk(dest,2025,7)
+            self.assertFalse(dest.exists())
     def test_html_rejected_and_partial_file_removed(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest=Path(tmp)/"source.csv"
