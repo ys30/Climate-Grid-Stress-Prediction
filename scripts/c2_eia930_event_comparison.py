@@ -62,7 +62,7 @@ def compare(events_csv,daily_csv,*,ba="SRP",target="peak",estimator="Huber",
     episodes=defaultdict(list)
     for day,row in selected.items():
         if not row["episode_id"]:raise ValueError("blank episode ID")
-        episodes[row["episode_id"]].append(day)
+        episodes[(day.year,row["episode_id"])].append(day)
     buckets={}
     for episode,dates in episodes.items():
         dates.sort()
@@ -86,7 +86,7 @@ def compare(events_csv,daily_csv,*,ba="SRP",target="peak",estimator="Huber",
         weather=number(row["weather_pred_mw"],"weather prediction")
         records.append({
             "ba":ba,"date_utc":day.isoformat(),"episode_id":row["episode_id"],
-            "duration":buckets[row["episode_id"]],"actual_peak_mw":obs,
+            "duration":buckets[(day.year,row["episode_id"])],"actual_peak_mw":obs,
             "operator_pred_peak_mw":df,"calendar_pred_peak_mw":cal,
             "weather_pred_peak_mw":weather,"operator_signed_error_mw":bias,
             "calendar_signed_error_mw":cal-obs,
