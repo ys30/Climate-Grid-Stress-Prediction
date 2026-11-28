@@ -255,3 +255,7 @@ python scripts/c2_eia930_event_comparison.py \
   --quality-flags /path/to/raw_bulk_quality_flags.json
 ```
 The event category argument must exactly match the archived input labels; this README example does **not** assert the label was verified in the unavailable archive. The regression suite [`tests/test_c2_eia930_event_comparison.py`](tests/test_c2_eia930_event_comparison.py) checks signed errors, missing operator days, target mismatch, episode contiguity, duplicate conditioning and source arithmetic. No real event/operator overlap has been computed in this chat, and the historical 142 SRP peak event days are **not** asserted to overlap July 2025 without evidence.
+
+### Cross-year reuse of frozen episode identifiers (2026-11-28)
+
+The [event/DF comparison](scripts/c2_eia930_event_comparison.py) now scopes persistent event IDs by **(test year, episode ID)**, not by ID alone. Frozen event identifiers are not guaranteed to be globally unique over 2023–2025. Previously, a perfectly valid event ID reused in two different years could falsely merge two unrelated 2-day episodes into a cross-year invalid event. A [dedicated regression case](tests/test_c2_eia930_event_comparison.py) constructs two separate 2-day episodes in 2024 and 2025 with the same ID and requires **2 episodes, 4 matched days, both in 2–3-day duration group**. This change preserves the original dates and events and does not fabricate an additional match. This is a *software change pending verified CI output*, not a new real-data operator result.
