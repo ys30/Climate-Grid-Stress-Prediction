@@ -197,3 +197,9 @@ The [six-month official BALANCE downloader](scripts/c2_fetch_eia930_bulk.py) now
 New [HTTP failure-mode unit tests](tests/test_c2_eia930_bulk_download.py) cover failure then valid retry, HTML response, empty response, and overwrite prevention. The corresponding download/retry behavior was also reconstructed and exercised independently in a local isolated smoke test (4/4 passed); the repository test file is now included in the CI regression and SRP pilot prerequisites. **Do not interpret this local smoke test as a successful remote GitHub Actions run or as empirical SRP demand-forecast performance.**
 
 Authentic EIA source data have not been fetched by this local environment due to DNS resolution failure. A real run artifact and job log are still required to complete E2 official-source validation.
+
+### Verified EIA source-header preflight (2026-11-27)
+
+The keyless official EIA six-month BALANCE download previously rejected only empty responses and overt HTML errors. It now also opens each downloaded source as UTF-8-SIG CSV and **requires the four exact columns** `Balancing Authority`, `UTC Time at End of Hour`, `Demand (MW)`, and `Demand Forecast (MW)` before accepting the HTTP retrieval. Missing columns cause the raw file to be discarded and the bounded retry path to be used. This prevents a non-HTML error/changed export schema from masquerading as successful source acquisition.
+
+The updated [offline downloader regression tests](tests/test_c2_eia930_bulk_download.py) cover a valid header after a transient network failure, missing expected header, HTML, empty response, and no-overwrite. A local reimplementation of the same download/header-check code passed **5/5** tests; full new GitHub Actions execution and a genuine EIA-930 source-file run remain unverified. **This is source-format verification, not model skill validation.**
